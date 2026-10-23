@@ -6,7 +6,15 @@ Tamamen **salt kendi başına (standalone)** çalışacak şekilde kurgulanmış
 
 ---
 
-## 🚀 Hızlı Başlangıç
+## 🌐 Canlı İnternet Yayını (Bilgisayarsız Kullanım)
+
+Uygulama 7/24 internet üzerinde yayındadır. Bilgisayarınız kapalı olsa dahi masadaki tüm telefon ve tabletlerden doğrudan erişebilirsiniz:
+
+👉 **[https://selimbayanoglu-beep.github.io/king-puan-ve-ceza-hesaplama/](https://selimbayanoglu-beep.github.io/king-puan-ve-ceza-hesaplama/)**
+
+---
+
+## 🚀 Hızlı Başlangıç (Yerel Kullanım)
 
 Bu projeyi 3 farklı şekilde kullanabilirsiniz:
 
