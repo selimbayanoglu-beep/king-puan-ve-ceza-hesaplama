@@ -54,14 +54,14 @@
         <span class="tab-label">1. Oyuncular</span>
       </button>
       <button class="swipe-tab" data-index="1" id="tab1">
-        <span class="tab-icon">👑</span>
-        <span class="tab-label">2. Koz</span>
-        <span class="tab-count-badge" id="tabBadgeKoz">0/8</span>
+        <span class="tab-icon">⚡</span>
+        <span class="tab-label">2. Ceza</span>
+        <span class="tab-count-badge" id="tabBadgeCeza">0/12</span>
       </button>
       <button class="swipe-tab" data-index="2" id="tab2">
-        <span class="tab-icon">⚡</span>
-        <span class="tab-label">3. Ceza</span>
-        <span class="tab-count-badge" id="tabBadgeCeza">0/12</span>
+        <span class="tab-icon">👑</span>
+        <span class="tab-label">3. Koz</span>
+        <span class="tab-count-badge" id="tabBadgeKoz">0/8</span>
       </button>
       <button class="swipe-tab" data-index="3" id="tab3">
         <span class="tab-icon">📊</span>
@@ -146,7 +146,7 @@
 
           <div class="setup-actions">
             <button type="button" class="btn btn-primary btn-hero" id="btnStartGame">
-              <span>Oyunu Başlat ve Koz Sayfasına Geç ➔</span>
+              <span>Oyunu Başlat ve Ceza Sayfasına Geç ➔</span>
             </button>
           </div>
         </div>
@@ -154,65 +154,9 @@
     </section>
 
     <!-- ======================================================================
-         SAYFA 1: KOZ SAYFASI (KOZ ELİ GİRİŞİ)
+         SAYFA 1: CEZA SAYFASI (CEZA ELİ GİRİŞİ — İLK 4 EL CEZADIR)
          ====================================================================== -->
-    <section class="app-screen screen-koz" id="screen1">
-      <div class="screen-card">
-        
-        <!-- Aktif El Durum Başlığı -->
-        <div class="hand-meta-bar koz-theme">
-          <div class="meta-badge">👑 KOZ OYUNU</div>
-          <div class="meta-info">
-            <span class="meta-hand-no" id="lblKozHandNo">1. El (1 / 20)</span>
-            <span class="meta-caller" id="lblKozCaller">Söyleyen: Oyuncu 1</span>
-          </div>
-          <div class="meta-rights" id="lblKozCallerRights">Koz Hakkı: 0 / 2</div>
-        </div>
-
-        <!-- Koz Hakkı Tükendiyse Uyarı -->
-        <div class="caller-locked-alert" id="kozLockedAlert" style="display: none;">
-          <div class="alert-icon">⚠️</div>
-          <div class="alert-content">
-            <h4>Koz Hakkı Tükendi!</h4>
-            <p id="kozLockedMsg">Bu oyuncunun 2 koz hakkı da bitti. Lütfen ceza seçmek için sayfayı sola kaydırın.</p>
-          </div>
-          <button type="button" class="btn btn-secondary btn-sm" id="btnGoCezaFromKoz">Ceza Sayfasına Git ➔</button>
-        </div>
-
-        <!-- Koz Dağıtım Alanı -->
-        <div class="entry-box" id="kozEntryBox">
-          <div class="entry-box-header">
-            <div class="rule-hint">👑 Alınan her el <b>+50 Puan</b> kazandırır. Toplam <b>13 el</b> dağıtılmalıdır.</div>
-            <div class="remaining-counter" id="kozRemainingBadge">Kalan: 13 / 13 El</div>
-          </div>
-
-          <div class="dist-rows-container" id="kozPlayersList">
-            <!-- 4 oyuncu miktar girişi -->
-          </div>
-
-          <div class="quick-fill-container">
-            <span class="qf-label">Kalanı Ata:</span>
-            <div class="qf-buttons" id="kozQuickButtons">
-              <!-- Hızlı butonlar -->
-            </div>
-          </div>
-
-          <div class="validation-bar" id="kozValidationMsg">
-            Lütfen toplam 13 el olacak şekilde dağılımı yapın.
-          </div>
-
-          <button type="button" class="btn btn-primary btn-hero btn-save-hand" id="btnSaveKoz" disabled>
-            <span>✓</span> Koz Elini Kaydet ve Sonuçlara Geç
-          </button>
-        </div>
-
-      </div>
-    </section>
-
-    <!-- ======================================================================
-         SAYFA 2: CEZA SAYFASI (CEZA ELİ GİRİŞİ)
-         ====================================================================== -->
-    <section class="app-screen screen-ceza" id="screen2">
+    <section class="app-screen screen-ceza" id="screen1">
       <div class="screen-card">
         
         <!-- Aktif El Durum Başlığı -->
@@ -230,9 +174,9 @@
           <div class="alert-icon">⚠️</div>
           <div class="alert-content">
             <h4>Ceza Hakkı Tükendi!</h4>
-            <p id="cezaLockedMsg">Bu oyuncunun 3 ceza hakkı da bitti. Lütfen koz oynamak için sağa kaydırın.</p>
+            <p id="cezaLockedMsg">Bu oyuncunun 3 ceza hakkı da bitti. Lütfen koz oynamak için sayfayı sola kaydırın.</p>
           </div>
-          <button type="button" class="btn btn-secondary btn-sm" id="btnGoKozFromCeza">⬅ Koz Sayfasına Git</button>
+          <button type="button" class="btn btn-secondary btn-sm" id="btnGoKozFromCeza">Koz Sayfasına Git ➔</button>
         </div>
 
         <!-- 6 Ceza Oyun Seçim Kartları -->
@@ -289,6 +233,62 @@
     </section>
 
     <!-- ======================================================================
+         SAYFA 2: KOZ SAYFASI (KOZ ELİ GİRİŞİ — 5. ELDEN İTİBAREN)
+         ====================================================================== -->
+    <section class="app-screen screen-koz" id="screen2">
+      <div class="screen-card">
+        
+        <!-- Aktif El Durum Başlığı -->
+        <div class="hand-meta-bar koz-theme">
+          <div class="meta-badge">👑 KOZ OYUNU</div>
+          <div class="meta-info">
+            <span class="meta-hand-no" id="lblKozHandNo">1. El (1 / 20)</span>
+            <span class="meta-caller" id="lblKozCaller">Söyleyen: Oyuncu 1</span>
+          </div>
+          <div class="meta-rights" id="lblKozCallerRights">Koz Hakkı: 0 / 2</div>
+        </div>
+
+        <!-- Koz Hakkı Kilitliyse Uyarı (İlk 4 El veya Hak Tükendi) -->
+        <div class="caller-locked-alert" id="kozLockedAlert" style="display: none;">
+          <div class="alert-icon">⚠️</div>
+          <div class="alert-content">
+            <h4 id="kozLockedTitle">Koz Henüz Oynanamaz!</h4>
+            <p id="kozLockedMsg">King kurallarına göre ilk 4 el ceza oynanmalıdır. Koz oyunları 5. elden itibaren açılır.</p>
+          </div>
+          <button type="button" class="btn btn-secondary btn-sm" id="btnGoCezaFromKoz">⬅ Ceza Sayfasına Git</button>
+        </div>
+
+        <!-- Koz Dağıtım Alanı -->
+        <div class="entry-box" id="kozEntryBox">
+          <div class="entry-box-header">
+            <div class="rule-hint">👑 Alınan her el <b>+50 Puan</b> kazandırır. Toplam <b>13 el</b> dağıtılmalıdır.</div>
+            <div class="remaining-counter" id="kozRemainingBadge">Kalan: 13 / 13 El</div>
+          </div>
+
+          <div class="dist-rows-container" id="kozPlayersList">
+            <!-- 4 oyuncu miktar girişi -->
+          </div>
+
+          <div class="quick-fill-container">
+            <span class="qf-label">Kalanı Ata:</span>
+            <div class="qf-buttons" id="kozQuickButtons">
+              <!-- Hızlı butonlar -->
+            </div>
+          </div>
+
+          <div class="validation-bar" id="kozValidationMsg">
+            Lütfen toplam 13 el olacak şekilde dağılımı yapın.
+          </div>
+
+          <button type="button" class="btn btn-primary btn-hero btn-save-hand" id="btnSaveKoz" disabled>
+            <span>✓</span> Koz Elini Kaydet ve Sonuçlara Geç
+          </button>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- ======================================================================
          SAYFA 3: TOPLU SONUÇLAR & CANLI ÇETELE MATRİSİ
          ====================================================================== -->
     <section class="app-screen screen-results" id="screen3">
@@ -301,8 +301,8 @@
             <h3 class="nt-caller" id="lblResActiveCaller">Sıradaki: Oyuncu 1</h3>
           </div>
           <div class="nt-actions">
-            <button type="button" class="btn btn-sm btn-koz" id="btnJumpToKoz">👑 Koz Girişi Yap</button>
             <button type="button" class="btn btn-sm btn-ceza" id="btnJumpToCeza">⚡ Ceza Girişi Yap</button>
+            <button type="button" class="btn btn-sm btn-koz" id="btnJumpToKoz">👑 Koz Girişi Yap</button>
           </div>
         </div>
 

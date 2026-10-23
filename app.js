@@ -380,6 +380,11 @@ function isGameAvailableForCaller(callerIdx, gameKey) {
   const def = GAME_DEFS[gameKey];
   if (!def) return false;
 
+  // King Kuralı: İlk 4 el kesinlikle ceza oynanır, koz oynanamaz!
+  if (def.isKoz && state.rounds.length < 4) {
+    return false;
+  }
+
   if (def.isKoz) {
     return caller.kozCount < 2;
   }
@@ -408,8 +413,8 @@ function renderAll() {
   const isGameOver = currentHand > 20;
 
   renderSetupScreen();
-  renderKozScreen(currentHand, callerIdx, isGameOver);
   renderCezaScreen(currentHand, callerIdx, isGameOver);
+  renderKozScreen(currentHand, callerIdx, isGameOver);
   renderResultsScreen(currentHand, callerIdx, isGameOver);
 }
 
@@ -442,7 +447,12 @@ function renderSetupScreen() {
 }
 
 // --------------------------------------------------------------------------
-// 2. KOZ SAYFASI
+// 2. CEZA SAYFASI (1. OYUN SAYFASI) — İLK 4 EL CEZADIR
+// --------------------------------------------------------------------------
+// (renderCezaScreen aşağıda tanımlıdır)
+
+// --------------------------------------------------------------------------
+// 3. KOZ SAYFASI (5. ELDEN İTİBAREN AÇILIR)
 // --------------------------------------------------------------------------
 function renderKozScreen(currentHand, callerIdx, isGameOver) {
   const caller = state.players[callerIdx] || state.players[0];
@@ -450,6 +460,9 @@ function renderKozScreen(currentHand, callerIdx, isGameOver) {
   const callerEl = document.getElementById('lblKozCaller');
   const rightsEl = document.getElementById('lblKozCallerRights');
   const lockedAlert = document.getElementById('kozLockedAlert');
+  const lockedTitle = document.getElementById('kozLockedTitle');
+  const lockedMsg = document.getElementById('kozLockedMsg');
+  const btnGoCeza = document.getElementById('btnGoCezaFromKoz');
   const entryBox = document.getElementById('kozEntryBox');
   const playedKozCount = state.rounds.filter(r => r.isKoz).length;
 
@@ -467,12 +480,24 @@ function renderKozScreen(currentHand, callerIdx, isGameOver) {
   callerEl.textContent = `Söyleyen: ${caller.name}`;
   rightsEl.textContent = `Koz Hakkı: ${caller.kozCount} / 2`;
 
+  // King Kuralı: İlk 4 el yalnızca ceza oynanır, koz 5. elden itibaren açılır!
+  if (state.rounds.length < 4) {
+    lockedAlert.style.display = 'flex';
+    entryBox.style.display = 'none';
+    if (lockedTitle) lockedTitle.textContent = 'İlk 4 El Ceza Oynanmalıdır!';
+    if (lockedMsg) lockedMsg.textContent = `Geleneksel King kurallarına göre ilk 4 el yalnızca Ceza oynanabilir. Koz oyunları 5. elden itibaren açılacaktır (Şu an ${currentHand}. eldesiniz).`;
+    if (btnGoCeza) btnGoCeza.textContent = '⬅ 2. Ceza Sayfasına Git';
+    return;
+  }
+
   const canPlayKoz = caller.kozCount < 2;
 
   if (!canPlayKoz) {
     lockedAlert.style.display = 'flex';
     entryBox.style.display = 'none';
-    document.getElementById('kozLockedMsg').textContent = `${caller.name} oyuncusunun 2 Koz hakkı da tükendi. Bu elde Ceza seçilmelidir.`;
+    if (lockedTitle) lockedTitle.textContent = 'Koz Hakkı Tükendi!';
+    if (lockedMsg) lockedMsg.textContent = `${caller.name} oyuncusunun 2 Koz hakkı da bitti. Bu elde Ceza seçilmelidir.`;
+    if (btnGoCeza) btnGoCeza.textContent = '⬅ 2. Ceza Sayfasına Git';
     return;
   }
 
@@ -725,7 +750,8 @@ function renderResultsScreen(currentHand, callerIdx, isGameOver) {
   } else {
     lblHand.textContent = `${currentHand} / 20`;
     lblCaller.textContent = `Sıradaki: ${caller.name}`;
-    btnJumpKoz.style.display = caller.kozCount < 2 ? 'inline-flex' : 'none';
+    // İlk 4 el sadece ceza oynanabilir; koz 5. elden itibaren açılır
+    btnJumpKoz.style.display = (state.rounds.length >= 4 && caller.kozCount < 2) ? 'inline-flex' : 'none';
     btnJumpCeza.style.display = caller.cezaCount < 3 ? 'inline-flex' : 'none';
   }
 
@@ -1029,27 +1055,27 @@ function initEventListeners() {
     triggerHaptic(25);
     renderAll();
 
-    // Koz sayfasına pürüzsüzce kaydır
+    // Ceza sayfasına pürüzsüzce kaydır (King kurallarına göre ilk 4 el cezadır)
     goToScreen(1, true);
-    showToast('Oyun başlatıldı! Koz sayfasındasınız.', 'emerald');
+    showToast('Oyun başlatıldı! Ceza sayfasındasınız.', 'amber');
   });
 
-  // Hızlı Geçiş Butonları (Sonuçlar Sayfasından Koz ve Cezaya)
-  document.getElementById('btnJumpToKoz').addEventListener('click', () => {
-    triggerHaptic(15);
-    goToScreen(1, true);
-  });
+  // Hızlı Geçiş Butonları (Sonuçlar Sayfasından Ceza ve Koza)
   document.getElementById('btnJumpToCeza').addEventListener('click', () => {
     triggerHaptic(15);
-    goToScreen(2, true);
+    goToScreen(1, true); // Ceza = Ekran 1
+  });
+  document.getElementById('btnJumpToKoz').addEventListener('click', () => {
+    triggerHaptic(15);
+    goToScreen(2, true); // Koz = Ekran 2
   });
   document.getElementById('btnGoCezaFromKoz').addEventListener('click', () => {
     triggerHaptic(15);
-    goToScreen(2, true);
+    goToScreen(1, true); // Koz ekranından Ceza ekranına (1) git
   });
   document.getElementById('btnGoKozFromCeza').addEventListener('click', () => {
     triggerHaptic(15);
-    goToScreen(1, true);
+    goToScreen(2, true); // Ceza ekranından Koz ekranına (2) git
   });
 
   // Oyuncuları Düzenle (Sonuçlar sayfasından Sayfa 0'a)
