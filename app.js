@@ -1,6 +1,6 @@
 /**
  * KING PUAN & CEZA HESAPLAMA SİSTEMİ
- * 20 El Oyun Döngüsü, Otomatik Doğrulama ve Çetele Motoru
+ * 4 Bağımsız Ekran (Oyuncular, Koz, Ceza, Sonuçlar) & Yatay Kaydırma (Swipe) Motoru
  */
 
 // Sabit King Oyun Türleri ve Kural Parametreleri
@@ -69,7 +69,7 @@ const GAME_DEFS = {
     totalUnits: 1,
     unitName: 'Kupa Papazı',
     baseUnitPoint: -320,
-    desc: 'Kupa Papazını alan oyuncu tek seferde -320 puan ceza yer.'
+    desc: 'Kupa Papazını (K♥️) alan oyuncu tek seferde -320 puan ceza yer.'
   },
   son_iki: {
     key: 'son_iki',
@@ -96,19 +96,19 @@ let state = {
   ],
   initialDealer: 0,
   scoringMode: 'standard', // 'standard' | 'zero_sum' | 'bloody'
-  rounds: [], // Oynanan eller geçmişi
-  selectedGameKey: 'koz',
-  currentInputs: [0, 0, 0, 0] // Aktif el için 4 oyuncunun girdiği miktar
+  rounds: [],
+  selectedCezaKey: 'el_almaz',
+  kozInputs: [0, 0, 0, 0],
+  cezaInputs: [0, 0, 0, 0]
 };
 
-// ==========================================================================
-// ÇOKLU CİHAZ SENKRONİZASYON & HAPTIC MOTORU
-// ==========================================================================
+// Çoklu Cihaz Senkronizasyonu & Haptic
 let serverVersion = 0;
 let isServerOnline = false;
 let isSyncing = false;
 let serverNetworkUrl = '';
 let syncIntervalId = null;
+let currentScreenIndex = 0;
 
 function triggerHaptic(duration = 20) {
   try {
@@ -118,6 +118,94 @@ function triggerHaptic(duration = 20) {
   } catch (e) {}
 }
 
+// ==========================================================================
+// UYGULAMA BAŞLATMA
+// ==========================================================================
+document.addEventListener('DOMContentLoaded', async () => {
+  loadStateFromStorage();
+  initSliderNavigation();
+  initEventListeners();
+  renderAll();
+
+  // Eğer oyun zaten başlamışsa doğrudan Koz veya Sonuçlar sayfasına kaydır
+  if (state.rounds.length > 0) {
+    goToScreen(3, false); // Sonuçlar
+  } else {
+    goToScreen(0, false); // Kurulum
+  }
+
+  // Sunucu ve ağ kontrolü
+  await fetchNetworkInfo();
+  await fetchServerState(true);
+
+  // Periyodik senkronizasyon (her 1.5 sn)
+  syncIntervalId = setInterval(() => {
+    fetchServerState(false);
+  }, 1500);
+});
+
+// ==========================================================================
+// SWIPE SLIDER & EKRAN KAYDIRMA YÖNETİMİ
+// ==========================================================================
+function initSliderNavigation() {
+  const slider = document.getElementById('screensSlider');
+  const tabs = document.querySelectorAll('.swipe-tab');
+
+  // Sekmelere tıklama
+  tabs.forEach(tab => {
+    tab.addEventListener('click', () => {
+      const idx = parseInt(tab.dataset.index, 10);
+      triggerHaptic(15);
+      goToScreen(idx, true);
+    });
+  });
+
+  // Dokunmatik kaydırma bitişini dinle (Scroll Snap)
+  let scrollTimeout = null;
+  slider.addEventListener('scroll', () => {
+    clearTimeout(scrollTimeout);
+    scrollTimeout = setTimeout(() => {
+      const screenWidth = slider.clientWidth;
+      if (screenWidth > 0) {
+        const newIndex = Math.round(slider.scrollLeft / screenWidth);
+        if (newIndex !== currentScreenIndex && newIndex >= 0 && newIndex <= 3) {
+          currentScreenIndex = newIndex;
+          updateSwipeTabs(currentScreenIndex);
+        }
+      }
+    }, 40);
+  }, { passive: true });
+}
+
+function goToScreen(index, smooth = true) {
+  const slider = document.getElementById('screensSlider');
+  currentScreenIndex = Math.max(0, Math.min(3, index));
+  const screenWidth = slider.clientWidth;
+  
+  slider.scrollTo({
+    left: currentScreenIndex * screenWidth,
+    behavior: smooth ? 'smooth' : 'auto'
+  });
+
+  updateSwipeTabs(currentScreenIndex);
+}
+
+function updateSwipeTabs(index) {
+  const tabs = document.querySelectorAll('.swipe-tab');
+  const indicator = document.getElementById('swipeIndicator');
+
+  tabs.forEach((tab, i) => {
+    tab.classList.toggle('active', i === index);
+  });
+
+  if (indicator) {
+    indicator.style.transform = `translateX(${index * 100}%)`;
+  }
+}
+
+// ==========================================================================
+// SUNUCU & STORAGE SENKRONİZASYONU
+// ==========================================================================
 async function fetchNetworkInfo() {
   try {
     const res = await fetch('/api/network-info', { cache: 'no-store' });
@@ -141,9 +229,8 @@ async function fetchServerState(initial = false) {
         serverVersion = data.version;
         if (data.state && Array.isArray(data.state.players)) {
           state = data.state;
-          if (!state.currentInputs || state.currentInputs.length !== 4) {
-            state.currentInputs = [0, 0, 0, 0];
-          }
+          if (!state.kozInputs) state.kozInputs = [0, 0, 0, 0];
+          if (!state.cezaInputs) state.cezaInputs = [0, 0, 0, 0];
           recalculateAllScores();
           saveStateToStorage();
           renderAll();
@@ -171,9 +258,7 @@ async function pushStateToServer() {
     });
     if (res.ok) {
       const data = await res.json();
-      if (data.version) {
-        serverVersion = data.version;
-      }
+      if (data.version) serverVersion = data.version;
       updateSyncBadge(true);
     } else {
       updateSyncBadge(false);
@@ -192,50 +277,26 @@ function updateSyncBadge(online) {
   const text = document.getElementById('syncText');
   if (!badge) return;
 
+  const isCloud = window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1' && window.location.protocol.startsWith('http');
   if (online) {
     badge.className = 'sync-badge';
     if (dot) dot.className = 'sync-dot online';
     if (text) text.textContent = 'Canlı Senkronize';
+  } else if (isCloud) {
+    badge.className = 'sync-badge';
+    if (dot) dot.className = 'sync-dot online';
+    if (text) text.textContent = 'Bulut Modu (Aktif)';
   } else {
-    const isCloud = window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1' && window.location.protocol.startsWith('http');
-    if (isCloud) {
-      badge.className = 'sync-badge';
-      if (dot) dot.className = 'sync-dot online';
-      if (text) text.textContent = 'Bulut Modu (Aktif)';
-    } else {
-      badge.className = 'sync-badge offline';
-      if (dot) dot.className = 'sync-dot offline';
-      if (text) text.textContent = 'Yerel Mod (Çevrimdışı)';
-    }
+    badge.className = 'sync-badge offline';
+    if (dot) dot.className = 'sync-dot offline';
+    if (text) text.textContent = 'Yerel Mod';
   }
 }
 
-// Uygulama Başlatma
-document.addEventListener('DOMContentLoaded', async () => {
-  loadStateFromStorage();
-  initEventListeners();
-  initMobileNavigation();
-  renderAll();
-
-  // Ağ bilgilerini ve sunucu durumunu kontrol et
-  await fetchNetworkInfo();
-  await fetchServerState(true);
-
-  // Periyodik Canlı Senkronizasyon (Her 1.5 saniyede bir diğer cihazları dinle)
-  syncIntervalId = setInterval(() => {
-    fetchServerState(false);
-  }, 1500);
-});
-
-// ==========================================================================
-// STATE & STORAGE YÖNETİMİ
-// ==========================================================================
 function saveStateToStorage() {
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-  } catch (e) {
-    console.warn('LocalStorage kaydı yapılamadı:', e);
-  }
+  } catch (e) {}
 }
 
 function loadStateFromStorage() {
@@ -245,15 +306,671 @@ function loadStateFromStorage() {
       const parsed = JSON.parse(raw);
       if (parsed && Array.isArray(parsed.players) && parsed.players.length === 4) {
         state = parsed;
-        if (!state.currentInputs || state.currentInputs.length !== 4) {
-          state.currentInputs = [0, 0, 0, 0];
-        }
+        if (!state.kozInputs) state.kozInputs = [0, 0, 0, 0];
+        if (!state.cezaInputs) state.cezaInputs = [0, 0, 0, 0];
         recalculateAllScores();
       }
     }
-  } catch (e) {
-    console.error('Kayıtlı oyun yüklenirken hata:', e);
+  } catch (e) {}
+}
+
+// ==========================================================================
+// PUAN VE HAK HESAPLAMA MOTORU
+// ==========================================================================
+function recalculateAllScores() {
+  state.players.forEach(p => {
+    p.score = 0;
+    p.kozCount = 0;
+    p.cezaCount = 0;
+  });
+
+  state.rounds.forEach(round => {
+    const caller = state.players[round.callerIdx];
+    if (round.isKoz) {
+      caller.kozCount++;
+    } else {
+      caller.cezaCount++;
+    }
+
+    round.points.forEach((pt, pIdx) => {
+      state.players[pIdx].score += pt;
+    });
+  });
+}
+
+function calculateHandPoints(gameKey, callerIdx, distribution) {
+  const def = GAME_DEFS[gameKey];
+  if (!def) return [0, 0, 0, 0];
+
+  let unitPoint = def.baseUnitPoint;
+  if (state.scoringMode === 'zero_sum' && !def.isKoz) {
+    unitPoint = def.baseUnitPoint * 2;
   }
+
+  const points = distribution.map((count, pIdx) => {
+    let p = count * unitPoint;
+    if (state.scoringMode === 'bloody' && !def.isKoz && pIdx === callerIdx && p < 0) {
+      p = p * 2;
+    }
+    return p;
+  });
+
+  return points;
+}
+
+function getCurrentHandNumber() {
+  return state.rounds.length + 1;
+}
+
+function getCurrentCallerIndex() {
+  const handIdx = state.rounds.length;
+  return (state.initialDealer + handIdx) % 4;
+}
+
+function getGlobalGameUsageCount(gameKey) {
+  return state.rounds.filter(r => r.gameKey === gameKey).length;
+}
+
+function getPlayerGameUsageCount(playerIdx, gameKey) {
+  return state.rounds.filter(r => r.callerIdx === playerIdx && r.gameKey === gameKey).length;
+}
+
+function isGameAvailableForCaller(callerIdx, gameKey) {
+  const caller = state.players[callerIdx];
+  const def = GAME_DEFS[gameKey];
+  if (!def) return false;
+
+  if (def.isKoz) {
+    return caller.kozCount < 2;
+  }
+
+  if (caller.cezaCount >= 3) {
+    return false;
+  }
+
+  if (getGlobalGameUsageCount(gameKey) >= 2) {
+    return false;
+  }
+
+  if (getPlayerGameUsageCount(callerIdx, gameKey) >= 1) {
+    return false;
+  }
+
+  return true;
+}
+
+// ==========================================================================
+// RENDER MOTORU (TÜM SAYFALAR)
+// ==========================================================================
+function renderAll() {
+  const currentHand = getCurrentHandNumber();
+  const callerIdx = getCurrentCallerIndex();
+  const isGameOver = currentHand > 20;
+
+  renderSetupScreen();
+  renderKozScreen(currentHand, callerIdx, isGameOver);
+  renderCezaScreen(currentHand, callerIdx, isGameOver);
+  renderResultsScreen(currentHand, callerIdx, isGameOver);
+}
+
+// --------------------------------------------------------------------------
+// 1. OYUNCULAR SAYFASI
+// --------------------------------------------------------------------------
+function renderSetupScreen() {
+  document.getElementById('inputPlayer1').value = state.players[0].name;
+  document.getElementById('inputPlayer2').value = state.players[1].name;
+  document.getElementById('inputPlayer3').value = state.players[2].name;
+  document.getElementById('inputPlayer4').value = state.players[3].name;
+
+  const dealerRow = document.getElementById('dealerPickRow');
+  dealerRow.innerHTML = '';
+  state.players.forEach((p, idx) => {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = `btn-dealer-pick ${state.initialDealer === idx ? 'selected' : ''}`;
+    btn.textContent = `${idx + 1}. ${p.name}`;
+    btn.addEventListener('click', () => {
+      triggerHaptic(15);
+      state.initialDealer = idx;
+      renderSetupScreen();
+    });
+    dealerRow.appendChild(btn);
+  });
+
+  const selRadio = document.querySelector(`input[name="scoringMode"][value="${state.scoringMode}"]`);
+  if (selRadio) selRadio.checked = true;
+}
+
+// --------------------------------------------------------------------------
+// 2. KOZ SAYFASI
+// --------------------------------------------------------------------------
+function renderKozScreen(currentHand, callerIdx, isGameOver) {
+  const caller = state.players[callerIdx] || state.players[0];
+  const handNoEl = document.getElementById('lblKozHandNo');
+  const callerEl = document.getElementById('lblKozCaller');
+  const rightsEl = document.getElementById('lblKozCallerRights');
+  const lockedAlert = document.getElementById('kozLockedAlert');
+  const entryBox = document.getElementById('kozEntryBox');
+  const playedKozCount = state.rounds.filter(r => r.isKoz).length;
+
+  document.getElementById('tabBadgeKoz').textContent = `${playedKozCount}/8`;
+
+  if (isGameOver) {
+    handNoEl.textContent = 'Oyun Bitti (20/20)';
+    callerEl.textContent = 'Sonuçları İnceleyin';
+    entryBox.style.display = 'none';
+    lockedAlert.style.display = 'none';
+    return;
+  }
+
+  handNoEl.textContent = `${currentHand}. El (${currentHand} / 20)`;
+  callerEl.textContent = `Söyleyen: ${caller.name}`;
+  rightsEl.textContent = `Koz Hakkı: ${caller.kozCount} / 2`;
+
+  const canPlayKoz = caller.kozCount < 2;
+
+  if (!canPlayKoz) {
+    lockedAlert.style.display = 'flex';
+    entryBox.style.display = 'none';
+    document.getElementById('kozLockedMsg').textContent = `${caller.name} oyuncusunun 2 Koz hakkı da tükendi. Bu elde Ceza seçilmelidir.`;
+    return;
+  }
+
+  lockedAlert.style.display = 'none';
+  entryBox.style.display = 'flex';
+
+  renderDistributionList('koz', 13, state.kozInputs, 'kozPlayersList', 'kozQuickButtons', 'kozRemainingBadge', 'kozValidationMsg', 'btnSaveKoz');
+}
+
+// --------------------------------------------------------------------------
+// 3. CEZA SAYFASI
+// --------------------------------------------------------------------------
+function renderCezaScreen(currentHand, callerIdx, isGameOver) {
+  const caller = state.players[callerIdx] || state.players[0];
+  const handNoEl = document.getElementById('lblCezaHandNo');
+  const callerEl = document.getElementById('lblCezaCaller');
+  const rightsEl = document.getElementById('lblCezaCallerRights');
+  const lockedAlert = document.getElementById('cezaLockedAlert');
+  const entryBox = document.getElementById('cezaEntryBox');
+  const grid = document.getElementById('cezaTypesGrid');
+  const playedCezaCount = state.rounds.filter(r => !r.isKoz).length;
+
+  document.getElementById('tabBadgeCeza').textContent = `${playedCezaCount}/12`;
+
+  if (isGameOver) {
+    handNoEl.textContent = 'Oyun Bitti (20/20)';
+    callerEl.textContent = 'Sonuçları İnceleyin';
+    entryBox.style.display = 'none';
+    lockedAlert.style.display = 'none';
+    grid.style.display = 'none';
+    return;
+  }
+
+  handNoEl.textContent = `${currentHand}. El (${currentHand} / 20)`;
+  callerEl.textContent = `Söyleyen: ${caller.name}`;
+  rightsEl.textContent = `Ceza Hakkı: ${caller.cezaCount} / 3`;
+
+  const canPlayCeza = caller.cezaCount < 3;
+
+  if (!canPlayCeza) {
+    lockedAlert.style.display = 'flex';
+    entryBox.style.display = 'none';
+    grid.style.display = 'none';
+    document.getElementById('cezaLockedMsg').textContent = `${caller.name} oyuncusunun 3 Ceza hakkı da tükendi. Bu elde Koz seçilmelidir.`;
+    return;
+  }
+
+  lockedAlert.style.display = 'none';
+  entryBox.style.display = 'flex';
+  grid.style.display = 'grid';
+
+  // 6 Ceza Oyun Kartlarını Render Et
+  grid.innerHTML = '';
+  const cezaKeys = ['el_almaz', 'kupa_almaz', 'kiz_almaz', 'erkek_almaz', 'rifki', 'son_iki'];
+
+  // Seçili oyun hakkı uygun değilse uygun olan ilk cezayı otomatik seç
+  if (!isGameAvailableForCaller(callerIdx, state.selectedCezaKey)) {
+    const firstAvail = cezaKeys.find(k => isGameAvailableForCaller(callerIdx, k));
+    if (firstAvail) state.selectedCezaKey = firstAvail;
+  }
+
+  cezaKeys.forEach(k => {
+    const def = GAME_DEFS[k];
+    const isAvail = isGameAvailableForCaller(callerIdx, k);
+    const isSelected = k === state.selectedCezaKey;
+    const globalCount = getGlobalGameUsageCount(k);
+
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = `btn-ceza-card ${isSelected ? 'selected' : ''}`;
+    btn.disabled = !isAvail;
+
+    let ptsText = `${def.baseUnitPoint} P`;
+    if (state.scoringMode === 'zero_sum') ptsText = `${def.baseUnitPoint * 2} P`;
+
+    btn.innerHTML = `
+      <span class="ceza-card-icon">${def.icon}</span>
+      <span class="ceza-card-name">${def.shortTitle}</span>
+      <span class="ceza-card-pts">${ptsText}</span>
+      <span class="ceza-card-count">${globalCount}/2 Oynandı</span>
+    `;
+
+    btn.addEventListener('click', () => {
+      triggerHaptic(15);
+      state.selectedCezaKey = k;
+      state.cezaInputs = [0, 0, 0, 0];
+      renderCezaScreen(currentHand, callerIdx, isGameOver);
+    });
+
+    grid.appendChild(btn);
+  });
+
+  // Seçilen Ceza Banner Güncelle
+  const activeDef = GAME_DEFS[state.selectedCezaKey] || GAME_DEFS.el_almaz;
+  document.getElementById('cezaBannerIcon').textContent = activeDef.icon;
+  document.getElementById('cezaBannerTitle').textContent = activeDef.title;
+  document.getElementById('cezaBannerDesc').textContent = activeDef.desc;
+
+  let unitPts = (state.scoringMode === 'zero_sum') ? (activeDef.baseUnitPoint * 2) : activeDef.baseUnitPoint;
+  document.getElementById('cezaBannerPts').textContent = `${unitPts} P / ${activeDef.unitName}`;
+
+  // Rıfkı Özel Durumu: 4 Oyuncu Tek Dokunuş Seçim Butonları
+  const rifkiBox = document.getElementById('rifkiPickerBox');
+  const rifkiContainer = document.getElementById('rifkiPlayerButtons');
+  const cezaList = document.getElementById('cezaPlayersList');
+  const cezaQuickRow = document.getElementById('cezaQuickFillRow');
+
+  if (activeDef.key === 'rifki') {
+    rifkiBox.style.display = 'flex';
+    cezaList.style.display = 'none';
+    cezaQuickRow.style.display = 'none';
+    rifkiContainer.innerHTML = '';
+
+    state.players.forEach((p, idx) => {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      const isChosen = state.cezaInputs[idx] === 1;
+      btn.className = `btn-rifki-p ${isChosen ? 'selected' : ''}`;
+      btn.textContent = p.name;
+      btn.addEventListener('click', () => {
+        triggerHaptic(20);
+        state.cezaInputs = [0, 0, 0, 0];
+        state.cezaInputs[idx] = 1;
+        renderCezaScreen(currentHand, callerIdx, isGameOver);
+      });
+      rifkiContainer.appendChild(btn);
+    });
+
+    validateDistribution(activeDef.totalUnits, activeDef.unitName, state.cezaInputs, 'cezaRemainingBadge', 'cezaValidationMsg', 'btnSaveCeza');
+  } else {
+    rifkiBox.style.display = 'none';
+    cezaList.style.display = 'flex';
+    cezaQuickRow.style.display = 'flex';
+
+    renderDistributionList('ceza', activeDef.totalUnits, state.cezaInputs, 'cezaPlayersList', 'cezaQuickButtons', 'cezaRemainingBadge', 'cezaValidationMsg', 'btnSaveCeza');
+  }
+}
+
+// Ortak Dağıtım Listesi Render Yardımcısı (Koz ve Ceza için)
+function renderDistributionList(type, totalUnits, inputsArray, listId, quickId, badgeId, msgId, saveBtnId) {
+  const container = document.getElementById(listId);
+  container.innerHTML = '';
+
+  state.players.forEach((p, idx) => {
+    const val = inputsArray[idx] || 0;
+    const row = document.createElement('div');
+    row.className = 'dist-row';
+    row.innerHTML = `
+      <div class="dist-player-info">
+        <span class="dist-player-name">${escapeHtml(p.name)}</span>
+        <span class="dist-player-score">${p.score > 0 ? '+' : ''}${p.score} P</span>
+      </div>
+      <div class="stepper-wrap">
+        <button type="button" class="btn-stepper" data-action="dec" data-p="${idx}">−</button>
+        <span class="stepper-val">${val}</span>
+        <button type="button" class="btn-stepper" data-action="inc" data-p="${idx}">+</button>
+      </div>
+    `;
+
+    row.querySelector('[data-action="dec"]').addEventListener('click', () => {
+      triggerHaptic(15);
+      if (inputsArray[idx] > 0) {
+        inputsArray[idx]--;
+        renderAll();
+      }
+    });
+
+    row.querySelector('[data-action="inc"]').addEventListener('click', () => {
+      triggerHaptic(15);
+      const sum = inputsArray.reduce((a, b) => a + b, 0);
+      if (sum < totalUnits) {
+        inputsArray[idx]++;
+        renderAll();
+      }
+    });
+
+    container.appendChild(row);
+  });
+
+  // Hızlı Kalanı Ata Butonları
+  const quickContainer = document.getElementById(quickId);
+  if (quickContainer) {
+    quickContainer.innerHTML = '';
+    state.players.forEach((p, idx) => {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'btn-qf';
+      btn.textContent = p.name;
+      btn.addEventListener('click', () => {
+        triggerHaptic(20);
+        const currentSumWithoutP = inputsArray.reduce((sum, val, i) => i === idx ? sum : sum + val, 0);
+        const remaining = Math.max(0, totalUnits - currentSumWithoutP);
+        inputsArray[idx] = remaining;
+        renderAll();
+      });
+      quickContainer.appendChild(btn);
+    });
+  }
+
+  validateDistribution(totalUnits, type === 'koz' ? 'El' : 'Adet', inputsArray, badgeId, msgId, saveBtnId);
+}
+
+function validateDistribution(totalUnits, unitName, inputsArray, badgeId, msgId, saveBtnId) {
+  const sum = inputsArray.reduce((a, b) => a + b, 0);
+  const diff = totalUnits - sum;
+  const badge = document.getElementById(badgeId);
+  const msg = document.getElementById(msgId);
+  const btnSave = document.getElementById(saveBtnId);
+
+  if (!badge || !msg || !btnSave) return;
+
+  if (diff === 0) {
+    badge.textContent = `Tamamlandı (${totalUnits}/${totalUnits})`;
+    badge.className = 'remaining-counter valid';
+    msg.textContent = `✓ Dağılım eksiksiz doğrulandı. Kaydedebilirsiniz.`;
+    msg.className = 'validation-bar success';
+    btnSave.disabled = false;
+  } else if (diff > 0) {
+    badge.textContent = `Kalan: ${diff} / ${totalUnits} ${unitName}`;
+    badge.className = 'remaining-counter';
+    msg.textContent = `⚠️ Dağıtılması gereken ${diff} adet ${unitName} kaldı.`;
+    msg.className = 'validation-bar error';
+    btnSave.disabled = true;
+  } else {
+    badge.textContent = `Fazla: +${Math.abs(diff)}`;
+    badge.className = 'remaining-counter';
+    msg.textContent = `❌ Toplam ${totalUnits} olmalı, ${Math.abs(diff)} adet fazla girildi!`;
+    msg.className = 'validation-bar error';
+    btnSave.disabled = true;
+  }
+}
+
+// --------------------------------------------------------------------------
+// 4. TOPLU SONUÇLAR & ÇETELE MATRİSİ SAYFASI
+// --------------------------------------------------------------------------
+function renderResultsScreen(currentHand, callerIdx, isGameOver) {
+  const caller = state.players[callerIdx] || state.players[0];
+
+  // Sıradaki El Çağrısı
+  const lblHand = document.getElementById('lblResCurrentHand');
+  const lblCaller = document.getElementById('lblResActiveCaller');
+  const btnJumpKoz = document.getElementById('btnJumpToKoz');
+  const btnJumpCeza = document.getElementById('btnJumpToCeza');
+
+  if (isGameOver) {
+    lblHand.textContent = '20 / 20 (TAMAMLANDI)';
+    lblCaller.textContent = 'Şampiyon Belli Oldu! 🏆';
+    btnJumpKoz.style.display = 'none';
+    btnJumpCeza.style.display = 'none';
+  } else {
+    lblHand.textContent = `${currentHand} / 20`;
+    lblCaller.textContent = `Sıradaki: ${caller.name}`;
+    btnJumpKoz.style.display = caller.kozCount < 2 ? 'inline-flex' : 'none';
+    btnJumpCeza.style.display = caller.cezaCount < 3 ? 'inline-flex' : 'none';
+  }
+
+  // 4 Oyuncu Canlı Skor Kartları (Liderlik)
+  const board = document.getElementById('resultsLeaderboard');
+  board.innerHTML = '';
+  const sortedPlayers = [...state.players].sort((a, b) => b.score - a.score);
+  const ranks = {};
+  sortedPlayers.forEach((p, i) => ranks[p.id] = i + 1);
+
+  state.players.forEach(p => {
+    const isTurn = p.id === callerIdx && !isGameOver;
+    const rank = ranks[p.id];
+    let medal = `${rank}.`;
+    if (rank === 1) medal = '🥇';
+    else if (rank === 2) medal = '🥈';
+    else if (rank === 3) medal = '🥉';
+
+    const card = document.createElement('div');
+    card.className = `leader-card rank-${rank} ${isTurn ? 'active-turn' : ''}`;
+    card.innerHTML = `
+      <div class="lc-top">
+        <span class="lc-rank">${medal}</span>
+        <span class="lc-name">${escapeHtml(p.name)}</span>
+        ${isTurn ? '<span class="lc-turn-badge">Sıradaki</span>' : ''}
+      </div>
+      <div class="lc-score ${p.score > 0 ? 'pos' : p.score < 0 ? 'neg' : ''}">
+        ${p.score > 0 ? '+' : ''}${p.score}
+      </div>
+      <div class="lc-stats">
+        <span>Koz: <b>${p.kozCount}/2</b></span>
+        <span>Ceza: <b>${p.cezaCount}/3</b></span>
+      </div>
+    `;
+    board.appendChild(card);
+  });
+
+  // 20 El Çetele Matrisi Tablosu
+  renderMatrixTable();
+
+  // El Geçmişi Tablosu
+  renderHistoryTable();
+}
+
+function renderMatrixTable() {
+  document.getElementById('thPlayer1').textContent = state.players[0].name;
+  document.getElementById('thPlayer2').textContent = state.players[1].name;
+  document.getElementById('thPlayer3').textContent = state.players[2].name;
+  document.getElementById('thPlayer4').textContent = state.players[3].name;
+
+  const tbody = document.getElementById('ceteleTableBody');
+  tbody.innerHTML = '';
+
+  const rows = [
+    { title: 'Koz (1. Hak)', key: 'koz', isKoz: true, pts: '+50', unit: 0 },
+    { title: 'Koz (2. Hak)', key: 'koz', isKoz: true, pts: '+50', unit: 1 },
+    { title: 'El Almaz', key: 'el_almaz', isKoz: false, pts: state.scoringMode === 'zero_sum' ? '-100' : '-50' },
+    { title: 'Kupa Almaz', key: 'kupa_almaz', isKoz: false, pts: state.scoringMode === 'zero_sum' ? '-60' : '-30' },
+    { title: 'Kız Almaz', key: 'kiz_almaz', isKoz: false, pts: state.scoringMode === 'zero_sum' ? '-200' : '-100' },
+    { title: 'Erkek Almaz', key: 'erkek_almaz', isKoz: false, pts: state.scoringMode === 'zero_sum' ? '-120' : '-60' },
+    { title: 'Rıfkı', key: 'rifki', isKoz: false, pts: state.scoringMode === 'zero_sum' ? '-640' : '-320' },
+    { title: 'Son İki', key: 'son_iki', isKoz: false, pts: state.scoringMode === 'zero_sum' ? '-360' : '-180' }
+  ];
+
+  rows.forEach(r => {
+    const tr = document.createElement('tr');
+    let cellsHtml = `<td class="th-game">${r.title}</td><td class="th-pts">${r.pts}</td>`;
+
+    for (let pIdx = 0; pIdx < 4; pIdx++) {
+      let cellText = '—';
+      let cellCls = '';
+
+      if (r.isKoz) {
+        const callerKozRounds = state.rounds.filter(rnd => rnd.callerIdx === pIdx && rnd.isKoz);
+        const rnd = callerKozRounds[r.unit];
+        if (rnd) {
+          const pt = rnd.points[pIdx];
+          cellText = `${pt > 0 ? '+' : ''}${pt}`;
+          cellCls = 'cell-used pos';
+        }
+      } else {
+        const rnd = state.rounds.find(x => x.callerIdx === pIdx && x.gameKey === r.key);
+        if (rnd) {
+          const pt = rnd.points[pIdx];
+          cellText = `${pt}`;
+          cellCls = 'cell-used neg';
+        } else {
+          const globalUsage = getGlobalGameUsageCount(r.key);
+          if (globalUsage >= 2 || state.players[pIdx].cezaCount >= 3) {
+            cellText = '✕';
+            cellCls = 'cell-locked';
+          }
+        }
+      }
+
+      cellsHtml += `<td class="${cellCls}">${cellText}</td>`;
+    }
+
+    tr.innerHTML = cellsHtml;
+    tbody.appendChild(tr);
+  });
+}
+
+function renderHistoryTable() {
+  document.getElementById('thHistP1').textContent = state.players[0].name.slice(0, 8);
+  document.getElementById('thHistP2').textContent = state.players[1].name.slice(0, 8);
+  document.getElementById('thHistP3').textContent = state.players[2].name.slice(0, 8);
+  document.getElementById('thHistP4').textContent = state.players[3].name.slice(0, 8);
+
+  const tbody = document.getElementById('historyTableBody');
+  document.getElementById('lblHistoryCount').textContent = `${state.rounds.length} / 20 El`;
+
+  if (state.rounds.length === 0) {
+    tbody.innerHTML = '<tr class="empty-row"><td colspan="7">Henüz el oynanmadı. Koz veya Ceza sayfasından ilk eli kaydedebilirsiniz.</td></tr>';
+  } else {
+    tbody.innerHTML = '';
+    state.rounds.forEach(rnd => {
+      const tr = document.createElement('tr');
+      const def = GAME_DEFS[rnd.gameKey] || GAME_DEFS.koz;
+      let pointsCols = '';
+      rnd.points.forEach(pt => {
+        const cls = pt > 0 ? 'score-gain' : pt < 0 ? 'score-loss' : '';
+        pointsCols += `<td class="${cls}">${pt > 0 ? '+' : ''}${pt}</td>`;
+      });
+
+      tr.innerHTML = `
+        <td><b>#${rnd.handNo}</b></td>
+        <td>${escapeHtml(rnd.callerName)}</td>
+        <td>${def.icon} ${def.shortTitle}</td>
+        ${pointsCols}
+      `;
+      tbody.appendChild(tr);
+    });
+  }
+
+  for (let i = 0; i < 4; i++) {
+    const footEl = document.getElementById(`footP${i + 1}`);
+    const score = state.players[i].score;
+    let cls = score > 0 ? 'score-gain' : score < 0 ? 'score-loss' : '';
+    footEl.className = `score-cell ${cls}`;
+    footEl.textContent = `${score > 0 ? '+' : ''}${score}`;
+  }
+}
+
+// ==========================================================================
+// EL KAYDETME FONKSİYONLARI (KOZ & CEZA)
+// ==========================================================================
+function saveKozHand() {
+  const currentHand = getCurrentHandNumber();
+  if (currentHand > 20) return;
+
+  const callerIdx = getCurrentCallerIndex();
+  const def = GAME_DEFS.koz;
+  const sum = state.kozInputs.reduce((a, b) => a + b, 0);
+
+  if (sum !== def.totalUnits) {
+    showToast('Lütfen toplam 13 el olacak şekilde dağıtın!', 'rose');
+    return;
+  }
+
+  const distribution = [...state.kozInputs];
+  const points = calculateHandPoints('koz', callerIdx, distribution);
+
+  const roundData = {
+    handNo: currentHand,
+    callerIdx: callerIdx,
+    callerName: state.players[callerIdx].name,
+    gameKey: 'koz',
+    gameTitle: 'Koz',
+    isKoz: true,
+    distribution: distribution,
+    points: points,
+    timestamp: new Date().toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' })
+  };
+
+  state.rounds.push(roundData);
+  recalculateAllScores();
+  state.kozInputs = [0, 0, 0, 0];
+  saveStateToStorage();
+  pushStateToServer();
+  triggerHaptic(40);
+  renderAll();
+
+  showToast(`${currentHand}. el (Koz) başarıyla kaydedildi!`, 'emerald');
+
+  // Otomatik olarak Toplu Sonuçlar sayfasına kaydır
+  goToScreen(3, true);
+}
+
+function saveCezaHand() {
+  const currentHand = getCurrentHandNumber();
+  if (currentHand > 20) return;
+
+  const callerIdx = getCurrentCallerIndex();
+  const def = GAME_DEFS[state.selectedCezaKey];
+  const sum = state.cezaInputs.reduce((a, b) => a + b, 0);
+
+  if (sum !== def.totalUnits) {
+    showToast(`Lütfen toplam ${def.totalUnits} ${def.unitName} dağıtın!`, 'rose');
+    return;
+  }
+
+  const distribution = [...state.cezaInputs];
+  const points = calculateHandPoints(def.key, callerIdx, distribution);
+
+  const roundData = {
+    handNo: currentHand,
+    callerIdx: callerIdx,
+    callerName: state.players[callerIdx].name,
+    gameKey: def.key,
+    gameTitle: def.title,
+    isKoz: false,
+    distribution: distribution,
+    points: points,
+    timestamp: new Date().toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' })
+  };
+
+  state.rounds.push(roundData);
+  recalculateAllScores();
+  state.cezaInputs = [0, 0, 0, 0];
+  saveStateToStorage();
+  pushStateToServer();
+  triggerHaptic(40);
+  renderAll();
+
+  showToast(`${currentHand}. el (${def.shortTitle}) başarıyla kaydedildi!`, 'emerald');
+
+  // Otomatik olarak Toplu Sonuçlar sayfasına kaydır
+  goToScreen(3, true);
+}
+
+function undoLastHand() {
+  if (state.rounds.length === 0) {
+    showToast('Geri alınacak el bulunamadı!', 'rose');
+    return;
+  }
+  const removed = state.rounds.pop();
+  recalculateAllScores();
+  state.kozInputs = [0, 0, 0, 0];
+  state.cezaInputs = [0, 0, 0, 0];
+  saveStateToStorage();
+  pushStateToServer();
+  triggerHaptic(30);
+  renderAll();
+  showToast(`${removed.handNo}. el geri alındı.`, 'amber');
 }
 
 function resetGame() {
@@ -273,609 +990,73 @@ function resetGame() {
     initialDealer: 0,
     scoringMode: state.scoringMode || 'standard',
     rounds: [],
-    selectedGameKey: 'koz',
-    currentInputs: [0, 0, 0, 0]
+    selectedCezaKey: 'el_almaz',
+    kozInputs: [0, 0, 0, 0],
+    cezaInputs: [0, 0, 0, 0]
   };
   saveStateToStorage();
   pushStateToServer();
   renderAll();
+  goToScreen(0, true);
   showToast('Yeni oyun başlatıldı!', 'emerald');
-}
-
-function undoLastHand() {
-  if (state.rounds.length === 0) {
-    showToast('Geri alınacak el bulunamadı!', 'rose');
-    return;
-  }
-  const removed = state.rounds.pop();
-  recalculateAllScores();
-  state.currentInputs = [0, 0, 0, 0];
-  saveStateToStorage();
-  pushStateToServer();
-  triggerHaptic(30);
-  renderAll();
-  showToast(`${removed.handNo}. el geri alındı.`, 'amber');
-}
-
-// ==========================================================================
-// PUAN VE HAK HESAPLAMA MOTORU
-// ==========================================================================
-function recalculateAllScores() {
-  // Sıfırla
-  state.players.forEach(p => {
-    p.score = 0;
-    p.kozCount = 0;
-    p.cezaCount = 0;
-  });
-
-  state.rounds.forEach(round => {
-    // Söyleyenin koz/ceza sayacını artır
-    const caller = state.players[round.callerIdx];
-    if (round.isKoz) {
-      caller.kozCount++;
-    } else {
-      caller.cezaCount++;
-    }
-
-    // Puanları ekle
-    round.points.forEach((pt, pIdx) => {
-      state.players[pIdx].score += pt;
-    });
-  });
-}
-
-/**
- * Bir el için oyuncu puanlarını hesaplar
- */
-function calculateHandPoints(gameKey, callerIdx, distribution) {
-  const def = GAME_DEFS[gameKey];
-  if (!def) return [0, 0, 0, 0];
-
-  let unitPoint = def.baseUnitPoint;
-
-  // Sıfır Toplamlı Mod (Zero-Sum) Ayarı:
-  // Standartta Koz: +50 * 13 = +650 * 8 el = +5200. Cezalar toplamı -2600.
-  // Sıfır toplamlıda cezalar x2 katına çıkar (-5200) veya koz yarıya iner.
-  // Burada cezaları 2 ile çarpıyoruz ki tam sıfırlansın!
-  if (state.scoringMode === 'zero_sum' && !def.isKoz) {
-    unitPoint = def.baseUnitPoint * 2;
-  }
-
-  const points = distribution.map((count, pIdx) => {
-    let p = count * unitPoint;
-
-    // Kanlı King kuralı: Cezayı söyleyen kendisi ceza yerse x2
-    if (state.scoringMode === 'bloody' && !def.isKoz && pIdx === callerIdx && p < 0) {
-      p = p * 2;
-    }
-
-    return p;
-  });
-
-  return points;
-}
-
-// Aktif el numarasını döner (1 .. 20)
-function getCurrentHandNumber() {
-  return state.rounds.length + 1;
-}
-
-// Aktif elin söyleyenini (sıradaki oyuncu) belirler
-function getCurrentCallerIndex() {
-  const handIdx = state.rounds.length; // 0 .. 19
-  return (state.initialDealer + handIdx) % 4;
-}
-
-// Bir ceza türünün tüm oyunda kaç kez oynandığını bulur (Maks 2)
-function getGlobalGameUsageCount(gameKey) {
-  return state.rounds.filter(r => r.gameKey === gameKey).length;
-}
-
-// Bir oyuncunun bir ceza türünü kaç kez oynadığını bulur
-function getPlayerGameUsageCount(playerIdx, gameKey) {
-  return state.rounds.filter(r => r.callerIdx === playerIdx && r.gameKey === gameKey).length;
-}
-
-// Sıradaki oyuncunun bu oyunu seçip seçemeyeceğini kontrol eder
-function isGameAvailableForCaller(callerIdx, gameKey) {
-  const caller = state.players[callerIdx];
-  const def = GAME_DEFS[gameKey];
-  if (!def) return false;
-
-  // 1. Koz seçimi kuralı: Bir oyuncu en fazla 2 koz söyleyebilir
-  if (def.isKoz) {
-    return caller.kozCount < 2;
-  }
-
-  // 2. Ceza seçimi kuralı: Bir oyuncu en fazla 3 ceza söyleyebilir
-  if (caller.cezaCount >= 3) {
-    return false;
-  }
-
-  // 3. Global ceza kuralı: Bir ceza türü oyunda en fazla 2 kez oynanabilir
-  if (getGlobalGameUsageCount(gameKey) >= 2) {
-    return false;
-  }
-
-  // 4. Oyuncu aynı cezayı daha önce söylemiş mi? (Geleneksel kurallarda bir oyuncu aynı cezayı en fazla 1 kez söyler)
-  if (getPlayerGameUsageCount(callerIdx, gameKey) >= 1) {
-    return false;
-  }
-
-  return true;
-}
-
-// ==========================================================================
-// RENDER FONKSİYONLARI
-// ==========================================================================
-function renderAll() {
-  const currentHand = getCurrentHandNumber();
-  const callerIdx = getCurrentCallerIndex();
-  const isGameOver = currentHand > 20;
-
-  renderHeaderProgress(currentHand, callerIdx, isGameOver);
-  renderPlayerCards(callerIdx);
-  renderEntryPanel(currentHand, callerIdx, isGameOver);
-  renderMatrixTable();
-  renderHistoryTable();
-}
-
-function renderHeaderProgress(currentHand, callerIdx, isGameOver) {
-  const lblHand = document.getElementById('lblCurrentHand');
-  const lblCaller = document.getElementById('lblActivePlayer');
-  const barFill = document.getElementById('progressBarFill');
-  const playedKoz = state.rounds.filter(r => r.isKoz).length;
-  const playedCeza = state.rounds.filter(r => !r.isKoz).length;
-
-  document.getElementById('lblPlayedKozCount').textContent = `${playedKoz} / 8`;
-  document.getElementById('lblPlayedCezaCount').textContent = `${playedCeza} / 12`;
-
-  if (isGameOver) {
-    lblHand.textContent = 'OYUN BİTTİ';
-    lblCaller.textContent = 'Şampiyon Belli Oldu! 🏆';
-    barFill.style.width = '100%';
-  } else {
-    lblHand.textContent = `${currentHand} / 20`;
-    lblCaller.textContent = state.players[callerIdx]?.name || `Oyuncu ${callerIdx + 1}`;
-    const pct = Math.min(100, Math.round(((currentHand - 1) / 20) * 100));
-    barFill.style.width = `${Math.max(5, pct)}%`;
-  }
-}
-
-function renderPlayerCards(activeCallerIdx) {
-  const container = document.getElementById('playersGrid');
-  container.innerHTML = '';
-
-  // Oyuncuları sıralamak için kopya al
-  const sortedPlayers = [...state.players].sort((a, b) => b.score - a.score);
-  const ranks = {};
-  sortedPlayers.forEach((p, idx) => {
-    ranks[p.id] = idx + 1;
-  });
-
-  state.players.forEach(p => {
-    const isCaller = p.id === activeCallerIdx && state.rounds.length < 20;
-    const rank = ranks[p.id];
-    let rankBadge = `${rank}.`;
-    if (rank === 1) rankBadge = '🥇';
-    else if (rank === 2) rankBadge = '🥈';
-    else if (rank === 3) rankBadge = '🥉';
-
-    let scoreClass = 'score-zero';
-    let sign = '';
-    if (p.score > 0) {
-      scoreClass = 'score-positive';
-      sign = '+';
-    } else if (p.score < 0) {
-      scoreClass = 'score-negative';
-    }
-
-    const card = document.createElement('div');
-    card.className = `player-card ${isCaller ? 'active-turn' : ''} rank-${rank}`;
-    card.innerHTML = `
-      <div class="player-card-header">
-        <div class="player-title-wrap">
-          <span class="rank-badge">${rankBadge}</span>
-          <span class="player-name-text">${escapeHtml(p.name)}</span>
-        </div>
-        ${isCaller ? '<span class="dealer-badge">👑 SÖYLÜYOR</span>' : ''}
-      </div>
-      <div class="player-score-main">
-        <span class="score-number ${scoreClass}">${sign}${p.score}</span>
-        <span class="score-rank-label">${rank}. Sırada</span>
-      </div>
-      <div class="player-card-stats">
-        <div class="stat-box">
-          <span class="stat-label">Koz Hakkı</span>
-          <span class="stat-val val-koz">${p.kozCount} / 2</span>
-        </div>
-        <div class="stat-box">
-          <span class="stat-label">Ceza Hakkı</span>
-          <span class="stat-val val-ceza">${p.cezaCount} / 3</span>
-        </div>
-      </div>
-    `;
-    container.appendChild(card);
-  });
-}
-
-function renderEntryPanel(currentHand, callerIdx, isGameOver) {
-  const title = document.getElementById('entryPanelTitle');
-  const callerTag = document.getElementById('entryCallerTag');
-  const buttonsWrap = document.getElementById('gameTypeButtons');
-  const btnSave = document.getElementById('btnSaveHand');
-
-  if (isGameOver) {
-    title.textContent = 'Oyun Tamamlandı (20/20)';
-    callerTag.textContent = 'Sonuçlar Tablosunu İnceleyebilirsiniz';
-    buttonsWrap.innerHTML = '<div style="grid-column: 1/-1; padding: 20px; text-align: center; color: var(--gold-300);">🎉 20 el tamamlandı. Yeni oyun başlatmak için yukarıdaki düğmeyi kullanabilirsiniz.</div>';
-    document.getElementById('distPlayersList').innerHTML = '';
-    document.getElementById('quickFillRow').style.display = 'none';
-    btnSave.disabled = true;
-    btnSave.innerHTML = 'Oyun Sona Erdi';
-    return;
-  }
-
-  document.getElementById('quickFillRow').style.display = 'flex';
-  title.textContent = `${currentHand}. El Kaydı`;
-  callerTag.textContent = `Söyleyen: ${escapeHtml(state.players[callerIdx].name)}`;
-
-  // Uygun olan ilk oyunu otomatik seç (eğer mevcut seçilen uygun değilse)
-  if (!isGameAvailableForCaller(callerIdx, state.selectedGameKey)) {
-    const availableKey = Object.keys(GAME_DEFS).find(k => isGameAvailableForCaller(callerIdx, k));
-    if (availableKey) {
-      state.selectedGameKey = availableKey;
-    }
-  }
-
-  // Oyun türü butonlarını render et
-  buttonsWrap.innerHTML = '';
-  Object.values(GAME_DEFS).forEach(def => {
-    const isAvail = isGameAvailableForCaller(callerIdx, def.key);
-    const isSelected = def.key === state.selectedGameKey;
-    const globalCount = getGlobalGameUsageCount(def.key);
-
-    let countBadge = '';
-    if (def.isKoz) {
-      countBadge = `${state.players[callerIdx].kozCount}/2 Koz`;
-    } else {
-      countBadge = `${globalCount}/2 Toplam`;
-    }
-
-    const btn = document.createElement('button');
-    btn.type = 'button';
-    btn.className = `btn-game-type ${isSelected ? 'selected' : ''}`;
-    btn.disabled = !isAvail;
-    btn.title = isAvail ? `${def.title} oyna` : 'Bu oyun hakkı tükendi veya kural gereği seçilemez';
-    btn.innerHTML = `
-      <span class="gt-icon">${def.icon}</span>
-      <span class="gt-name">${def.shortTitle}</span>
-      <span class="gt-count">${countBadge}</span>
-    `;
-
-    btn.addEventListener('click', () => {
-      state.selectedGameKey = def.key;
-      state.currentInputs = [0, 0, 0, 0];
-      renderEntryPanel(currentHand, callerIdx, isGameOver);
-    });
-
-    buttonsWrap.appendChild(btn);
-  });
-
-  // Seçilen oyunun banner'ını güncelle
-  const activeDef = GAME_DEFS[state.selectedGameKey] || GAME_DEFS.koz;
-  document.getElementById('gameBannerIcon').textContent = activeDef.icon;
-  document.getElementById('gameBannerTitle').textContent = activeDef.title;
-  document.getElementById('gameBannerDesc').textContent = activeDef.desc;
-
-  const ptsBadge = document.getElementById('gameBannerPoints');
-  const unitPts = (state.scoringMode === 'zero_sum' && !activeDef.isKoz) ? (activeDef.baseUnitPoint * 2) : activeDef.baseUnitPoint;
-  const sign = unitPts > 0 ? '+' : '';
-  ptsBadge.textContent = `${sign}${unitPts} P / ${activeDef.unitName}`;
-  ptsBadge.className = `banner-badge ${unitPts > 0 ? 'pos' : 'neg'}`;
-
-  // Oyuncu miktar giriş satırlarını render et
-  renderDistributionRows(activeDef);
-
-  // Kalanı Doldur butonlarını render et
-  renderQuickButtons(activeDef);
-
-  // Validasyon kontrolü
-  validateHandEntry(activeDef);
-}
-
-function renderDistributionRows(activeDef) {
-  const container = document.getElementById('distPlayersList');
-  container.innerHTML = '';
-
-  state.players.forEach((p, idx) => {
-    const val = state.currentInputs[idx] || 0;
-    const row = document.createElement('div');
-    row.className = 'dist-player-row';
-    row.innerHTML = `
-      <div class="dp-name">
-        <span>${escapeHtml(p.name)}:</span>
-      </div>
-      <div class="dp-controls">
-        <button type="button" class="btn-step btn-stepper" data-action="dec" data-p="${idx}">−</button>
-        <input type="text" inputmode="numeric" pattern="[0-9]*" class="dp-input dist-input" id="inputP${idx}" value="${val}">
-        <button type="button" class="btn-step btn-stepper" data-action="inc" data-p="${idx}">+</button>
-      </div>
-    `;
-
-    // Buton dinleyicileri
-    row.querySelector('[data-action="dec"]').addEventListener('click', () => {
-      triggerHaptic(15);
-      if (state.currentInputs[idx] > 0) {
-        state.currentInputs[idx]--;
-        renderDistributionRows(activeDef);
-        validateHandEntry(activeDef);
-      }
-    });
-
-    row.querySelector('[data-action="inc"]').addEventListener('click', () => {
-      triggerHaptic(15);
-      const sum = state.currentInputs.reduce((a, b) => a + b, 0);
-      if (sum < activeDef.totalUnits) {
-        state.currentInputs[idx]++;
-        renderDistributionRows(activeDef);
-        validateHandEntry(activeDef);
-      }
-    });
-
-    const input = row.querySelector(`#inputP${idx}`);
-    input.addEventListener('change', (e) => {
-      let num = parseInt(e.target.value, 10);
-      if (isNaN(num) || num < 0) num = 0;
-      if (num > activeDef.totalUnits) num = activeDef.totalUnits;
-      state.currentInputs[idx] = num;
-      renderDistributionRows(activeDef);
-      validateHandEntry(activeDef);
-    });
-
-    container.appendChild(row);
-  });
-}
-
-function renderQuickButtons(activeDef) {
-  const container = document.getElementById('quickButtons');
-  container.innerHTML = '';
-
-  state.players.forEach((p, idx) => {
-    const btn = document.createElement('button');
-    btn.type = 'button';
-    btn.className = 'btn-quick';
-    btn.textContent = p.name;
-    btn.addEventListener('click', () => {
-      triggerHaptic(20);
-      const currentSumWithoutP = state.currentInputs.reduce((sum, val, i) => i === idx ? sum : sum + val, 0);
-      const remaining = Math.max(0, activeDef.totalUnits - currentSumWithoutP);
-      state.currentInputs[idx] = remaining;
-      renderDistributionRows(activeDef);
-      validateHandEntry(activeDef);
-    });
-    container.appendChild(btn);
-  });
-}
-
-function validateHandEntry(activeDef) {
-  const sum = state.currentInputs.reduce((a, b) => a + b, 0);
-  const target = activeDef.totalUnits;
-  const badge = document.getElementById('distRemainingBadge');
-  const msg = document.getElementById('validationMessage');
-  const btnSave = document.getElementById('btnSaveHand');
-
-  const diff = target - sum;
-  if (diff === 0) {
-    badge.textContent = `Tamamlandı (${target} / ${target})`;
-    badge.className = 'dist-counter valid';
-    msg.textContent = `✓ Dağılım eksiksiz doğrulandı. Eli kaydedebilirsiniz.`;
-    msg.className = 'validation-message success';
-    btnSave.disabled = false;
-  } else if (diff > 0) {
-    badge.textContent = `Kalan: ${diff} ${activeDef.unitName}`;
-    badge.className = 'dist-counter invalid';
-    msg.textContent = `⚠️ Dağıtılması gereken ${diff} adet ${activeDef.unitName} kaldı.`;
-    msg.className = 'validation-message error';
-    btnSave.disabled = true;
-  } else {
-    badge.textContent = `Fazla: ${Math.abs(diff)} ${activeDef.unitName}`;
-    badge.className = 'dist-counter invalid';
-    msg.textContent = `❌ Toplam ${target} olmalı, ${Math.abs(diff)} adet fazla girildi!`;
-    msg.className = 'validation-message error';
-    btnSave.disabled = true;
-  }
-}
-
-function saveCurrentHand() {
-  const currentHand = getCurrentHandNumber();
-  if (currentHand > 20) return;
-
-  const callerIdx = getCurrentCallerIndex();
-  const activeDef = GAME_DEFS[state.selectedGameKey];
-  const sum = state.currentInputs.reduce((a, b) => a + b, 0);
-  if (sum !== activeDef.totalUnits) {
-    showToast('Lütfen kart / el dağılımını eksiksiz tamamlayın!', 'rose');
-    return;
-  }
-
-  const distribution = [...state.currentInputs];
-  const points = calculateHandPoints(activeDef.key, callerIdx, distribution);
-
-  const roundData = {
-    handNo: currentHand,
-    callerIdx: callerIdx,
-    callerName: state.players[callerIdx].name,
-    gameKey: activeDef.key,
-    gameTitle: activeDef.title,
-    isKoz: activeDef.isKoz,
-    distribution: distribution,
-    points: points,
-    timestamp: new Date().toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' })
-  };
-
-  state.rounds.push(roundData);
-  recalculateAllScores();
-  state.currentInputs = [0, 0, 0, 0];
-  saveStateToStorage();
-  pushStateToServer();
-  triggerHaptic(40);
-  renderAll();
-
-  showToast(`${currentHand}. el (${activeDef.title}) başarıyla kaydedildi!`, 'emerald');
-}
-
-// ==========================================================================
-// ÇETELE MATRİSİ RENDERİ
-// ==========================================================================
-function renderMatrixTable() {
-  const theadP1 = document.getElementById('thPlayer1');
-  const theadP2 = document.getElementById('thPlayer2');
-  const theadP3 = document.getElementById('thPlayer3');
-  const theadP4 = document.getElementById('thPlayer4');
-
-  theadP1.textContent = state.players[0].name;
-  theadP2.textContent = state.players[1].name;
-  theadP3.textContent = state.players[2].name;
-  theadP4.textContent = state.players[3].name;
-
-  const tbody = document.getElementById('ceteleTableBody');
-  tbody.innerHTML = '';
-
-  // Satır tanımları:
-  // Koz 1, Koz 2, El Almaz, Kupa Almaz, Kız Almaz, Erkek Almaz, Rıfkı, Son İki
-  const matrixRows = [
-    { type: 'koz', index: 1, title: '👑 Koz (1. Hak)', pts: '+50/el', isKoz: true },
-    { type: 'koz', index: 2, title: '👑 Koz (2. Hak)', pts: '+50/el', isKoz: true },
-    { type: 'ceza', key: 'el_almaz', title: '✋ El Almaz', pts: '-50/el', isKoz: false },
-    { type: 'ceza', key: 'kupa_almaz', title: '♥️ Kupa Almaz', pts: '-30/kupa', isKoz: false },
-    { type: 'ceza', key: 'kiz_almaz', title: '👸 Kız Almaz', pts: '-100/kız', isKoz: false },
-    { type: 'ceza', key: 'erkek_almaz', title: '🤴 Erkek Almaz', pts: '-60/erkek', isKoz: false },
-    { type: 'ceza', key: 'rifki', title: '🗡️ Rıfkı (K♥️)', pts: '-320', isKoz: false },
-    { type: 'ceza', key: 'son_iki', title: '⏳ Son İki', pts: '-180/el', isKoz: false },
-  ];
-
-  matrixRows.forEach(row => {
-    const tr = document.createElement('tr');
-    const ptsClass = row.isKoz ? 'pos' : 'neg';
-
-    let cellsHtml = '';
-    for (let pIdx = 0; pIdx < 4; pIdx++) {
-      let cellStatus = 'available';
-      let cellText = '—';
-
-      if (row.type === 'koz') {
-        // Bu oyuncunun oynadığı kozları bul
-        const playerKozRounds = state.rounds.filter(r => r.callerIdx === pIdx && r.isKoz);
-        if (row.index === 1 && playerKozRounds[0]) {
-          cellStatus = 'used';
-          cellText = `${playerKozRounds[0].distribution[pIdx]} el (${playerKozRounds[0].points[pIdx]}P)`;
-        } else if (row.index === 2 && playerKozRounds[1]) {
-          cellStatus = 'used';
-          cellText = `${playerKozRounds[1].distribution[pIdx]} el (${playerKozRounds[1].points[pIdx]}P)`;
-        } else {
-          cellStatus = (state.rounds.length >= 20) ? 'locked' : 'available';
-        }
-      } else {
-        // Ceza satırı: Bu oyuncu bu cezayı söyledi mi?
-        const round = state.rounds.find(r => r.callerIdx === pIdx && r.gameKey === row.key);
-        if (round) {
-          cellStatus = 'used';
-          const myPts = round.points[pIdx];
-          const sign = myPts > 0 ? '+' : '';
-          cellText = `${sign}${myPts}P`;
-        } else {
-          // Başka bir kural: Ceza globalde 2 kez söylendiyse veya oyuncu 3 cezasını bitirdiyse kilitli
-          const globalCount = getGlobalGameUsageCount(row.key);
-          const callerCezaCount = state.players[pIdx].cezaCount;
-          if (globalCount >= 2 || callerCezaCount >= 3 || state.rounds.length >= 20) {
-            cellStatus = 'locked';
-          } else {
-            cellStatus = 'available';
-          }
-        }
-      }
-
-      cellsHtml += `<td><span class="cell-slot ${cellStatus}">${cellText}</span></td>`;
-    }
-
-    tr.innerHTML = `
-      <td class="game-name-cell">${row.title}</td>
-      <td class="game-pts-cell ${ptsClass}">${row.pts}</td>
-      ${cellsHtml}
-    `;
-    tbody.appendChild(tr);
-  });
-}
-
-// ==========================================================================
-// TUR GEÇMİŞİ TABLOSU RENDERİ
-// ==========================================================================
-function renderHistoryTable() {
-  const tbody = document.getElementById('historyTableBody');
-  document.getElementById('thHistP1').textContent = state.players[0].name;
-  document.getElementById('thHistP2').textContent = state.players[1].name;
-  document.getElementById('thHistP3').textContent = state.players[2].name;
-  document.getElementById('thHistP4').textContent = state.players[3].name;
-
-  document.getElementById('lblHistoryCount').textContent = `Toplam ${state.rounds.length} / 20 el oynandı`;
-
-  if (state.rounds.length === 0) {
-    tbody.innerHTML = `
-      <tr class="empty-row">
-        <td colspan="8">Henüz el oynanmadı. İlk elin kaydını yukarıdan başlatabilirsiniz.</td>
-      </tr>
-    `;
-  } else {
-    tbody.innerHTML = '';
-    state.rounds.forEach(r => {
-      const tr = document.createElement('tr');
-      const ptsCells = r.points.map(pt => {
-        let cls = 'score-none';
-        let sign = '';
-        if (pt > 0) { cls = 'score-gain'; sign = '+'; }
-        else if (pt < 0) { cls = 'score-loss'; }
-        return `<td class="${cls}">${sign}${pt}</td>`;
-      }).join('');
-
-      const distDetail = r.distribution.map((d, i) => `${state.players[i].name}: ${d}`).join(', ');
-
-      tr.innerHTML = `
-        <td><b>${r.handNo}</b></td>
-        <td><span class="dealer-name">${escapeHtml(r.callerName)}</span></td>
-        <td><b>${escapeHtml(r.gameTitle)}</b></td>
-        ${ptsCells}
-        <td style="font-size: 11.5px; color: var(--text-dim); text-align: left;">${escapeHtml(distDetail)}</td>
-      `;
-      tbody.appendChild(tr);
-    });
-  }
-
-  // Footer Toplam Puanlar
-  for (let i = 0; i < 4; i++) {
-    const footEl = document.getElementById(`footP${i + 1}`);
-    const score = state.players[i].score;
-    let cls = 'score-none';
-    let sign = '';
-    if (score > 0) { cls = 'score-gain'; sign = '+'; }
-    else if (score < 0) { cls = 'score-loss'; }
-    footEl.className = `score-cell ${cls}`;
-    footEl.textContent = `${sign}${score}`;
-  }
 }
 
 // ==========================================================================
 // EVENT LISTENERS & MODALLAR
 // ==========================================================================
 function initEventListeners() {
-  // El Kaydet Butonu
-  document.getElementById('btnSaveHand').addEventListener('click', saveCurrentHand);
+  // Koz ve Ceza Kaydet Butonları
+  document.getElementById('btnSaveKoz').addEventListener('click', saveKozHand);
+  document.getElementById('btnSaveCeza').addEventListener('click', saveCezaHand);
 
-  // Geri Al Butonu
+  // Geri Al & Yeni Oyun
   document.getElementById('btnUndo').addEventListener('click', undoLastHand);
-
-  // Yeni Oyun Butonu
   document.getElementById('btnNewGame').addEventListener('click', resetGame);
+
+  // Kurulum Sayfası: "Oyunu Başlat"
+  document.getElementById('btnStartGame').addEventListener('click', () => {
+    state.players[0].name = document.getElementById('inputPlayer1').value.trim() || 'Oyuncu 1';
+    state.players[1].name = document.getElementById('inputPlayer2').value.trim() || 'Oyuncu 2';
+    state.players[2].name = document.getElementById('inputPlayer3').value.trim() || 'Oyuncu 3';
+    state.players[3].name = document.getElementById('inputPlayer4').value.trim() || 'Oyuncu 4';
+
+    const selRadio = document.querySelector('input[name="scoringMode"]:checked');
+    if (selRadio) state.scoringMode = selRadio.value;
+
+    recalculateAllScores();
+    saveStateToStorage();
+    pushStateToServer();
+    triggerHaptic(25);
+    renderAll();
+
+    // Koz sayfasına pürüzsüzce kaydır
+    goToScreen(1, true);
+    showToast('Oyun başlatıldı! Koz sayfasındasınız.', 'emerald');
+  });
+
+  // Hızlı Geçiş Butonları (Sonuçlar Sayfasından Koz ve Cezaya)
+  document.getElementById('btnJumpToKoz').addEventListener('click', () => {
+    triggerHaptic(15);
+    goToScreen(1, true);
+  });
+  document.getElementById('btnJumpToCeza').addEventListener('click', () => {
+    triggerHaptic(15);
+    goToScreen(2, true);
+  });
+  document.getElementById('btnGoCezaFromKoz').addEventListener('click', () => {
+    triggerHaptic(15);
+    goToScreen(2, true);
+  });
+  document.getElementById('btnGoKozFromCeza').addEventListener('click', () => {
+    triggerHaptic(15);
+    goToScreen(1, true);
+  });
+
+  // Oyuncuları Düzenle (Sonuçlar sayfasından Sayfa 0'a)
+  document.getElementById('btnEditPlayers').addEventListener('click', () => {
+    triggerHaptic(15);
+    goToScreen(0, true);
+  });
 
   // Yazdır / PDF
   document.getElementById('btnPrintScores').addEventListener('click', () => {
@@ -885,57 +1066,17 @@ function initEventListeners() {
   // Çeteleyi Panoya Kopyala
   document.getElementById('btnExportMatrix').addEventListener('click', copyMatrixToClipboard);
 
-  // Ayarlar Modalı
-  const modalSettings = document.getElementById('modalSettings');
-  document.getElementById('btnSettings').addEventListener('click', () => {
-    document.getElementById('inputPlayer1').value = state.players[0].name;
-    document.getElementById('inputPlayer2').value = state.players[1].name;
-    document.getElementById('inputPlayer3').value = state.players[2].name;
-    document.getElementById('inputPlayer4').value = state.players[3].name;
-    document.getElementById('selectFirstDealer').value = state.initialDealer;
-
-    const radio = document.querySelector(`input[name="scoringMode"][value="${state.scoringMode}"]`);
-    if (radio) radio.checked = true;
-
-    modalSettings.classList.add('active');
-  });
-
-  document.getElementById('btnCloseSettings').addEventListener('click', () => modalSettings.classList.remove('active'));
-  document.getElementById('btnCancelSettings').addEventListener('click', () => modalSettings.classList.remove('active'));
-
-  document.getElementById('btnSaveSettings').addEventListener('click', () => {
-    state.players[0].name = document.getElementById('inputPlayer1').value.trim() || 'Oyuncu 1';
-    state.players[1].name = document.getElementById('inputPlayer2').value.trim() || 'Oyuncu 2';
-    state.players[2].name = document.getElementById('inputPlayer3').value.trim() || 'Oyuncu 3';
-    state.players[3].name = document.getElementById('inputPlayer4').value.trim() || 'Oyuncu 4';
-    state.initialDealer = parseInt(document.getElementById('selectFirstDealer').value, 10) || 0;
-
-    const selRadio = document.querySelector('input[name="scoringMode"]:checked');
-    if (selRadio) {
-      state.scoringMode = selRadio.value;
-    }
-
-    recalculateAllScores();
-    saveStateToStorage();
-    pushStateToServer();
-    renderAll();
-    modalSettings.classList.remove('active');
-    showToast('Ayarlar başarıyla kaydedildi!', 'emerald');
-  });
-
   // Yardım / Kurallar Modalı
   const modalHelp = document.getElementById('modalHelp');
   document.getElementById('btnHelp').addEventListener('click', () => modalHelp.classList.add('active'));
   document.getElementById('btnCloseHelp').addEventListener('click', () => modalHelp.classList.remove('active'));
   document.getElementById('btnOkHelp').addEventListener('click', () => modalHelp.classList.remove('active'));
 
-  // Telefondan Bağlan Modalı (QR Kod & PWA Kurulum Rehberi)
+  // Telefondan Bağlan Modalı (QR Kod)
   const modalMobile = document.getElementById('modalMobileConnect');
   const btnConnect = document.getElementById('btnConnectMobile');
   if (btnConnect && modalMobile) {
-    btnConnect.addEventListener('click', () => {
-      openMobileConnectModal();
-    });
+    btnConnect.addEventListener('click', openMobileConnectModal);
     document.getElementById('btnCloseMobileConnect')?.addEventListener('click', () => modalMobile.classList.remove('active'));
     document.getElementById('btnOkMobileConnect')?.addEventListener('click', () => modalMobile.classList.remove('active'));
   }
@@ -973,7 +1114,7 @@ function initEventListeners() {
   });
 
   // Modalların dışına tıklayınca kapatma
-  [modalSettings, modalHelp, modalMobile].forEach(modal => {
+  [modalHelp, modalMobile].forEach(modal => {
     if (modal) {
       modal.addEventListener('click', (e) => {
         if (e.target === modal) modal.classList.remove('active');
@@ -988,17 +1129,13 @@ function openMobileConnectModal() {
   const urlText = document.getElementById('networkUrlText');
   if (!modal) return;
 
-  // En uygun adresi belirle (Sunucudan gelen yerel ağ IP'si veya mevcut adres)
   let targetUrl = serverNetworkUrl || window.location.href;
   if (serverNetworkUrl && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')) {
     targetUrl = serverNetworkUrl;
   }
 
-  if (urlText) {
-    urlText.textContent = targetUrl;
-  }
+  if (urlText) urlText.textContent = targetUrl;
 
-  // qrcode.js ile temiz ve okunaklı SVG oluştur
   if (qrContainer && typeof qrcode !== 'undefined') {
     try {
       const qr = qrcode(0, 'M');
@@ -1006,52 +1143,11 @@ function openMobileConnectModal() {
       qr.make();
       qrContainer.innerHTML = qr.createSvgTag({ cellSize: 5, margin: 2 });
     } catch (e) {
-      console.warn('QR kod üretilemedi:', e);
-      qrContainer.innerHTML = `<div style="padding: 16px; font-weight: bold; color: #0f172a; word-break: break-all;">${escapeHtml(targetUrl)}</div>`;
+      qrContainer.innerHTML = `<div style="padding: 16px; font-weight: bold; color: #0f172a;">${escapeHtml(targetUrl)}</div>`;
     }
   }
 
   modal.classList.add('active');
-}
-
-function initMobileNavigation() {
-  const navBtns = document.querySelectorAll('.mobile-nav-btn');
-
-  function checkMobileMode() {
-    const isMobile = window.innerWidth <= 768;
-    if (isMobile) {
-      document.body.classList.add('mobile-mode');
-      const activeBtn = document.querySelector('.mobile-nav-btn.active');
-      const targetId = activeBtn ? activeBtn.dataset.target : 'handEntrySection';
-      switchMobileSection(targetId);
-    } else {
-      document.body.classList.remove('mobile-mode');
-      document.querySelectorAll('.mobile-section-active').forEach(el => el.classList.remove('mobile-section-active'));
-    }
-  }
-
-  function switchMobileSection(targetId) {
-    document.querySelectorAll('.mobile-section-active').forEach(el => el.classList.remove('mobile-section-active'));
-    const targetEl = document.getElementById(targetId);
-    if (targetEl) {
-      targetEl.classList.add('mobile-section-active');
-      window.scrollTo({ top: 0, behavior: 'smooth' });
-    }
-    navBtns.forEach(btn => {
-      btn.classList.toggle('active', btn.dataset.target === targetId);
-    });
-  }
-
-  navBtns.forEach(btn => {
-    btn.addEventListener('click', () => {
-      triggerHaptic(20);
-      switchMobileSection(btn.dataset.target);
-    });
-  });
-
-  window.addEventListener('resize', checkMobileMode);
-  window.addEventListener('orientationchange', checkMobileMode);
-  checkMobileMode();
 }
 
 function copyMatrixToClipboard() {
@@ -1099,9 +1195,6 @@ function copyMatrixToClipboard() {
   });
 }
 
-// ==========================================================================
-// TOAST BİLDİRİM SİSTEMİ
-// ==========================================================================
 function showToast(msg, type = 'emerald') {
   let toast = document.getElementById('appToast');
   if (!toast) {
@@ -1109,16 +1202,18 @@ function showToast(msg, type = 'emerald') {
     toast.id = 'appToast';
     toast.style.position = 'fixed';
     toast.style.bottom = '24px';
-    toast.style.right = '24px';
-    toast.style.padding = '12px 20px';
-    toast.style.borderRadius = '12px';
-    toast.style.fontSize = '14px';
-    toast.style.fontWeight = '600';
+    toast.style.left = '50%';
+    toast.style.transform = 'translateX(-50%) translateY(20px)';
+    toast.style.padding = '10px 18px';
+    toast.style.borderRadius = '999px';
+    toast.style.fontSize = '13px';
+    toast.style.fontWeight = '700';
     toast.style.zIndex = '9999';
-    toast.style.boxShadow = '0 10px 25px rgba(0,0,0,0.5)';
-    toast.style.transition = 'all 0.3s ease';
+    toast.style.boxShadow = '0 10px 30px rgba(0,0,0,0.6)';
+    toast.style.transition = 'all 0.25s ease';
     toast.style.color = '#fff';
     toast.style.pointerEvents = 'none';
+    toast.style.whiteSpace = 'nowrap';
     document.body.appendChild(toast);
   }
 
@@ -1132,13 +1227,13 @@ function showToast(msg, type = 'emerald') {
   toast.style.background = bgColors[type] || bgColors.emerald;
   toast.textContent = msg;
   toast.style.opacity = '1';
-  toast.style.transform = 'translateY(0)';
+  toast.style.transform = 'translateX(-50%) translateY(0)';
 
   clearTimeout(toast._timer);
   toast._timer = setTimeout(() => {
     toast.style.opacity = '0';
-    toast.style.transform = 'translateY(12px)';
-  }, 3200);
+    toast.style.transform = 'translateX(-50%) translateY(20px)';
+  }, 2600);
 }
 
 function escapeHtml(str) {
