@@ -1,0 +1,392 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>King Puan ve Ceza Hesaplama — Profesyonel Çetele</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700;800;900&family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="app-background-glow glow-1"></div>
+  <div class="app-background-glow glow-2"></div>
+  <div class="app-background-glow glow-3"></div>
+
+  <div class="container">
+    <!-- Üst Başlık & Kontroller -->
+    <header class="app-header">
+      <div class="header-branding">
+        <div class="suit-icons">
+          <span class="suit spade">♠</span>
+          <span class="suit heart">♥</span>
+          <span class="suit diamond">♦</span>
+          <span class="suit club">♣</span>
+        </div>
+        <div>
+          <h1 class="app-title">KING <span>PUAN & ÇETELE</span></h1>
+          <p class="app-subtitle">20 El Profesyonel Skor ve Ceza Hesaplama Motoru</p>
+        </div>
+      </div>
+
+      <div class="header-actions">
+        <button class="btn btn-secondary" id="btnSettings" title="Oyun Ayarları">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>
+          Ayarlar
+        </button>
+        <button class="btn btn-secondary" id="btnHelp" title="King Kuralları & Puanlama">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><path d="M12 17h.01"/></svg>
+          Kurallar
+        </button>
+        <button class="btn btn-secondary" id="btnUndo" title="Son Eli Geri Al">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7v6h6"/><path d="M21 17a9 9 0 0 0-9-9 9 9 0 0 0-6 2.3L3 13"/></svg>
+          Geri Al
+        </button>
+        <button class="btn btn-danger" id="btnNewGame" title="Tüm Çeteleyi Sıfırla">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M3 21v-5h5"/></svg>
+          Yeni Oyun
+        </button>
+      </div>
+    </header>
+
+    <!-- Oyun İlerleme Durumu Çubuğu -->
+    <section class="progress-section">
+      <div class="progress-meta">
+        <div class="round-badge">
+          <span class="round-title">AKTİF EL</span>
+          <span class="round-counter" id="lblCurrentHand">1 / 20</span>
+        </div>
+        <div class="dealer-info">
+          <span class="info-tag">Sıradaki Oyuncu:</span>
+          <span class="dealer-name" id="lblActivePlayer">Oyuncu 1</span>
+        </div>
+        <div class="counts-summary">
+          <span class="summary-pill koz-pill">👑 Oynanan Koz: <b id="lblPlayedKozCount">0 / 8</b></span>
+          <span class="summary-pill ceza-pill">⚡ Oynanan Ceza: <b id="lblPlayedCezaCount">0 / 12</b></span>
+        </div>
+      </div>
+      <div class="progress-bar-track">
+        <div class="progress-bar-fill" id="progressBarFill" style="width: 5%;"></div>
+      </div>
+    </section>
+
+    <!-- Oyuncu Skor Kartları (Lider Tablosu) -->
+    <section class="players-grid" id="playersGrid">
+      <!-- JavaScript ile dinamik 4 oyuncu kartı render edilir -->
+    </section>
+
+    <!-- Ana Panel: Sol (El Girişi) & Sağ (İnteraktif Çetele Matrisi) -->
+    <div class="dashboard-split">
+      
+      <!-- SOL: Aktif El Giriş Paneli -->
+      <section class="hand-entry-panel card-panel">
+        <div class="panel-header">
+          <div class="badge-accent">EL GİRİŞİ</div>
+          <h2 class="panel-title" id="entryPanelTitle">1. El Kaydı</h2>
+          <span class="active-caller-tag" id="entryCallerTag">Söyleyen: Oyuncu 1</span>
+        </div>
+
+        <!-- Oyun Türü Seçimi (Koz mu Ceza mı?) -->
+        <div class="game-type-selector">
+          <label class="form-label">Oyun Türü ve Alt Ceza / Koz Seçimi:</label>
+          <div class="game-type-buttons" id="gameTypeButtons">
+            <!-- Dinamik doldurulur -->
+          </div>
+        </div>
+
+        <!-- Seçilen Oyun Bilgi Kartı -->
+        <div class="selected-game-banner" id="selectedGameBanner">
+          <div class="banner-icon" id="gameBannerIcon">👑</div>
+          <div class="banner-content">
+            <h4 id="gameBannerTitle">Koz Oyunu</h4>
+            <p id="gameBannerDesc">Alınan her el +50 puan kazandırır. Toplam 13 el dağıtılmalıdır.</p>
+          </div>
+          <div class="banner-badge" id="gameBannerPoints">+50 P / El</div>
+        </div>
+
+        <!-- Oyuncu Dağılım Giriş Alanları -->
+        <div class="distribution-module">
+          <div class="dist-header">
+            <span>Oyuncuların Aldığı Miktar / El</span>
+            <span class="dist-counter" id="distRemainingBadge">Kalan: 13 / 13</span>
+          </div>
+
+          <div class="dist-players-list" id="distPlayersList">
+            <!-- 4 oyuncu için sayı girişleri, artır/azalt butonları -->
+          </div>
+
+          <!-- Hızlı Kalanı Doldur Butonları -->
+          <div class="quick-fill-row" id="quickFillRow">
+            <span class="quick-label">Kalanı Ata:</span>
+            <div class="quick-buttons" id="quickButtons">
+              <!-- Oyuncu hızlı butonları -->
+            </div>
+          </div>
+        </div>
+
+        <!-- Doğrulama ve Kaydet -->
+        <div class="entry-actions">
+          <div class="validation-message" id="validationMessage">
+            Lütfen toplam 13 el olacak şekilde dağılımı girin.
+          </div>
+          <button class="btn btn-primary btn-large" id="btnSaveHand" disabled>
+            <span>✓</span> Bu Eli Kaydet ve İlerle
+          </button>
+        </div>
+      </section>
+
+      <!-- SAĞ: 20 El Çetele Matrisi (Kim Hangi Oyunu Oynadı?) -->
+      <section class="cetele-matrix-panel card-panel">
+        <div class="panel-header">
+          <div class="badge-accent">ÇETELE MATRİSİ</div>
+          <h2 class="panel-title">Oyun Hakları & Durum Tablosu</h2>
+          <button class="btn btn-sm btn-ghost" id="btnExportMatrix" title="Çeteleyi Panoya Kopyala">📋 Kopyala</button>
+        </div>
+
+        <p class="matrix-instruction">
+          Her oyuncu oyun boyunca <b>2 Koz</b> ve <b>3 Ceza</b> söylemek zorundadır. Kullanılan haklar otomatik işaretlenir.
+        </p>
+
+        <div class="matrix-wrapper">
+          <table class="cetele-table" id="ceteleTable">
+            <thead>
+              <tr>
+                <th class="th-game">Oyun</th>
+                <th class="th-pts">Puan</th>
+                <th class="th-p p1" id="thPlayer1">Oyuncu 1</th>
+                <th class="th-p p2" id="thPlayer2">Oyuncu 2</th>
+                <th class="th-p p3" id="thPlayer3">Oyuncu 3</th>
+                <th class="th-p p4" id="thPlayer4">Oyuncu 4</th>
+              </tr>
+            </thead>
+            <tbody id="ceteleTableBody">
+              <!-- Dinamik satırlar: Koz 1, Koz 2, El Almaz, Kupa Almaz, Kız Almaz, Erkek Almaz, Rıfkı, Son İki -->
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Hızlı Durum Açıklaması -->
+        <div class="matrix-legend">
+          <span class="legend-item"><span class="legend-dot used"></span> Oynandı</span>
+          <span class="legend-item"><span class="legend-dot available"></span> Kullanılabilir</span>
+          <span class="legend-item"><span class="legend-dot locked"></span> Kilitli / Tükendi</span>
+        </div>
+      </section>
+
+    </div>
+
+    <!-- El Geçmişi ve Detaylı Skor Tablosu -->
+    <section class="history-section card-panel">
+      <div class="panel-header">
+        <div class="badge-accent">TUR DÖKÜMÜ</div>
+        <h2 class="panel-title">Oynanan Eller ve Puan Hareketleri</h2>
+        <div class="history-controls">
+          <span class="history-count" id="lblHistoryCount">Toplam 0 el oynandı</span>
+          <button class="btn btn-sm btn-secondary" id="btnPrintScores">🖨️ Yazdır / PDF</button>
+        </div>
+      </div>
+
+      <div class="table-responsive">
+        <table class="history-table" id="historyTable">
+          <thead>
+            <tr>
+              <th>El</th>
+              <th>Söyleyen</th>
+              <th>Oyun</th>
+              <th id="thHistP1">Oyuncu 1</th>
+              <th id="thHistP2">Oyuncu 2</th>
+              <th id="thHistP3">Oyuncu 3</th>
+              <th id="thHistP4">Oyuncu 4</th>
+              <th>Detay / Dağılım</th>
+            </tr>
+          </thead>
+          <tbody id="historyTableBody">
+            <tr class="empty-row">
+              <td colspan="8">Henüz el oynanmadı. İlk elin kaydını yukarıdan başlatabilirsiniz.</td>
+            </tr>
+          </tbody>
+          <tfoot id="historyTableFoot">
+            <tr class="total-row">
+              <td colspan="3"><b>GENEL TOPLAM SKOR</b></td>
+              <td id="footP1" class="score-cell">0</td>
+              <td id="footP2" class="score-cell">0</td>
+              <td id="footP3" class="score-cell">0</td>
+              <td id="footP4" class="score-cell">0</td>
+              <td>—</td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="app-footer">
+      <p>King Puan ve Ceza Hesaplama Sistemi • Geleneksel Türk King Kuralları ile Tam Uyumlu</p>
+      <p class="footer-sub">Tüm veriler yerel olarak tarayıcınızda (Local Storage) saklanır, sayfa yenilense de silinmez.</p>
+    </footer>
+  </div>
+
+  <!-- MODAL: Oyun Ayarları -->
+  <div class="modal-backdrop" id="modalSettings">
+    <div class="modal-box">
+      <div class="modal-header">
+        <h3>⚙️ Oyun ve Kural Ayarları</h3>
+        <button class="modal-close" id="btnCloseSettings">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label class="form-label">Oyuncu İsimleri:</label>
+          <div class="player-name-inputs">
+            <div class="input-inline">
+              <span class="p-num">1</span>
+              <input type="text" id="inputPlayer1" class="form-input" value="Oyuncu 1" maxlength="20">
+            </div>
+            <div class="input-inline">
+              <span class="p-num">2</span>
+              <input type="text" id="inputPlayer2" class="form-input" value="Oyuncu 2" maxlength="20">
+            </div>
+            <div class="input-inline">
+              <span class="p-num">3</span>
+              <input type="text" id="inputPlayer3" class="form-input" value="Oyuncu 3" maxlength="20">
+            </div>
+            <div class="input-inline">
+              <span class="p-num">4</span>
+              <input type="text" id="inputPlayer4" class="form-input" value="Oyuncu 4" maxlength="20">
+            </div>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Puanlama Modeli:</label>
+          <div class="radio-cards">
+            <label class="radio-card">
+              <input type="radio" name="scoringMode" value="standard" checked>
+              <div class="rc-content">
+                <b>Standart Türk King</b>
+                <span>Koz: +50 / el. Cezalar: El -50, Kupa -30, Erkek -60, Kız -100, Rıfkı -320, Son İki -180. (Koz Toplamı: +5200, Ceza: -2600).</span>
+              </div>
+            </label>
+            <label class="radio-card">
+              <input type="radio" name="scoringMode" value="zero_sum">
+              <div class="rc-content">
+                <b>Sıfır Toplamlı King (Zero-Sum)</b>
+                <span>Cezalar 2 katı hesaplanır (-5200) veya kozlar +25 puan dengelenir. Oyun sonunda 4 oyuncunun puan toplamı tam 0 olur.</span>
+              </div>
+            </label>
+            <label class="radio-card">
+              <input type="radio" name="scoringMode" value="bloody">
+              <div class="rc-content">
+                <b>Kanlı King (Cezayı Yiyene Ekstra Katlama)</b>
+                <span>Cezayı söyleyen oyuncu söylediği cezayı kendisi yerse ceza 2 katı işlenir.</span>
+              </div>
+            </label>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">İlk Dağıtıcı (Krupiye):</label>
+          <select id="selectFirstDealer" class="form-select">
+            <option value="0">Oyuncu 1</option>
+            <option value="1">Oyuncu 2</option>
+            <option value="2">Oyuncu 3</option>
+            <option value="3">Oyuncu 4</option>
+          </select>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" id="btnCancelSettings">İptal</button>
+        <button class="btn btn-primary" id="btnSaveSettings">Kaydet ve Uygula</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: King Kuralları & Puan Rehberi -->
+  <div class="modal-backdrop" id="modalHelp">
+    <div class="modal-box modal-lg">
+      <div class="modal-header">
+        <h3>📖 King Kuralları & Puanlama Rehberi</h3>
+        <button class="modal-close" id="btnCloseHelp">&times;</button>
+      </div>
+      <div class="modal-body rules-content">
+        <div class="rules-grid">
+          <div class="rule-card koz-card">
+            <h4>👑 KOZ OYUNLARI (8 El)</h4>
+            <p>Her oyuncu oyun boyunca <b>2 kez</b> koz söyleme hakkına sahiptir. Alınan her el <b>+50 Puan</b> kazandırır (Bir elde toplam 13 el = +650 Puan).</p>
+          </div>
+          <div class="rule-card ceza-card">
+            <h4>⚡ CEZA OYUNLARI (12 El)</h4>
+            <p>Her oyuncu oyun boyunca <b>3 kez</b> ceza söyleme hakkına sahiptir. Bir ceza en fazla 2 kez oynanabilir.</p>
+          </div>
+        </div>
+
+        <h4 class="mt-4">Ceza Detayları ve Puan Değerleri</h4>
+        <table class="rules-table">
+          <thead>
+            <tr>
+              <th>Ceza Türü</th>
+              <th>Birim Ceza</th>
+              <th>Kart / Adet</th>
+              <th>Toplam Ceza</th>
+              <th>Açıklama</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><b>✋ El Almaz</b></td>
+              <td><span class="neg">-50 P</span></td>
+              <td>13 El</td>
+              <td><span class="neg">-650 P</span></td>
+              <td>Oyun boyunca mümkün olduğunca az el almaya çalışılır.</td>
+            </tr>
+            <tr>
+              <td><b>♥️ Kupa Almaz</b></td>
+              <td><span class="neg">-30 P</span></td>
+              <td>13 Kupa</td>
+              <td><span class="neg">-390 P</span></td>
+              <td>Kupa serisinden kağıt almamak esastır. Kupa çıkana kadar kupa atılamaz.</td>
+            </tr>
+            <tr>
+              <td><b>👸 Kız Almaz</b></td>
+              <td><span class="neg">-100 P</span></td>
+              <td>4 Kız</td>
+              <td><span class="neg">-400 P</span></td>
+              <td>Dört simgedeki Kızları (Q) alan oyuncular her kız için ceza puanı alır.</td>
+            </tr>
+            <tr>
+              <td><b>🤴 Erkek Almaz</b></td>
+              <td><span class="neg">-60 P</span></td>
+              <td>8 Kart (Vale + Papaz)</td>
+              <td><span class="neg">-480 P</span></td>
+              <td>Vale (J) ve Papaz (K) kağıtlarını almamak hedeflenir.</td>
+            </tr>
+            <tr>
+              <td><b>🗡️ Rıfkı (Kupa Papazı)</b></td>
+              <td><span class="neg">-320 P</span></td>
+              <td>1 Kart (K♥️)</td>
+              <td><span class="neg">-320 P</span></td>
+              <td>Oyunun en kritik cezasıdır. Kupa Papazını alan oyuncu tek seferde -320 puan yer.</td>
+            </tr>
+            <tr>
+              <td><b>⏳ Son İki</b></td>
+              <td><span class="neg">-180 P</span></td>
+              <td>2 El (12. ve 13. el)</td>
+              <td><span class="neg">-360 P</span></td>
+              <td>Son iki eli alan oyuncular her el için -180 puan ceza yer.</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <div class="info-alert mt-4">
+          💡 <b>Strateji İpucu:</b> Bir King partisinde en önemli hedef, kendi söylediğiniz kozlarda maksimum el (+50) toplamak ve rakiplerin söylediği ağır cezalardan (özellikle Rıfkı ve Kız Almaz) kaçınmaktır!
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-primary" id="btnOkHelp">Anladım</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
