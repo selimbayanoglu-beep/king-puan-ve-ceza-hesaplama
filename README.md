@@ -54,16 +54,20 @@ King oyunu **4 kişiyle** oynanan bir koz ve ceza oyunudur. Toplam **20 el** sü
 
 ## ✨ Uygulama Özellikleri
 
-1. **İnteraktif 20 El Çetele Matrisi:** Kim hangi oyunu oynamış, hangi hakları kalmış anlık gösterilir; tükenen haklar otomatik kilitlenir.
-2. **Akıllı Dağılım ve Doğrulama:** Örneğin Kız Almaz'da toplam 4 kız, Kupa Almaz'da 13 kupa tam girilmeden el kaydedilemez; "Kalanı Ata" butonlarıyla tek tıkla tamamlanabilir.
-3. **Puanlama Modelleri:**
+1. **📱 Cep Telefonundan Canlı Giriş (Android & iOS):** Masadaki tüm oyuncular bilgisayardaki QR kodu telefon kamerasıyla okutarak anında çeteye bağlanabilir ve el girişi yapabilir.
+2. **🔄 Gerçek Zamanlı Çoklu Cihaz Senkronizasyonu:** Masadaki herhangi bir telefondan veya bilgisayardan el kaydedildiğinde tüm cihazlar anında (sayfa yenilemeye gerek kalmadan) güncellenir.
+3. **📲 PWA & Ana Ekrana Ekleme Desteği:** iOS (Safari) ve Android (Chrome) üzerinden "Ana Ekrana Ekle" seçeneğiyle tam ekran, yerel mobil uygulama konforunda açılır.
+4. **🎮 Mobil Alt Gezinti Çubuğu & Dokunmatik Optimizasyon:** Telefon ekranında tek dokunuşla "El Girişi", "Skorlar", "Çetele Matrisi" ve "Geçmiş" sekmeleri arasında geçiş yapılabilir; büyük butonlar ve haptic titreşim desteği bulunur.
+5. **İnteraktif 20 El Çetele Matrisi:** Kim hangi oyunu oynamış, hangi hakları kalmış anlık gösterilir; tükenen haklar otomatik kilitlenir.
+6. **Akıllı Dağılım ve Doğrulama:** Örneğin Kız Almaz'da toplam 4 kız, Kupa Almaz'da 13 kupa tam girilmeden el kaydedilemez; "Kalanı Ata" butonlarıyla tek tıkla tamamlanabilir.
+7. **Puanlama Modelleri:**
    - **Standart Türk King**
    - **Sıfır Toplamlı King (Zero-Sum):** Oyun sonunda puanlar tam sıfırlanır.
    - **Kanlı King:** Cezayı söyleyen kendisi ceza yerse puanı iki katı yazılır.
-4. **Geri Al (Undo):** Yanlış girilen son eli puanları ve hakları bozmadan anında geri alma.
-5. **Kalıcı Bellek (Local Storage):** Sayfa yenilense veya tarayıcı kapansa bile oyun asla kaybolmaz.
-6. **Yazdır / PDF ve Panoya Kopyalama:** Çeteleyi tek tıkla panoya veya kağıda dökebilme.
-7. **Premium Tasarım:** Zümrüt yeşili, gece mavisi ve altın vurgularla şık iskambil kulübü teması.
+8. **Geri Al (Undo):** Yanlış girilen son eli puanları ve hakları bozmadan anında geri alma.
+9. **Kalıcı Bellek (Server Session & Local Storage):** Bilgisayar veya telefon kapansa dahi oyun verisi `session_state.json` dosyasında güvenle saklanır.
+10. **Yazdır / PDF ve Panoya Kopyalama:** Çeteleyi tek tıkla panoya veya kağıda dökebilme.
+11. **Premium Tasarım:** Zümrüt yeşili, gece mavisi ve altın vurgularla şık iskambil kulübü teması.
 
 ---
 

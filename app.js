@@ -101,11 +101,130 @@ let state = {
   currentInputs: [0, 0, 0, 0] // Aktif el için 4 oyuncunun girdiği miktar
 };
 
+// ==========================================================================
+// ÇOKLU CİHAZ SENKRONİZASYON & HAPTIC MOTORU
+// ==========================================================================
+let serverVersion = 0;
+let isServerOnline = false;
+let isSyncing = false;
+let serverNetworkUrl = '';
+let syncIntervalId = null;
+
+function triggerHaptic(duration = 20) {
+  try {
+    if (typeof navigator !== 'undefined' && navigator.vibrate) {
+      navigator.vibrate(duration);
+    }
+  } catch (e) {}
+}
+
+async function fetchNetworkInfo() {
+  try {
+    const res = await fetch('/api/network-info', { cache: 'no-store' });
+    if (res.ok) {
+      const data = await res.json();
+      if (data.url) serverNetworkUrl = data.url;
+      return data;
+    }
+  } catch (e) {}
+  return null;
+}
+
+async function fetchServerState(initial = false) {
+  if (isSyncing) return;
+  try {
+    const res = await fetch('/api/state', { cache: 'no-store' });
+    if (res.ok) {
+      const data = await res.json();
+      updateSyncBadge(true);
+      if (data.version && data.version > serverVersion) {
+        serverVersion = data.version;
+        if (data.state && Array.isArray(data.state.players)) {
+          state = data.state;
+          if (!state.currentInputs || state.currentInputs.length !== 4) {
+            state.currentInputs = [0, 0, 0, 0];
+          }
+          recalculateAllScores();
+          saveStateToStorage();
+          renderAll();
+          if (!initial) {
+            showToast('🔄 Çetele güncellendi (senkronize)', 'cyan');
+          }
+        }
+      }
+    } else {
+      updateSyncBadge(false);
+    }
+  } catch (e) {
+    updateSyncBadge(false);
+  }
+}
+
+async function pushStateToServer() {
+  saveStateToStorage();
+  try {
+    isSyncing = true;
+    const res = await fetch('/api/state', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ state: state, version: serverVersion })
+    });
+    if (res.ok) {
+      const data = await res.json();
+      if (data.version) {
+        serverVersion = data.version;
+      }
+      updateSyncBadge(true);
+    } else {
+      updateSyncBadge(false);
+    }
+  } catch (e) {
+    updateSyncBadge(false);
+  } finally {
+    isSyncing = false;
+  }
+}
+
+function updateSyncBadge(online) {
+  isServerOnline = online;
+  const badge = document.getElementById('syncBadge');
+  const dot = badge?.querySelector('.sync-dot');
+  const text = document.getElementById('syncText');
+  if (!badge) return;
+
+  if (online) {
+    badge.className = 'sync-badge';
+    if (dot) dot.className = 'sync-dot online';
+    if (text) text.textContent = 'Canlı Senkronize';
+  } else {
+    const isCloud = window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1' && window.location.protocol.startsWith('http');
+    if (isCloud) {
+      badge.className = 'sync-badge';
+      if (dot) dot.className = 'sync-dot online';
+      if (text) text.textContent = 'Bulut Modu (Aktif)';
+    } else {
+      badge.className = 'sync-badge offline';
+      if (dot) dot.className = 'sync-dot offline';
+      if (text) text.textContent = 'Yerel Mod (Çevrimdışı)';
+    }
+  }
+}
+
 // Uygulama Başlatma
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
   loadStateFromStorage();
   initEventListeners();
+  initMobileNavigation();
   renderAll();
+
+  // Ağ bilgilerini ve sunucu durumunu kontrol et
+  await fetchNetworkInfo();
+  await fetchServerState(true);
+
+  // Periyodik Canlı Senkronizasyon (Her 1.5 saniyede bir diğer cihazları dinle)
+  syncIntervalId = setInterval(() => {
+    fetchServerState(false);
+  }, 1500);
 });
 
 // ==========================================================================
@@ -126,7 +245,6 @@ function loadStateFromStorage() {
       const parsed = JSON.parse(raw);
       if (parsed && Array.isArray(parsed.players) && parsed.players.length === 4) {
         state = parsed;
-        // Eksik alanları tamamla
         if (!state.currentInputs || state.currentInputs.length !== 4) {
           state.currentInputs = [0, 0, 0, 0];
         }
@@ -159,6 +277,7 @@ function resetGame() {
     currentInputs: [0, 0, 0, 0]
   };
   saveStateToStorage();
+  pushStateToServer();
   renderAll();
   showToast('Yeni oyun başlatıldı!', 'emerald');
 }
@@ -172,6 +291,8 @@ function undoLastHand() {
   recalculateAllScores();
   state.currentInputs = [0, 0, 0, 0];
   saveStateToStorage();
+  pushStateToServer();
+  triggerHaptic(30);
   renderAll();
   showToast(`${removed.handNo}. el geri alındı.`, 'amber');
 }
@@ -476,14 +597,15 @@ function renderDistributionRows(activeDef) {
         <span>${escapeHtml(p.name)}:</span>
       </div>
       <div class="dp-controls">
-        <button type="button" class="btn-step" data-action="dec" data-p="${idx}">−</button>
-        <input type="number" class="dp-input" id="inputP${idx}" value="${val}" min="0" max="${activeDef.totalUnits}">
-        <button type="button" class="btn-step" data-action="inc" data-p="${idx}">+</button>
+        <button type="button" class="btn-step btn-stepper" data-action="dec" data-p="${idx}">−</button>
+        <input type="text" inputmode="numeric" pattern="[0-9]*" class="dp-input dist-input" id="inputP${idx}" value="${val}">
+        <button type="button" class="btn-step btn-stepper" data-action="inc" data-p="${idx}">+</button>
       </div>
     `;
 
     // Buton dinleyicileri
     row.querySelector('[data-action="dec"]').addEventListener('click', () => {
+      triggerHaptic(15);
       if (state.currentInputs[idx] > 0) {
         state.currentInputs[idx]--;
         renderDistributionRows(activeDef);
@@ -492,6 +614,7 @@ function renderDistributionRows(activeDef) {
     });
 
     row.querySelector('[data-action="inc"]').addEventListener('click', () => {
+      triggerHaptic(15);
       const sum = state.currentInputs.reduce((a, b) => a + b, 0);
       if (sum < activeDef.totalUnits) {
         state.currentInputs[idx]++;
@@ -524,6 +647,7 @@ function renderQuickButtons(activeDef) {
     btn.className = 'btn-quick';
     btn.textContent = p.name;
     btn.addEventListener('click', () => {
+      triggerHaptic(20);
       const currentSumWithoutP = state.currentInputs.reduce((sum, val, i) => i === idx ? sum : sum + val, 0);
       const remaining = Math.max(0, activeDef.totalUnits - currentSumWithoutP);
       state.currentInputs[idx] = remaining;
@@ -594,6 +718,8 @@ function saveCurrentHand() {
   recalculateAllScores();
   state.currentInputs = [0, 0, 0, 0];
   saveStateToStorage();
+  pushStateToServer();
+  triggerHaptic(40);
   renderAll();
 
   showToast(`${currentHand}. el (${activeDef.title}) başarıyla kaydedildi!`, 'emerald');
@@ -791,6 +917,7 @@ function initEventListeners() {
 
     recalculateAllScores();
     saveStateToStorage();
+    pushStateToServer();
     renderAll();
     modalSettings.classList.remove('active');
     showToast('Ayarlar başarıyla kaydedildi!', 'emerald');
@@ -802,12 +929,129 @@ function initEventListeners() {
   document.getElementById('btnCloseHelp').addEventListener('click', () => modalHelp.classList.remove('active'));
   document.getElementById('btnOkHelp').addEventListener('click', () => modalHelp.classList.remove('active'));
 
+  // Telefondan Bağlan Modalı (QR Kod & PWA Kurulum Rehberi)
+  const modalMobile = document.getElementById('modalMobileConnect');
+  const btnConnect = document.getElementById('btnConnectMobile');
+  if (btnConnect && modalMobile) {
+    btnConnect.addEventListener('click', () => {
+      openMobileConnectModal();
+    });
+    document.getElementById('btnCloseMobileConnect')?.addEventListener('click', () => modalMobile.classList.remove('active'));
+    document.getElementById('btnOkMobileConnect')?.addEventListener('click', () => modalMobile.classList.remove('active'));
+  }
+
+  // iOS ve Android Kurulum Rehberi Sekmeleri
+  const tabIos = document.getElementById('tabIosGuide');
+  const tabAndroid = document.getElementById('tabAndroidGuide');
+  const guideIos = document.getElementById('guideContentIos');
+  const guideAndroid = document.getElementById('guideContentAndroid');
+
+  tabIos?.addEventListener('click', () => {
+    tabIos.classList.add('active');
+    tabAndroid?.classList.remove('active');
+    if (guideIos) guideIos.style.display = 'block';
+    if (guideAndroid) guideAndroid.style.display = 'none';
+  });
+
+  tabAndroid?.addEventListener('click', () => {
+    tabAndroid.classList.add('active');
+    tabIos?.classList.remove('active');
+    if (guideAndroid) guideAndroid.style.display = 'block';
+    if (guideIos) guideIos.style.display = 'none';
+  });
+
+  // Yerel Ağ Adresini Kopyalama
+  document.getElementById('btnCopyNetworkUrl')?.addEventListener('click', () => {
+    const url = document.getElementById('networkUrlText')?.textContent;
+    if (url) {
+      navigator.clipboard.writeText(url).then(() => {
+        showToast('Bağlantı adresi kopyalandı!', 'emerald');
+      }).catch(() => {
+        showToast('Adres kopyalanamadı.', 'rose');
+      });
+    }
+  });
+
   // Modalların dışına tıklayınca kapatma
-  [modalSettings, modalHelp].forEach(modal => {
-    modal.addEventListener('click', (e) => {
-      if (e.target === modal) modal.classList.remove('active');
+  [modalSettings, modalHelp, modalMobile].forEach(modal => {
+    if (modal) {
+      modal.addEventListener('click', (e) => {
+        if (e.target === modal) modal.classList.remove('active');
+      });
+    }
+  });
+}
+
+function openMobileConnectModal() {
+  const modal = document.getElementById('modalMobileConnect');
+  const qrContainer = document.getElementById('qrCodeContainer');
+  const urlText = document.getElementById('networkUrlText');
+  if (!modal) return;
+
+  // En uygun adresi belirle (Sunucudan gelen yerel ağ IP'si veya mevcut adres)
+  let targetUrl = serverNetworkUrl || window.location.href;
+  if (serverNetworkUrl && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')) {
+    targetUrl = serverNetworkUrl;
+  }
+
+  if (urlText) {
+    urlText.textContent = targetUrl;
+  }
+
+  // qrcode.js ile temiz ve okunaklı SVG oluştur
+  if (qrContainer && typeof qrcode !== 'undefined') {
+    try {
+      const qr = qrcode(0, 'M');
+      qr.addData(targetUrl);
+      qr.make();
+      qrContainer.innerHTML = qr.createSvgTag({ cellSize: 5, margin: 2 });
+    } catch (e) {
+      console.warn('QR kod üretilemedi:', e);
+      qrContainer.innerHTML = `<div style="padding: 16px; font-weight: bold; color: #0f172a; word-break: break-all;">${escapeHtml(targetUrl)}</div>`;
+    }
+  }
+
+  modal.classList.add('active');
+}
+
+function initMobileNavigation() {
+  const navBtns = document.querySelectorAll('.mobile-nav-btn');
+
+  function checkMobileMode() {
+    const isMobile = window.innerWidth <= 768;
+    if (isMobile) {
+      document.body.classList.add('mobile-mode');
+      const activeBtn = document.querySelector('.mobile-nav-btn.active');
+      const targetId = activeBtn ? activeBtn.dataset.target : 'handEntrySection';
+      switchMobileSection(targetId);
+    } else {
+      document.body.classList.remove('mobile-mode');
+      document.querySelectorAll('.mobile-section-active').forEach(el => el.classList.remove('mobile-section-active'));
+    }
+  }
+
+  function switchMobileSection(targetId) {
+    document.querySelectorAll('.mobile-section-active').forEach(el => el.classList.remove('mobile-section-active'));
+    const targetEl = document.getElementById(targetId);
+    if (targetEl) {
+      targetEl.classList.add('mobile-section-active');
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+    navBtns.forEach(btn => {
+      btn.classList.toggle('active', btn.dataset.target === targetId);
+    });
+  }
+
+  navBtns.forEach(btn => {
+    btn.addEventListener('click', () => {
+      triggerHaptic(20);
+      switchMobileSection(btn.dataset.target);
     });
   });
+
+  window.addEventListener('resize', checkMobileMode);
+  window.addEventListener('orientationchange', checkMobileMode);
+  checkMobileMode();
 }
 
 function copyMatrixToClipboard() {

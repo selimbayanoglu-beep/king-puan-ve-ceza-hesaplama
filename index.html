@@ -2,8 +2,19 @@
 <html lang="tr">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
   <title>King Puan ve Ceza Hesaplama — Profesyonel Çetele</title>
+
+  <!-- PWA & Mobil Uygulama Meta Etiketleri (iOS & Android) -->
+  <link rel="icon" type="image/svg+xml" href="icon.svg">
+  <link rel="apple-touch-icon" href="icon.svg">
+  <link rel="manifest" href="manifest.json">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="King Çetele">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="theme-color" content="#0a0e17">
+
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700;800;900&family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
@@ -25,27 +36,37 @@
           <span class="suit club">♣</span>
         </div>
         <div>
-          <h1 class="app-title">KING <span>PUAN & ÇETELE</span></h1>
+          <div class="brand-title-row">
+            <h1 class="app-title">KING <span>PUAN & ÇETELE</span></h1>
+            <div class="sync-badge" id="syncBadge" title="Sunucu Senkronizasyon Durumu">
+              <span class="sync-dot online"></span>
+              <span class="sync-text" id="syncText">Canlı Senkronize</span>
+            </div>
+          </div>
           <p class="app-subtitle">20 El Profesyonel Skor ve Ceza Hesaplama Motoru</p>
         </div>
       </div>
 
       <div class="header-actions">
+        <button class="btn btn-connect" id="btnConnectMobile" title="Masadaki Telefonları Bağla">
+          <span class="connect-icon">📱</span>
+          <span class="connect-label">Telefondan Giriş</span>
+        </button>
         <button class="btn btn-secondary" id="btnSettings" title="Oyun Ayarları">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>
-          Ayarlar
+          <span class="btn-text">Ayarlar</span>
         </button>
         <button class="btn btn-secondary" id="btnHelp" title="King Kuralları & Puanlama">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><path d="M12 17h.01"/></svg>
-          Kurallar
+          <span class="btn-text">Kurallar</span>
         </button>
         <button class="btn btn-secondary" id="btnUndo" title="Son Eli Geri Al">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7v6h6"/><path d="M21 17a9 9 0 0 0-9-9 9 9 0 0 0-6 2.3L3 13"/></svg>
-          Geri Al
+          <span class="btn-text">Geri Al</span>
         </button>
         <button class="btn btn-danger" id="btnNewGame" title="Tüm Çeteleyi Sıfırla">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M3 21v-5h5"/></svg>
-          Yeni Oyun
+          <span class="btn-text">Yeni Oyun</span>
         </button>
       </div>
     </header>
@@ -72,15 +93,17 @@
     </section>
 
     <!-- Oyuncu Skor Kartları (Lider Tablosu) -->
-    <section class="players-grid" id="playersGrid">
-      <!-- JavaScript ile dinamik 4 oyuncu kartı render edilir -->
+    <section class="players-section-wrap" id="playersSection">
+      <div class="players-grid" id="playersGrid">
+        <!-- JavaScript ile dinamik 4 oyuncu kartı render edilir -->
+      </div>
     </section>
 
     <!-- Ana Panel: Sol (El Girişi) & Sağ (İnteraktif Çetele Matrisi) -->
     <div class="dashboard-split">
       
       <!-- SOL: Aktif El Giriş Paneli -->
-      <section class="hand-entry-panel card-panel">
+      <section class="hand-entry-panel card-panel" id="handEntrySection">
         <div class="panel-header">
           <div class="badge-accent">EL GİRİŞİ</div>
           <h2 class="panel-title" id="entryPanelTitle">1. El Kaydı</h2>
@@ -137,7 +160,7 @@
       </section>
 
       <!-- SAĞ: 20 El Çetele Matrisi (Kim Hangi Oyunu Oynadı?) -->
-      <section class="cetele-matrix-panel card-panel">
+      <section class="cetele-matrix-panel card-panel" id="matrixSection">
         <div class="panel-header">
           <div class="badge-accent">ÇETELE MATRİSİ</div>
           <h2 class="panel-title">Oyun Hakları & Durum Tablosu</h2>
@@ -177,7 +200,7 @@
     </div>
 
     <!-- El Geçmişi ve Detaylı Skor Tablosu -->
-    <section class="history-section card-panel">
+    <section class="history-section card-panel" id="historySection">
       <div class="panel-header">
         <div class="badge-accent">TUR DÖKÜMÜ</div>
         <h2 class="panel-title">Oynanan Eller ve Puan Hareketleri</h2>
@@ -387,6 +410,91 @@
     </div>
   </div>
 
+  <!-- MODAL: Telefondan Bağlan & Kurulum (Android & iOS) -->
+  <div class="modal-backdrop" id="modalMobileConnect">
+    <div class="modal-box modal-md">
+      <div class="modal-header">
+        <div class="modal-title-wrap">
+          <span class="modal-badge-icon">📱</span>
+          <h3>Cep Telefonundan Giriş &amp; Canlı Bağlantı</h3>
+        </div>
+        <button class="modal-close" id="btnCloseMobileConnect">&times;</button>
+      </div>
+      <div class="modal-body mobile-connect-body">
+        <p class="connect-lead">
+          Masadaki tüm oyuncular (Android veya iPhone) kendi telefonlarından bu çeteye bağlanabilir ve el girişi yapabilir.
+        </p>
+
+        <!-- QR KOD BÖLÜMÜ -->
+        <div class="qr-container">
+          <div class="qr-frame" id="qrCodeContainer">
+            <!-- qrcode.js dinamik SVG yerleştirir -->
+          </div>
+          <div class="qr-meta">
+            <span class="qr-badge">📸 Kamerayı Doğrultun</span>
+            <div class="network-url-box">
+              <span class="network-url" id="networkUrlText">http://localhost:8888</span>
+              <button class="btn btn-sm btn-secondary" id="btnCopyNetworkUrl" title="Adresi Kopyala">📋 Kopyala</button>
+            </div>
+            <p class="wifi-note">⚠️ Telefonunuzun bilgisayarla <b>aynı Wi-Fi ağına</b> bağlı olduğundan emin olun.</p>
+          </div>
+        </div>
+
+        <!-- ANDROID & IOS KURULUM REHBERİ (PWA) -->
+        <div class="device-guides">
+          <div class="guide-tabs">
+            <button class="guide-tab active" id="tabIosGuide" type="button">🍏 iPhone / iOS (Safari)</button>
+            <button class="guide-tab" id="tabAndroidGuide" type="button">🤖 Android (Chrome)</button>
+          </div>
+
+          <!-- iOS REHBERİ -->
+          <div class="guide-content active" id="guideContentIos">
+            <ol class="step-list">
+              <li><b>1. Adım:</b> iPhone kameranızı yukarıdaki QR koda doğrultun veya Safari'de adresi açın.</li>
+              <li><b>2. Adım:</b> Safari'nin altındaki <b>Paylaş</b> (kare içinden çıkan ok ⎋) simgesine dokunun.</li>
+              <li><b>3. Adım:</b> Menüden <b>"Ana Ekrana Ekle"</b> seçeneğine basın.</li>
+              <li><b>Sonuç:</b> King Çetele bir uygulama gibi ana ekranınıza eklenir, tam ekran açılır ve masadaki herkesle canlı senkronize çalışır!</li>
+            </ol>
+          </div>
+
+          <!-- ANDROID REHBERİ -->
+          <div class="guide-content" id="guideContentAndroid" style="display: none;">
+            <ol class="step-list">
+              <li><b>1. Adım:</b> Kameranızla QR kodu okutun veya Chrome tarayıcısında adresi açın.</li>
+              <li><b>2. Adım:</b> Sağ üstteki <b>üç nokta (⋮)</b> menüsüne dokunun.</li>
+              <li><b>3. Adım:</b> <b>"Uygulamayı Yükle"</b> veya <b>"Ana Ekrana Ekle"</b>ye basın.</li>
+              <li><b>Sonuç:</b> King Çetele ana ekranınıza kurulur ve tek tıkla tam ekran açılır!</li>
+            </ol>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-primary" id="btnOkMobileConnect">Kapat</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MOBİL ALT GEZİNTİ ÇUBUĞU (Ekran <= 768px iken görünür) -->
+  <nav class="mobile-nav-bar" id="mobileNavBar">
+    <button class="mobile-nav-btn active" data-target="handEntrySection">
+      <span class="mnav-icon">🎮</span>
+      <span class="mnav-label">El Girişi</span>
+    </button>
+    <button class="mobile-nav-btn" data-target="playersSection">
+      <span class="mnav-icon">🏆</span>
+      <span class="mnav-label">Skorlar</span>
+    </button>
+    <button class="mobile-nav-btn" data-target="matrixSection">
+      <span class="mnav-icon">📊</span>
+      <span class="mnav-label">Çetele</span>
+    </button>
+    <button class="mobile-nav-btn" data-target="historySection">
+      <span class="mnav-icon">📜</span>
+      <span class="mnav-label">Geçmiş</span>
+    </button>
+  </nav>
+
+  <script src="qrcode.js"></script>
   <script src="app.js"></script>
 </body>
 </html>
