@@ -422,6 +422,7 @@ let serverNetworkUrl = '';
 let syncIntervalId = null;
 let currentScreenIndex = 0;
 let lastLocalSetupEditAt = 0;
+let hasUserEditedSetupInputs = false;
 let setupSyncTimer = null;
 
 function syncSetupInputsToState() {
@@ -429,7 +430,8 @@ function syncSetupInputsToState() {
     const el = document.getElementById(id);
     if (el && state.players && state.players[idx]) {
       const trimmed = el.value.trim();
-      if (trimmed) {
+      const defaultName = `Oyuncu ${idx + 1}`;
+      if (trimmed && trimmed !== defaultName) {
         state.players[idx].name = trimmed;
       }
     }
@@ -564,11 +566,12 @@ async function fetchServerState(initial = false) {
       updateSyncBadge(true);
       if (data.version && data.version > serverVersion) {
         const prevRoundsLen = state.rounds ? state.rounds.length : 0;
+        syncSetupInputsToState();
         const localNamesSnapshot = state.players ? state.players.map(p => p.name) : [];
         const localDealerSnapshot = state.initialDealer;
-        const isEditingSetup = ['inputPlayer1', 'inputPlayer2', 'inputPlayer3', 'inputPlayer4'].some(
+        const isEditingSetup = hasUserEditedSetupInputs || ['inputPlayer1', 'inputPlayer2', 'inputPlayer3', 'inputPlayer4'].some(
           id => document.activeElement && document.activeElement.id === id
-        ) || (Date.now() - lastLocalSetupEditAt < 5000);
+        ) || (Date.now() - lastLocalSetupEditAt < 30000);
 
         serverVersion = data.version;
         if (data.state && Array.isArray(data.state.players)) {
@@ -576,7 +579,10 @@ async function fetchServerState(initial = false) {
           ensureStateArrays(state);
           if (isEditingSetup && (!state.rounds || state.rounds.length === 0)) {
             state.players.forEach((p, idx) => {
-              if (localNamesSnapshot[idx]) p.name = localNamesSnapshot[idx];
+              const localName = localNamesSnapshot[idx];
+              if (localName && localName !== `Oyuncu ${idx + 1}`) {
+                p.name = localName;
+              }
             });
             state.initialDealer = localDealerSnapshot;
           }
@@ -817,11 +823,11 @@ function renderSetupScreen() {
     if (!el || document.activeElement === el) return;
     const defaultName = `Oyuncu ${idx + 1}`;
     const currentTyped = el.value.trim();
-    // Eğer kullanıcı kutuya özel bir isim yazdıysa ve state henüz varsayılan isimdeyse, kullanıcının yazdığını koru!
+    // Eğer kullanıcı kutuya özel bir isim yazdıysa, kullanıcının yazdığını koru!
     if (currentTyped && currentTyped !== defaultName && state.players[idx].name === defaultName) {
       state.players[idx].name = currentTyped;
-    } else if (state.players[idx].name === defaultName && currentTyped === '') {
-      // Kutu boşsa varsayılan "Oyuncu 1" metnini zorla yazma, placeholder görünsün
+    } else if (state.players[idx].name === defaultName && !isGameInProgress) {
+      // Oyun başlamadıysa ve isim hâlâ varsayılan "Oyuncu 1" ise kutuyu boş bırak (placeholder görünsün)
       el.value = '';
     } else {
       el.value = state.players[idx].name;
@@ -871,6 +877,7 @@ function renderSetupScreen() {
       triggerHaptic(15);
       // Önce input kutularında yazılmış olan güncel oyuncu isimlerini state'e kaydet (isimler asla silinmesin!)
       syncSetupInputsToState();
+      hasUserEditedSetupInputs = true;
       lastLocalSetupEditAt = Date.now();
       state.initialDealer = idx;
       saveStateToStorage();
@@ -1882,6 +1889,7 @@ function executeResetGame() {
   };
   inputHistories.ceza = [];
   inputHistories.koz = [];
+  hasUserEditedSetupInputs = false;
 
   // Input kutularını da tamamen temizle (Yeni isimler girilsin)
   ['inputPlayer1', 'inputPlayer2', 'inputPlayer3', 'inputPlayer4'].forEach((id) => {
@@ -2418,6 +2426,7 @@ function initEventListeners() {
     });
 
     el.addEventListener('input', () => {
+      hasUserEditedSetupInputs = true;
       lastLocalSetupEditAt = Date.now();
       const val = el.value.trim();
       state.players[idx].name = val || `Oyuncu ${idx + 1}`;
@@ -2463,6 +2472,7 @@ function initEventListeners() {
     }
 
     recalculateAllScores();
+    hasUserEditedSetupInputs = false;
     saveStateToStorage();
     pushStateToServer();
     triggerHaptic(25);
