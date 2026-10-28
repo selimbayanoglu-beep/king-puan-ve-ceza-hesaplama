@@ -1,5 +1,69 @@
 
 // --------------------------------------------------------------------------
+// CANLI YAYIN & SEYİRCİ (İZLEYİCİ) MODU YÖNETİMİ
+// --------------------------------------------------------------------------
+let isSpectatorMode = false;
+
+function initSpectatorMode() {
+  const urlParams = new URLSearchParams(window.location.search);
+  if (urlParams.get('mod') === 'izle' || urlParams.get('spectator') === '1') {
+    enableSpectatorMode(false);
+  }
+
+  document.getElementById('btnShareLiveGame')?.addEventListener('click', shareLiveGameLink);
+  document.getElementById('btnToggleSpectator')?.addEventListener('click', toggleSpectatorMode);
+}
+
+function shareLiveGameLink() {
+  triggerHaptic(15);
+  const liveUrl = `${window.location.origin}?mod=izle`;
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(liveUrl).then(() => {
+      showToast('🔗 Canlı maç linki kopyalandı! Arkadaşlarınıza atın, canlı izlesinler.', 'emerald');
+    }).catch(() => {
+      prompt('Canlı izleme linkini kopyalayın:', liveUrl);
+    });
+  } else {
+    prompt('Canlı izleme linkini kopyalayın:', liveUrl);
+  }
+}
+
+function toggleSpectatorMode() {
+  triggerHaptic(20);
+  if (isSpectatorMode) {
+    disableSpectatorMode();
+  } else {
+    enableSpectatorMode(true);
+  }
+}
+
+function enableSpectatorMode(showToastMsg = true) {
+  isSpectatorMode = true;
+  document.body.classList.add('spectator-mode');
+  const btn = document.getElementById('btnToggleSpectator');
+  if (btn) {
+    btn.classList.add('active');
+    btn.innerHTML = '✏️ Oyuncu Moduna Geç';
+  }
+  goToScreen(3, true); // Doğrudan canlı sonuçlar / çete ekranına geç
+  if (showToastMsg) {
+    showToast('👀 Seyirci modu aktif: Cezalar ve skorlar anlık güncellenir.', 'sky');
+  }
+}
+
+function disableSpectatorMode() {
+  isSpectatorMode = false;
+  document.body.classList.remove('spectator-mode');
+  const btn = document.getElementById('btnToggleSpectator');
+  if (btn) {
+    btn.classList.remove('active');
+    btn.innerHTML = '👀 Seyirci Modu';
+  }
+  showToast('✏️ Oyuncu moduna geçildi: Ceza ve koz girişi yapabilirsiniz.', 'emerald');
+}
+
+
+// --------------------------------------------------------------------------
 // GEÇMİŞ OYUNLAR ARŞİVİ & TOPLU ÇIKTI YÖNETİMİ
 // --------------------------------------------------------------------------
 async function openArchivesModal() {
@@ -1813,6 +1877,7 @@ function updateSimulatorView(player) {
 // EVENT LISTENERS & MODALLAR
 // ==========================================================================
 function initEventListeners() {
+  initSpectatorMode();
   // Koz ve Ceza Kaydet Butonları
   document.getElementById('btnSaveKoz').addEventListener('click', saveKozHand);
   document.getElementById('btnSaveCeza').addEventListener('click', saveCezaHand);

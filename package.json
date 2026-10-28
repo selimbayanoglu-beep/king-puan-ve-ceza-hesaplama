@@ -1,0 +1,9 @@
+{
+  "name": "king-puan-ve-ceza",
+  "version": "1.0.0",
+  "description": "King Puan ve Ceza Hesaplama - Canlı Senkronizasyon",
+  "main": "server.py",
+  "dependencies": {
+    "@netlify/blobs": "^8.1.0"
+  }
+}

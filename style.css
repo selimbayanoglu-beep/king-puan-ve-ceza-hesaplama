@@ -2704,3 +2704,108 @@ html, body {
   color: #fda4af;
   text-shadow: 0 0 16px rgba(244, 63, 94, 0.5);
 }
+
+
+/* --------------------------------------------------------------------------
+   CANLI YAYIN & İZLEYİCİ (SEYİRCİ) MODU
+   -------------------------------------------------------------------------- */
+.live-broadcast-banner {
+  background: linear-gradient(135deg, rgba(225, 29, 72, 0.2) 0%, rgba(15, 23, 42, 0.95) 100%);
+  border: 1.5px solid rgba(244, 63, 94, 0.5);
+  border-radius: 12px;
+  padding: 10px 14px;
+  margin-bottom: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+.lbb-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.live-pulse-dot {
+  width: 10px;
+  height: 10px;
+  background: #ef4444;
+  border-radius: 50%;
+  box-shadow: 0 0 10px #ef4444;
+  animation: livePulseAnim 1.5s infinite;
+}
+@keyframes livePulseAnim {
+  0% { transform: scale(0.9); opacity: 0.8; box-shadow: 0 0 4px #ef4444; }
+  50% { transform: scale(1.3); opacity: 1; box-shadow: 0 0 14px #ef4444; }
+  100% { transform: scale(0.9); opacity: 0.8; box-shadow: 0 0 4px #ef4444; }
+}
+.live-status-text {
+  font-size: 13px;
+  font-weight: 800;
+  color: #fff;
+}
+.live-status-sub {
+  font-size: 11px;
+  color: #94a3b8;
+}
+.lbb-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.btn-live-share {
+  background: rgba(239, 68, 68, 0.2);
+  border: 1px solid rgba(239, 68, 68, 0.5);
+  color: #fca5a5;
+  font-size: 12px;
+  font-weight: 800;
+  padding: 6px 12px;
+  border-radius: 8px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  transition: all 0.2s ease;
+}
+.btn-live-share:hover, .btn-live-share:active {
+  background: rgba(239, 68, 68, 0.4);
+  color: #fff;
+}
+.btn-spectator-toggle {
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: #cbd5e1;
+  font-size: 12px;
+  font-weight: 700;
+  padding: 6px 12px;
+  border-radius: 8px;
+  cursor: pointer;
+}
+.btn-spectator-toggle.active {
+  background: #3b82f6;
+  border-color: #60a5fa;
+  color: #fff;
+}
+
+/* Seyirci Modu Aktifken Giriş Butonlarını Kilitle */
+body.spectator-mode .entry-actions,
+body.spectator-mode #btnSaveKoz,
+body.spectator-mode #btnSaveCeza {
+  display: none !important;
+}
+body.spectator-mode .spectator-warning-bar {
+  display: flex !important;
+}
+.spectator-warning-bar {
+  display: none;
+  background: rgba(59, 130, 246, 0.2);
+  border: 1px solid rgba(59, 130, 246, 0.5);
+  border-radius: 10px;
+  padding: 10px 14px;
+  margin-bottom: 12px;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 700;
+  color: #93c5fd;
+}
