@@ -18,7 +18,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700;800;900&family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css?v=20261027_22">
+  <link rel="stylesheet" href="style.css?v=20261028_live">
 </head>
 <body>
   <div class="app-background-glow glow-1"></div>
@@ -77,6 +77,34 @@
       <div class="swipe-indicator" id="swipeIndicator"></div>
     </div>
   </nav>
+
+  <!-- CANLI MASA BAĞLANTISI & OYUNCU / SEYİRCİ TELEFON MODU ÇUBUĞU -->
+  <div class="live-player-bar" id="livePlayerBar">
+    <div class="lpb-top-row">
+      <div class="lpb-left">
+        <span class="live-pulse-dot"></span>
+        <span class="lpb-live-tag">CANLI MASA</span>
+        <span class="lpb-hand-summary" id="lblLiveBarSummary">1. El • Ceza</span>
+      </div>
+      <div class="lpb-right-actions">
+        <button type="button" class="btn-live-share" id="btnShareLiveGame" title="Canlı İzleme Linkini Paylaş">
+          🔗 İzleme Linki
+        </button>
+        <button type="button" class="btn-spectator-toggle" id="btnToggleSpectator" title="Canlı Seyirci / Oyuncu Modu">
+          👀 Seyirci Modu
+        </button>
+      </div>
+    </div>
+    <div class="lpb-role-row">
+      <span class="lpb-role-label">📱 Telefonun:</span>
+      <div class="lpb-role-pills" id="playerRolePills">
+        <!-- JS ile "Tüm Masa", 4 Oyuncu İsmi ve "Sadece İzle" butonları render edilir -->
+      </div>
+    </div>
+    <div class="spectator-warning-bar" id="spectatorWarningBar">
+      <span>👀 <b>Canlı Seyirci Modu:</b> Oyunu anlık izliyorsunuz. Kendi puanınızı girmek için yukarıdan <b>kendi adınızı</b> seçin.</span>
+    </div>
+  </div>
 
   <!-- ANA KAYDIRILABİLİR ALAN (4 AYRI SAYFA / SLIDER) -->
   <main class="screens-slider" id="screensSlider">
@@ -220,7 +248,10 @@
             <div class="remaining-counter" id="cezaRemainingBadge">Kalan: 13 / 13</div>
           </div>
 
-
+          <!-- Seçili Oyuncunun Kendi Telefonundan Tek Dokunuşla Ceza Giriş Kartı -->
+          <div class="my-quick-entry-card ceza-quick-theme" id="myCezaQuickCard" style="display: none;">
+            <!-- JS ile aktif oyuncuya özel hızlı giriş tuşları render edilir -->
+          </div>
 
           <!-- Diğer cezalar için 4 Oyuncu Dağıtım Satırları -->
           <div class="dist-rows-container" id="cezaPlayersList">
@@ -340,6 +371,11 @@
             <div class="remaining-counter" id="kozRemainingBadge">Kalan: 13 / 13 El</div>
           </div>
 
+          <!-- Seçili Oyuncunun Kendi Telefonundan Tek Dokunuşla Koz Giriş Kartı -->
+          <div class="my-quick-entry-card koz-quick-theme" id="myKozQuickCard" style="display: none;">
+            <!-- JS ile aktif oyuncuya özel hızlı giriş tuşları render edilir -->
+          </div>
+
           <div class="dist-rows-container" id="kozPlayersList">
             <!-- 4 oyuncu miktar girişi -->
           </div>
@@ -399,6 +435,11 @@
             <button type="button" class="btn btn-sm btn-ceza" id="btnJumpToCeza">⚡ Cezaya Git</button>
             <button type="button" class="btn btn-sm btn-koz" id="btnJumpToKoz">👑 Koza Git</button>
           </div>
+        </div>
+
+        <!-- Canlı Oynanan El & Anlık Girilen Puanlar Takip Kutusu (İzleyiciler ve Oyuncular İçin) -->
+        <div class="live-active-hand-tracker" id="liveActiveHandTracker">
+          <!-- JS ile şu an oynanan elin anlık ceza/koz giriş durumu render edilir -->
         </div>
 
         <!-- 4 Oyuncu Canlı Skor Kartları (Liderlik Tablosu) -->
@@ -740,6 +781,6 @@
   </div>
 
   <script src="qrcode.js"></script>
-  <script src="app.js?v=20261027_22"></script>
+  <script src="app.js?v=20261028_live"></script>
 </body>
 </html>

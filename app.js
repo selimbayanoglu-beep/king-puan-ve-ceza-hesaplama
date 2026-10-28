@@ -1,44 +1,102 @@
 
 // --------------------------------------------------------------------------
-// CANLI YAYIN & SEYİRCİ (İZLEYİCİ) MODU YÖNETİMİ
+// CANLI YAYIN, OYUNCU TELEFON KİMLİĞİ & SEYİRCİ (İZLEYİCİ) MODU YÖNETİMİ
 // --------------------------------------------------------------------------
+const ROLE_STORAGE_KEY = 'king_my_player_role_v1';
 let isSpectatorMode = false;
+let myPlayerRole = 'all'; // 'all' | '0' | '1' | '2' | '3' | 'spectator'
 
 function initSpectatorMode() {
   const urlParams = new URLSearchParams(window.location.search);
-  if (urlParams.get('mod') === 'izle' || urlParams.get('spectator') === '1') {
-    enableSpectatorMode(false);
+  const modParam = urlParams.get('mod');
+  const oyuncuParam = urlParams.get('oyuncu');
+
+  if (modParam === 'izle' || urlParams.get('spectator') === '1') {
+    setMyPlayerRole('spectator', false);
+  } else if (oyuncuParam && ['1', '2', '3', '4'].includes(oyuncuParam)) {
+    setMyPlayerRole(String(parseInt(oyuncuParam, 10) - 1), false);
+  } else {
+    try {
+      const savedRole = localStorage.getItem(ROLE_STORAGE_KEY);
+      if (savedRole && ['all', '0', '1', '2', '3', 'spectator'].includes(savedRole)) {
+        setMyPlayerRole(savedRole, false);
+      }
+    } catch (e) {}
   }
 
   document.getElementById('btnShareLiveGame')?.addEventListener('click', shareLiveGameLink);
   document.getElementById('btnToggleSpectator')?.addEventListener('click', toggleSpectatorMode);
 }
 
+function setMyPlayerRole(role, showToastMsg = true) {
+  myPlayerRole = role;
+  try {
+    localStorage.setItem(ROLE_STORAGE_KEY, role);
+  } catch (e) {}
+
+  if (role === 'spectator') {
+    enableSpectatorMode(showToastMsg);
+  } else {
+    isSpectatorMode = false;
+    document.body.classList.remove('spectator-mode');
+    const btn = document.getElementById('btnToggleSpectator');
+    if (btn) {
+      btn.classList.remove('active');
+      btn.innerHTML = '👀 Seyirci Modu';
+    }
+    if (showToastMsg) {
+      if (role === 'all') {
+        showToast('👥 Tüm Masa Modu: Tüm oyuncuların koz ve ceza puanlarını girebilirsiniz.', 'emerald');
+      } else {
+        const pIdx = parseInt(role, 10);
+        const pName = (state && state.players && state.players[pIdx]) ? state.players[pIdx].name : `Oyuncu ${pIdx + 1}`;
+        showToast(`📱 Telefon Modu: ${pName} seçildi! Kendi koz ve ceza puanını tek dokunuşla girebilirsin.`, 'emerald');
+        if (currentScreenIndex === 0 && state.rounds && state.rounds.length > 0) {
+          const targetScreen = state.activeHandType === 'koz' && state.rounds.length >= 4 ? 2 : 1;
+          goToScreen(targetScreen, true);
+        }
+      }
+    }
+  }
+  if (typeof renderAll === 'function' && state && state.players) {
+    renderAll();
+  }
+}
+
 function shareLiveGameLink() {
   triggerHaptic(15);
-  const liveUrl = `${window.location.origin}?mod=izle`;
+  const liveUrl = `${window.location.origin}`;
+  if (navigator.share) {
+    navigator.share({
+      title: 'King Canlı Çetele & Puan Girişi',
+      text: 'King masasına bağlanın: Canlı izleyin veya kendi koz/ceza puanınızı telefonunuzdan girin!',
+      url: liveUrl
+    }).catch(() => {});
+    return;
+  }
   if (navigator.clipboard && navigator.clipboard.writeText) {
     navigator.clipboard.writeText(liveUrl).then(() => {
-      showToast('🔗 Canlı maç linki kopyalandı! Arkadaşlarınıza atın, canlı izlesinler.', 'emerald');
+      showToast('🔗 Canlı masa linki kopyalandı! Oyunculara ve izleyicilere gönderebilirsiniz.', 'emerald');
     }).catch(() => {
-      prompt('Canlı izleme linkini kopyalayın:', liveUrl);
+      prompt('Canlı masa linkini kopyalayın:', liveUrl);
     });
   } else {
-    prompt('Canlı izleme linkini kopyalayın:', liveUrl);
+    prompt('Canlı masa linkini kopyalayın:', liveUrl);
   }
 }
 
 function toggleSpectatorMode() {
   triggerHaptic(20);
   if (isSpectatorMode) {
-    disableSpectatorMode();
+    setMyPlayerRole('all', true);
   } else {
-    enableSpectatorMode(true);
+    setMyPlayerRole('spectator', true);
   }
 }
 
 function enableSpectatorMode(showToastMsg = true) {
   isSpectatorMode = true;
+  myPlayerRole = 'spectator';
   document.body.classList.add('spectator-mode');
   const btn = document.getElementById('btnToggleSpectator');
   if (btn) {
@@ -47,19 +105,70 @@ function enableSpectatorMode(showToastMsg = true) {
   }
   goToScreen(3, true); // Doğrudan canlı sonuçlar / çete ekranına geç
   if (showToastMsg) {
-    showToast('👀 Seyirci modu aktif: Cezalar ve skorlar anlık güncellenir.', 'sky');
+    showToast('👀 Canlı Seyirci Modu aktif: Cezalar, kozlar ve skorlar anlık güncellenir.', 'sky');
   }
 }
 
 function disableSpectatorMode() {
-  isSpectatorMode = false;
-  document.body.classList.remove('spectator-mode');
-  const btn = document.getElementById('btnToggleSpectator');
-  if (btn) {
-    btn.classList.remove('active');
-    btn.innerHTML = '👀 Seyirci Modu';
+  setMyPlayerRole('all', true);
+}
+
+function renderLivePlayerBar(currentHand, callerIdx, isGameOver) {
+  const summaryEl = document.getElementById('lblLiveBarSummary');
+  const pillsContainer = document.getElementById('playerRolePills');
+  const caller = (state.players && state.players[callerIdx]) ? state.players[callerIdx] : { name: 'Oyuncu 1' };
+
+  if (summaryEl) {
+    if (isGameOver) {
+      summaryEl.textContent = '20/20 El Tamamlandı 🏆';
+    } else {
+      const isKozActive = state.activeHandType === 'koz' && state.rounds.length >= 4;
+      const activeGameTitle = isKozActive
+        ? `Koz (${({ karo: '♦ Karo', kupa: '♥️ Kupa', maca: '♠ Maça', sinek: '♣ Sinek' })[state.selectedKozSuit] || '♦ Karo'})`
+        : ((GAME_DEFS[state.selectedCezaKey] && GAME_DEFS[state.selectedCezaKey].shortTitle) || 'Ceza');
+      summaryEl.innerHTML = `<b>${currentHand}. El</b> • 👑 ${escapeHtml(caller.name)} • ${escapeHtml(activeGameTitle)}`;
+    }
   }
-  showToast('✏️ Oyuncu moduna geçildi: Ceza ve koz girişi yapabilirsiniz.', 'emerald');
+
+  if (pillsContainer && state.players) {
+    pillsContainer.innerHTML = '';
+
+    // 4 Oyuncu Kimlik Butonları
+    state.players.forEach((p, idx) => {
+      const roleVal = String(idx);
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = `role-pill player-role-pill ${myPlayerRole === roleVal ? 'active' : ''}`;
+      btn.innerHTML = `👤 ${escapeHtml(p.name)}`;
+      btn.addEventListener('click', () => {
+        triggerHaptic(15);
+        setMyPlayerRole(roleVal, true);
+      });
+      pillsContainer.appendChild(btn);
+    });
+
+    // Tüm Masa (Hakem) Butonu
+    const btnAll = document.createElement('button');
+    btnAll.type = 'button';
+    btnAll.className = `role-pill ${myPlayerRole === 'all' ? 'active' : ''}`;
+    btnAll.innerHTML = '👥 Tüm Masa';
+    btnAll.addEventListener('click', () => {
+      triggerHaptic(15);
+      setMyPlayerRole('all', true);
+    });
+    pillsContainer.appendChild(btnAll);
+
+    // Canlı İzle (Seyirci) Butonu
+    const btnSpec = document.createElement('button');
+    btnSpec.type = 'button';
+    btnSpec.className = `role-pill spectator-pill ${myPlayerRole === 'spectator' ? 'active' : ''}`;
+    btnSpec.innerHTML = '👀 Canlı İzle';
+    btnSpec.addEventListener('click', () => {
+      triggerHaptic(15);
+      setMyPlayerRole('spectator', true);
+    });
+    pillsContainer.appendChild(btnSpec);
+  }
 }
 
 
@@ -296,9 +405,13 @@ let state = {
   initialDealer: 0,
   scoringMode: 'standard', // 'standard' | 'zero_sum' | 'bloody'
   rounds: [],
+  activeHandType: 'ceza',
   selectedCezaKey: 'el_almaz',
+  selectedKozSuit: 'karo',
   kozInputs: [0, 0, 0, 0],
-  cezaInputs: [0, 0, 0, 0]
+  cezaInputs: [0, 0, 0, 0],
+  kozConfirmed: [false, false, false, false],
+  cezaConfirmed: [false, false, false, false]
 };
 
 // Çoklu Cihaz Senkronizasyonu & Haptic
@@ -308,6 +421,17 @@ let isSyncing = false;
 let serverNetworkUrl = '';
 let syncIntervalId = null;
 let currentScreenIndex = 0;
+
+function ensureStateArrays(st) {
+  if (!st) return;
+  if (!Array.isArray(st.kozInputs) || st.kozInputs.length !== 4) st.kozInputs = [0, 0, 0, 0];
+  if (!Array.isArray(st.cezaInputs) || st.cezaInputs.length !== 4) st.cezaInputs = [0, 0, 0, 0];
+  if (!Array.isArray(st.kozConfirmed) || st.kozConfirmed.length !== 4) st.kozConfirmed = [false, false, false, false];
+  if (!Array.isArray(st.cezaConfirmed) || st.cezaConfirmed.length !== 4) st.cezaConfirmed = [false, false, false, false];
+  if (!st.activeHandType) st.activeHandType = 'ceza';
+  if (!st.selectedCezaKey) st.selectedCezaKey = 'el_almaz';
+  if (!st.selectedKozSuit) st.selectedKozSuit = 'karo';
+}
 
 function triggerHaptic(duration = 20) {
   try {
@@ -337,10 +461,10 @@ document.addEventListener('DOMContentLoaded', async () => {
   await fetchNetworkInfo();
   await fetchServerState(true);
 
-  // Periyodik senkronizasyon (her 1.5 sn)
+  // Periyodik canlı senkronizasyon (her 1.2 sn)
   syncIntervalId = setInterval(() => {
     fetchServerState(false);
-  }, 1500);
+  }, 1200);
 });
 
 // ==========================================================================
@@ -425,16 +549,16 @@ async function fetchServerState(initial = false) {
       const data = await res.json();
       updateSyncBadge(true);
       if (data.version && data.version > serverVersion) {
+        const prevRoundsLen = state.rounds ? state.rounds.length : 0;
         serverVersion = data.version;
         if (data.state && Array.isArray(data.state.players)) {
           state = data.state;
-          if (!state.kozInputs) state.kozInputs = [0, 0, 0, 0];
-          if (!state.cezaInputs) state.cezaInputs = [0, 0, 0, 0];
+          ensureStateArrays(state);
           recalculateAllScores();
           saveStateToStorage();
           renderAll();
-          if (!initial) {
-            showToast('🔄 Çetele güncellendi (senkronize)', 'cyan');
+          if (!initial && state.rounds.length !== prevRoundsLen) {
+            showToast('🔄 Yeni el kaydedildi, çetele güncellendi!', 'cyan');
           }
         }
       }
@@ -447,6 +571,7 @@ async function fetchServerState(initial = false) {
 }
 
 async function pushStateToServer() {
+  ensureStateArrays(state);
   saveStateToStorage();
   try {
     isSyncing = true;
@@ -467,6 +592,37 @@ async function pushStateToServer() {
   } finally {
     isSyncing = false;
   }
+}
+
+async function sendPlayerInputToServer(payload) {
+  ensureStateArrays(state);
+  saveStateToStorage();
+  try {
+    isSyncing = true;
+    const res = await fetch('/api/player-input', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    if (res.ok) {
+      const data = await res.json();
+      if (data.version) serverVersion = data.version;
+      if (data.state && Array.isArray(data.state.players)) {
+        state = data.state;
+        ensureStateArrays(state);
+        recalculateAllScores();
+        saveStateToStorage();
+        renderAll();
+      }
+      updateSyncBadge(true);
+      return;
+    }
+  } catch (e) {
+    // Fallback
+  } finally {
+    isSyncing = false;
+  }
+  await pushStateToServer();
 }
 
 function updateSyncBadge(online) {
@@ -505,8 +661,7 @@ function loadStateFromStorage() {
       const parsed = JSON.parse(raw);
       if (parsed && Array.isArray(parsed.players) && parsed.players.length === 4) {
         state = parsed;
-        if (!state.kozInputs) state.kozInputs = [0, 0, 0, 0];
-        if (!state.cezaInputs) state.cezaInputs = [0, 0, 0, 0];
+        ensureStateArrays(state);
         recalculateAllScores();
       }
     }
@@ -612,10 +767,12 @@ function isGameAvailableForCaller(callerIdx, gameKey) {
 // RENDER MOTORU (TÜM SAYFALAR)
 // ==========================================================================
 function renderAll() {
+  ensureStateArrays(state);
   const currentHand = getCurrentHandNumber();
   const callerIdx = getCurrentCallerIndex();
   const isGameOver = currentHand > 20;
 
+  renderLivePlayerBar(currentHand, callerIdx, isGameOver);
   renderSetupScreen();
   renderCezaScreen(currentHand, callerIdx, isGameOver);
   renderKozScreen(currentHand, callerIdx, isGameOver);
@@ -629,10 +786,12 @@ function renderAll() {
 function renderSetupScreen() {
   const isGameInProgress = state.rounds && state.rounds.length > 0;
 
-  document.getElementById('inputPlayer1').value = state.players[0].name;
-  document.getElementById('inputPlayer2').value = state.players[1].name;
-  document.getElementById('inputPlayer3').value = state.players[2].name;
-  document.getElementById('inputPlayer4').value = state.players[3].name;
+  ['inputPlayer1', 'inputPlayer2', 'inputPlayer3', 'inputPlayer4'].forEach((id, idx) => {
+    const el = document.getElementById(id);
+    if (el && document.activeElement !== el) {
+      el.value = state.players[idx].name;
+    }
+  });
 
   const heroIcon = document.getElementById('setupHeroIcon');
   const heroTitle = document.getElementById('setupHeroTitle');
@@ -752,11 +911,13 @@ function renderKozScreen(currentHand, callerIdx, isGameOver) {
       btn.classList.remove('active');
     }
     btn.onclick = () => {
+      if (isSpectatorMode) return;
       triggerHaptic(15);
+      state.activeHandType = 'koz';
       state.selectedKozSuit = s;
       saveStateToStorage();
-      pushStateToServer();
       renderKozScreen(currentHand, callerIdx, isGameOver);
+      sendPlayerInputToServer({ action: 'select_game', type: 'koz', gameKey: s });
     };
   });
 
@@ -868,11 +1029,16 @@ function renderCezaScreen(currentHand, callerIdx, isGameOver) {
     `;
 
     btn.addEventListener('click', () => {
+      if (isSpectatorMode) return;
       triggerHaptic(15);
+      state.activeHandType = 'ceza';
       state.selectedCezaKey = k;
       state.cezaInputs = [0, 0, 0, 0];
+      state.cezaConfirmed = [false, false, false, false];
       inputHistories.ceza = [];
-      renderCezaScreen(currentHand, callerIdx, isGameOver);
+      saveStateToStorage();
+      renderAll();
+      sendPlayerInputToServer({ action: 'select_game', type: 'ceza', gameKey: k });
     });
 
     grid.appendChild(btn);
@@ -914,12 +1080,18 @@ function pushInputHistory(type, inputsArray) {
 }
 
 function undoInput(type, inputsArray) {
+  if (isSpectatorMode) return;
+  const confirmedArray = type === 'koz' ? state.kozConfirmed : state.cezaConfirmed;
   if (inputHistories[type] && inputHistories[type].length > 0) {
     const prev = inputHistories[type].pop();
     for (let i = 0; i < inputsArray.length; i++) {
       inputsArray[i] = prev[i];
+      confirmedArray[i] = prev[i] > 0;
     }
+    state.activeHandType = type;
+    saveStateToStorage();
     renderAll();
+    sendPlayerInputToServer({ action: 'set_all_units', type, inputs: inputsArray, confirmed: confirmedArray });
     showToast('↩️ Son işlem geri alındı.', 'cyan');
   } else {
     showToast('Geri alınacak bir önceki işlem yok.', 'rose');
@@ -927,7 +1099,9 @@ function undoInput(type, inputsArray) {
 }
 
 function clearInputs(type, inputsArray) {
-  const hasValues = inputsArray.some(v => v > 0);
+  if (isSpectatorMode) return;
+  const confirmedArray = type === 'koz' ? state.kozConfirmed : state.cezaConfirmed;
+  const hasValues = inputsArray.some(v => v > 0) || confirmedArray.some(Boolean);
   if (!hasValues) {
     showToast('Girişler zaten sıfır.', 'cyan');
     return;
@@ -935,48 +1109,195 @@ function clearInputs(type, inputsArray) {
   pushInputHistory(type, inputsArray);
   for (let i = 0; i < inputsArray.length; i++) {
     inputsArray[i] = 0;
+    confirmedArray[i] = false;
   }
+  state.activeHandType = type;
+  saveStateToStorage();
   renderAll();
+  sendPlayerInputToServer({ action: 'set_all_units', type, inputs: inputsArray, confirmed: confirmedArray });
   showToast('🗑️ Tüm girişler temizlendi (sıfırlandı).', 'amber');
+}
+
+function renderMyQuickEntryCard(type, totalUnits, inputsArray) {
+  const cardId = type === 'ceza' ? 'myCezaQuickCard' : 'myKozQuickCard';
+  const cardEl = document.getElementById(cardId);
+  if (!cardEl) return;
+
+  if (isSpectatorMode) {
+    cardEl.style.display = 'none';
+    return;
+  }
+
+  const confirmedArray = type === 'koz' ? state.kozConfirmed : state.cezaConfirmed;
+  const callerIdx = getCurrentCallerIndex();
+  const activeGameKey = type === 'koz' ? 'koz' : (state.selectedCezaKey || 'el_almaz');
+  const activeDef = GAME_DEFS[activeGameKey] || GAME_DEFS.koz;
+
+  if (myPlayerRole === 'all') {
+    cardEl.style.display = 'flex';
+    cardEl.className = `my-quick-entry-card ${type}-quick-theme compact-hint`;
+    cardEl.innerHTML = `
+      <div class="mqc-hint-row">
+        <span>📱 <b>Kendi Telefonundan Girmek İçin:</b> Üstteki çubuktan kendi adını seçersen tek dokunuşlu kişisel puan kartın açılır.</span>
+      </div>
+    `;
+    return;
+  }
+
+  const myIdx = parseInt(myPlayerRole, 10);
+  if (isNaN(myIdx) || myIdx < 0 || myIdx > 3 || !state.players[myIdx]) {
+    cardEl.style.display = 'none';
+    return;
+  }
+
+  const me = state.players[myIdx];
+  const myVal = inputsArray[myIdx] || 0;
+  const isConfirmed = Boolean(confirmedArray[myIdx]);
+  const isCaller = callerIdx === myIdx;
+
+  const tempDist = [0, 0, 0, 0];
+  tempDist[myIdx] = myVal;
+  const previewPts = calculateHandPoints(activeGameKey, callerIdx, tempDist)[myIdx];
+  const ptsFormatted = previewPts > 0 ? `+${previewPts} P` : `${previewPts} P`;
+
+  const otherSum = inputsArray.reduce((acc, v, i) => (i === myIdx ? acc : acc + (v || 0)), 0);
+  const maxAllowedForMe = Math.max(0, totalUnits - otherSum);
+
+  let numberPillsHtml = '';
+  for (let n = 0; n <= totalUnits; n++) {
+    const isCurrent = myVal === n && (n > 0 || isConfirmed);
+    const isOverLimit = n > maxAllowedForMe;
+    const label = n === 0 ? '0 (Almadım)' : String(n);
+    numberPillsHtml += `
+      <button type="button" class="btn-my-num-pill ${isCurrent ? 'selected' : ''}" data-val="${n}" ${isOverLimit ? 'disabled' : ''}>
+        ${label}
+      </button>
+    `;
+  }
+
+  cardEl.style.display = 'flex';
+  cardEl.className = `my-quick-entry-card ${type}-quick-theme active-player-card`;
+  cardEl.innerHTML = `
+    <div class="mqc-header">
+      <div class="mqc-title-wrap">
+        <span class="mqc-badge">📱 SENİN TELEFONUN</span>
+        <h4 class="mqc-player-name">${escapeHtml(me.name)}</h4>
+        ${isCaller ? '<span class="mqc-caller-tag">👑 Söyleyen Sensin</span>' : ''}
+      </div>
+      <div class="mqc-status-wrap">
+        <span class="mqc-hand-pts ${previewPts > 0 ? 'pos' : previewPts < 0 ? 'neg' : ''}">${myVal} ${escapeHtml(activeDef.unitName)} ➔ <b>${ptsFormatted}</b></span>
+        <span class="mqc-sync-pill ${isConfirmed || myVal > 0 ? 'synced' : 'waiting'}">
+          ${isConfirmed || myVal > 0 ? '✓ Masaya Gönderildi' : '⏳ Kaç Aldığını Seç'}
+        </span>
+      </div>
+    </div>
+    <div class="mqc-sub">
+      Bu elde (${escapeHtml(activeDef.title)}) kaç <b>${escapeHtml(activeDef.unitName)}</b> aldığını aşağıdan tek dokunuşla seç:
+    </div>
+    <div class="mqc-num-grid">
+      ${numberPillsHtml}
+    </div>
+  `;
+
+  cardEl.querySelectorAll('.btn-my-num-pill').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const val = parseInt(btn.dataset.val, 10);
+      if (isNaN(val)) return;
+      triggerHaptic(20);
+      pushInputHistory(type, inputsArray);
+      inputsArray[myIdx] = val;
+      confirmedArray[myIdx] = true;
+      state.activeHandType = type;
+      saveStateToStorage();
+      renderAll();
+      sendPlayerInputToServer({
+        action: 'set_player_unit',
+        type: type,
+        playerIdx: myIdx,
+        value: val
+      });
+    });
+  });
 }
 
 // Ortak Dağıtım Listesi Render Yardımcısı (Koz ve Ceza için)
 function renderDistributionList(type, totalUnits, inputsArray, listId, quickId, badgeId, msgId, saveBtnId) {
+  ensureStateArrays(state);
+  const confirmedArray = type === 'koz' ? state.kozConfirmed : state.cezaConfirmed;
+  const callerIdx = getCurrentCallerIndex();
+  const activeGameKey = type === 'koz' ? 'koz' : (state.selectedCezaKey || 'el_almaz');
+  const handPointsPreview = calculateHandPoints(activeGameKey, callerIdx, inputsArray);
+  const myIdx = ['0', '1', '2', '3'].includes(myPlayerRole) ? parseInt(myPlayerRole, 10) : -1;
+
+  renderMyQuickEntryCard(type, totalUnits, inputsArray);
+
   const container = document.getElementById(listId);
   container.innerHTML = '';
 
   state.players.forEach((p, idx) => {
     const val = inputsArray[idx] || 0;
+    const isConfirmed = Boolean(confirmedArray[idx]) || val > 0;
+    const isMe = idx === myIdx;
+    const handPt = handPointsPreview[idx] || 0;
     const row = document.createElement('div');
-    row.className = 'dist-row';
+    row.className = `dist-row ${isMe ? 'my-player-row' : ''} ${isConfirmed ? 'row-confirmed' : ''}`;
     row.innerHTML = `
       <div class="dist-player-info">
-        <span class="dist-player-name">${escapeHtml(p.name)}</span>
-        <span class="dist-player-score">${p.score > 0 ? '+' : ''}${p.score} P</span>
+        <div class="dist-player-title-line">
+          <span class="dist-player-name">${escapeHtml(p.name)}</span>
+          ${isMe ? '<span class="my-player-tag">📱 SEN</span>' : ''}
+          <span class="player-confirm-badge ${isConfirmed ? 'confirmed' : 'pending'}">
+            ${isConfirmed ? '✓ Girdi' : '⏳ Bekleniyor'}
+          </span>
+        </div>
+        <div class="dist-player-sub-line">
+          <span class="dist-player-score">Toplam: ${p.score > 0 ? '+' : ''}${p.score} P</span>
+          ${isConfirmed ? `<span class="dist-hand-delta ${handPt > 0 ? 'pos' : handPt < 0 ? 'neg' : ''}">Bu El: ${handPt > 0 ? '+' : ''}${handPt} P</span>` : ''}
+        </div>
       </div>
       <div class="stepper-wrap">
-        <button type="button" class="btn-stepper" data-action="dec" data-p="${idx}">−</button>
+        <button type="button" class="btn-stepper" data-action="dec" data-p="${idx}" ${isSpectatorMode ? 'disabled' : ''}>−</button>
         <span class="stepper-val">${val}</span>
-        <button type="button" class="btn-stepper" data-action="inc" data-p="${idx}">+</button>
+        <button type="button" class="btn-stepper" data-action="inc" data-p="${idx}" ${isSpectatorMode ? 'disabled' : ''}>+</button>
       </div>
     `;
 
     row.querySelector('[data-action="dec"]').addEventListener('click', () => {
+      if (isSpectatorMode) return;
       triggerHaptic(15);
       if (inputsArray[idx] > 0) {
         pushInputHistory(type, inputsArray);
         inputsArray[idx]--;
+        confirmedArray[idx] = true;
+        state.activeHandType = type;
+        saveStateToStorage();
         renderAll();
+        sendPlayerInputToServer({
+          action: 'set_player_unit',
+          type: type,
+          playerIdx: idx,
+          value: inputsArray[idx]
+        });
       }
     });
 
     row.querySelector('[data-action="inc"]').addEventListener('click', () => {
+      if (isSpectatorMode) return;
       triggerHaptic(15);
       const sum = inputsArray.reduce((a, b) => a + b, 0);
       if (sum < totalUnits) {
         pushInputHistory(type, inputsArray);
         inputsArray[idx]++;
+        confirmedArray[idx] = true;
+        state.activeHandType = type;
+        saveStateToStorage();
         renderAll();
+        sendPlayerInputToServer({
+          action: 'set_player_unit',
+          type: type,
+          playerIdx: idx,
+          value: inputsArray[idx]
+        });
       }
     });
 
@@ -992,13 +1313,24 @@ function renderDistributionList(type, totalUnits, inputsArray, listId, quickId, 
       btn.type = 'button';
       btn.className = 'btn-qf';
       btn.textContent = p.name;
+      btn.disabled = isSpectatorMode;
       btn.addEventListener('click', () => {
+        if (isSpectatorMode) return;
         triggerHaptic(20);
         pushInputHistory(type, inputsArray);
         const currentSumWithoutP = inputsArray.reduce((sum, val, i) => i === idx ? sum : sum + val, 0);
         const remaining = Math.max(0, totalUnits - currentSumWithoutP);
         inputsArray[idx] = remaining;
+        confirmedArray[idx] = true;
+        state.activeHandType = type;
+        saveStateToStorage();
         renderAll();
+        sendPlayerInputToServer({
+          action: 'set_all_units',
+          type: type,
+          inputs: inputsArray,
+          confirmed: confirmedArray
+        });
       });
       quickContainer.appendChild(btn);
     });
@@ -1009,7 +1341,7 @@ function renderDistributionList(type, totalUnits, inputsArray, listId, quickId, 
   const clearBtn = document.getElementById(type === 'ceza' ? 'btnClearCeza' : 'btnClearKoz');
 
   if (undoBtn) {
-    undoBtn.disabled = false;
+    undoBtn.disabled = isSpectatorMode;
     undoBtn.onclick = () => {
       triggerHaptic(20);
       undoInput(type, inputsArray);
@@ -1017,7 +1349,7 @@ function renderDistributionList(type, totalUnits, inputsArray, listId, quickId, 
   }
 
   if (clearBtn) {
-    clearBtn.disabled = false;
+    clearBtn.disabled = isSpectatorMode;
     clearBtn.onclick = () => {
       triggerHaptic(25);
       clearInputs(type, inputsArray);
@@ -1041,7 +1373,7 @@ function validateDistribution(totalUnits, unitName, inputsArray, badgeId, msgId,
     badge.className = 'remaining-counter valid';
     msg.textContent = `✓ Dağılım eksiksiz doğrulandı. Kaydedebilirsiniz.`;
     msg.className = 'validation-bar success';
-    btnSave.disabled = false;
+    btnSave.disabled = isSpectatorMode;
   } else if (diff > 0) {
     badge.textContent = `Kalan: ${diff} / ${totalUnits} ${unitName}`;
     badge.className = 'remaining-counter';
@@ -1057,11 +1389,82 @@ function validateDistribution(totalUnits, unitName, inputsArray, badgeId, msgId,
   }
 }
 
+function renderLiveActiveHandTracker(currentHand, callerIdx, isGameOver) {
+  const trackerEl = document.getElementById('liveActiveHandTracker');
+  if (!trackerEl) return;
+
+  if (isGameOver) {
+    trackerEl.style.display = 'none';
+    return;
+  }
+
+  const isKozActive = state.activeHandType === 'koz' && state.rounds.length >= 4;
+  const activeKey = isKozActive ? 'koz' : (state.selectedCezaKey || 'el_almaz');
+  const activeDef = GAME_DEFS[activeKey] || GAME_DEFS.el_almaz;
+  const inputsArr = isKozActive ? state.kozInputs : state.cezaInputs;
+  const confArr = isKozActive ? state.kozConfirmed : state.cezaConfirmed;
+  const previewPts = calculateHandPoints(activeKey, callerIdx, inputsArr);
+  const sumEntered = inputsArr.reduce((a, b) => a + (b || 0), 0);
+  const remUnits = Math.max(0, activeDef.totalUnits - sumEntered);
+
+  const suitNames = { karo: '♦ Karo', kupa: '♥️ Kupa', maca: '♠ Maça', sinek: '♣ Sinek' };
+  const gameBadgeText = isKozActive
+    ? `👑 Koz: ${suitNames[state.selectedKozSuit] || '♦ Karo'}`
+    : `${activeDef.icon} Ceza: ${activeDef.title}`;
+
+  let playersLiveHtml = '';
+  state.players.forEach((p, idx) => {
+    const val = inputsArr[idx] || 0;
+    const isConf = Boolean(confArr[idx]) || val > 0;
+    const pt = previewPts[idx] || 0;
+    const isMe = String(idx) === myPlayerRole;
+    playersLiveHtml += `
+      <div class="laht-player-chip ${isConf ? 'entered' : 'waiting'} ${isMe ? 'is-me' : ''}">
+        <div class="laht-p-top">
+          <span class="laht-p-name">${escapeHtml(p.name)}</span>
+          <span class="laht-p-status">${isConf ? '✓' : '⏳'}</span>
+        </div>
+        <div class="laht-p-val">
+          <b>${val}</b> ${escapeHtml(activeDef.unitName)}
+          <span class="laht-p-pts ${pt > 0 ? 'pos' : pt < 0 ? 'neg' : ''}">(${pt > 0 ? '+' : ''}${pt} P)</span>
+        </div>
+      </div>
+    `;
+  });
+
+  trackerEl.style.display = 'flex';
+  trackerEl.innerHTML = `
+    <div class="laht-header">
+      <div class="laht-title-group">
+        <span class="live-pulse-dot"></span>
+        <span class="laht-badge">CANLI EL GİRİŞİ (${currentHand}. EL)</span>
+        <span class="laht-game-name">${gameBadgeText}</span>
+      </div>
+      <div class="laht-right-group">
+        <span class="laht-counter ${remUnits === 0 ? 'done' : ''}">
+          ${remUnits === 0 ? `✓ Tamamlandı (${activeDef.totalUnits}/${activeDef.totalUnits})` : `Girilen: ${sumEntered}/${activeDef.totalUnits} • Kalan: ${remUnits}`}
+        </span>
+        ${!isSpectatorMode ? `<button type="button" class="btn btn-xs btn-primary" id="btnTrackerGoEntry">✏️ Puan Gir ➔</button>` : ''}
+      </div>
+    </div>
+    <div class="laht-players-grid">
+      ${playersLiveHtml}
+    </div>
+  `;
+
+  document.getElementById('btnTrackerGoEntry')?.addEventListener('click', () => {
+    triggerHaptic(15);
+    goToScreen(isKozActive ? 2 : 1, true);
+  });
+}
+
 // --------------------------------------------------------------------------
 // 4. TOPLU SONUÇLAR & ÇETELE MATRİSİ SAYFASI
 // --------------------------------------------------------------------------
 function renderResultsScreen(currentHand, callerIdx, isGameOver) {
   const caller = state.players[callerIdx] || state.players[0];
+
+  renderLiveActiveHandTracker(currentHand, callerIdx, isGameOver);
 
   // Sıradaki El Çağrısı
   const lblHand = document.getElementById('lblResCurrentHand');
@@ -1290,6 +1693,9 @@ function saveKozHand() {
   state.rounds.push(roundData);
   recalculateAllScores();
   state.kozInputs = [0, 0, 0, 0];
+  state.cezaInputs = [0, 0, 0, 0];
+  state.kozConfirmed = [false, false, false, false];
+  state.cezaConfirmed = [false, false, false, false];
   inputHistories.koz = [];
   saveStateToStorage();
   pushStateToServer();
@@ -1333,6 +1739,9 @@ function saveCezaHand() {
   state.rounds.push(roundData);
   recalculateAllScores();
   state.cezaInputs = [0, 0, 0, 0];
+  state.kozInputs = [0, 0, 0, 0];
+  state.cezaConfirmed = [false, false, false, false];
+  state.kozConfirmed = [false, false, false, false];
   inputHistories.ceza = [];
   saveStateToStorage();
   pushStateToServer();
@@ -1354,6 +1763,8 @@ function undoLastHand() {
   recalculateAllScores();
   state.kozInputs = [0, 0, 0, 0];
   state.cezaInputs = [0, 0, 0, 0];
+  state.kozConfirmed = [false, false, false, false];
+  state.cezaConfirmed = [false, false, false, false];
   saveStateToStorage();
   pushStateToServer();
   triggerHaptic(30);
@@ -1385,10 +1796,13 @@ function executeResetGame() {
     initialDealer: 0,
     scoringMode: 'standard',
     rounds: [],
+    activeHandType: 'ceza',
     selectedCezaKey: 'el_almaz',
     selectedKozSuit: 'karo',
     kozInputs: [0, 0, 0, 0],
-    cezaInputs: [0, 0, 0, 0]
+    cezaInputs: [0, 0, 0, 0],
+    kozConfirmed: [false, false, false, false],
+    cezaConfirmed: [false, false, false, false]
   };
   inputHistories.ceza = [];
   inputHistories.koz = [];

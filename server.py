@@ -40,8 +40,13 @@ DEFAULT_STATE: dict[str, Any] = {
     "initialDealer": 0,
     "scoringMode": "standard",
     "rounds": [],
-    "selectedGameKey": "koz",
-    "currentInputs": [0, 0, 0, 0],
+    "activeHandType": "ceza",
+    "selectedCezaKey": "el_almaz",
+    "selectedKozSuit": "karo",
+    "kozInputs": [0, 0, 0, 0],
+    "cezaInputs": [0, 0, 0, 0],
+    "kozConfirmed": [False, False, False, False],
+    "cezaConfirmed": [False, False, False, False],
 }
 
 
@@ -433,8 +438,8 @@ class KingHTTPHandler(http.server.SimpleHTTPRequestHandler):
             new_state = payload.get("state")
             if isinstance(new_state, dict) and "players" in new_state:
                 new_ver = SESSION.update_state(new_state)
-                res = {"ok": True, "version": new_ver, "updatedAt": SESSION.updated_at}
-                body = json.dumps(res).encode("utf-8")
+                res = {"ok": True, "version": new_ver, "updatedAt": SESSION.updated_at, "state": SESSION.state}
+                body = json.dumps(res, ensure_ascii=False).encode("utf-8")
                 self.send_response(200)
                 self.send_header("Content-Type", "application/json; charset=utf-8")
                 self.send_header("Content-Length", str(len(body)))
@@ -445,6 +450,68 @@ class KingHTTPHandler(http.server.SimpleHTTPRequestHandler):
                 self.send_response(400)
                 self.end_headers()
                 return
+
+        if self.path == "/api/player-input":
+            cur = SESSION.state
+            if not isinstance(cur.get("kozInputs"), list) or len(cur["kozInputs"]) != 4:
+                cur["kozInputs"] = [0, 0, 0, 0]
+            if not isinstance(cur.get("cezaInputs"), list) or len(cur["cezaInputs"]) != 4:
+                cur["cezaInputs"] = [0, 0, 0, 0]
+            if not isinstance(cur.get("kozConfirmed"), list) or len(cur["kozConfirmed"]) != 4:
+                cur["kozConfirmed"] = [False, False, False, False]
+            if not isinstance(cur.get("cezaConfirmed"), list) or len(cur["cezaConfirmed"]) != 4:
+                cur["cezaConfirmed"] = [False, False, False, False]
+
+            action = payload.get("action", "set_player_unit")
+            hand_type = "koz" if payload.get("type") == "koz" else "ceza"
+
+            if action == "set_player_unit":
+                try:
+                    p_idx = int(payload.get("playerIdx", -1))
+                    val = max(0, min(13, int(payload.get("value", 0))))
+                except Exception:
+                    p_idx, val = -1, 0
+                if 0 <= p_idx < 4:
+                    cur["activeHandType"] = hand_type
+                    if hand_type == "koz":
+                        cur["kozInputs"][p_idx] = val
+                        cur["kozConfirmed"][p_idx] = True
+                    else:
+                        cur["cezaInputs"][p_idx] = val
+                        cur["cezaConfirmed"][p_idx] = True
+            elif action == "select_game":
+                cur["activeHandType"] = hand_type
+                game_key = payload.get("gameKey")
+                if hand_type == "koz" and game_key:
+                    cur["selectedKozSuit"] = str(game_key)
+                elif hand_type == "ceza" and game_key:
+                    if cur.get("selectedCezaKey") != str(game_key):
+                        cur["selectedCezaKey"] = str(game_key)
+                        cur["cezaInputs"] = [0, 0, 0, 0]
+                        cur["cezaConfirmed"] = [False, False, False, False]
+            elif action == "set_all_units":
+                cur["activeHandType"] = hand_type
+                inputs = payload.get("inputs")
+                if isinstance(inputs, list) and len(inputs) == 4:
+                    clean_arr = [max(0, min(13, int(v or 0))) for v in inputs]
+                    conf_in = payload.get("confirmed")
+                    conf_arr = [bool(x) for x in conf_in] if isinstance(conf_in, list) and len(conf_in) == 4 else [v > 0 for v in clean_arr]
+                    if hand_type == "koz":
+                        cur["kozInputs"] = clean_arr
+                        cur["kozConfirmed"] = conf_arr
+                    else:
+                        cur["cezaInputs"] = clean_arr
+                        cur["cezaConfirmed"] = conf_arr
+
+            new_ver = SESSION.update_state(cur)
+            res = {"ok": True, "version": new_ver, "updatedAt": SESSION.updated_at, "state": SESSION.state}
+            body = json.dumps(res, ensure_ascii=False).encode("utf-8")
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json; charset=utf-8")
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+            return
 
         if self.path == "/api/archive-current":
             title = payload.get("title")

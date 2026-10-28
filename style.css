@@ -2798,14 +2798,395 @@ body.spectator-mode .spectator-warning-bar {
 }
 .spectator-warning-bar {
   display: none;
-  background: rgba(59, 130, 246, 0.2);
-  border: 1px solid rgba(59, 130, 246, 0.5);
-  border-radius: 10px;
-  padding: 10px 14px;
-  margin-bottom: 12px;
+  background: rgba(59, 130, 246, 0.18);
+  border: 1px solid rgba(59, 130, 246, 0.45);
+  border-radius: 9px;
+  padding: 8px 12px;
+  margin-top: 4px;
   align-items: center;
   gap: 8px;
-  font-size: 13px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #bfdbfe;
+}
+
+/* --------------------------------------------------------------------------
+   CANLI MASA & OYUNCU TELEFON KİMLİĞİ ÇUBUĞU (LIVE PLAYER BAR)
+   -------------------------------------------------------------------------- */
+.live-player-bar {
+  background: rgba(15, 23, 42, 0.92);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  padding: 8px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  z-index: 40;
+}
+.lpb-top-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.lpb-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+.lpb-live-tag {
+  background: rgba(239, 68, 68, 0.22);
+  border: 1px solid rgba(239, 68, 68, 0.55);
+  color: #fca5a5;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.6px;
+  padding: 2px 7px;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+.lpb-hand-summary {
+  font-size: 12.5px;
+  color: #e2e8f0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.lpb-right-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.lpb-role-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  overflow-x: auto;
+  padding-bottom: 2px;
+  scrollbar-width: none;
+}
+.lpb-role-row::-webkit-scrollbar {
+  display: none;
+}
+.lpb-role-label {
+  font-size: 11.5px;
   font-weight: 700;
-  color: #93c5fd;
+  color: #94a3b8;
+  white-space: nowrap;
+}
+.lpb-role-pills {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.role-pill {
+  background: rgba(30, 41, 59, 0.85);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  color: #cbd5e1;
+  font-size: 12px;
+  font-weight: 700;
+  padding: 5px 11px;
+  border-radius: 999px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.18s ease;
+}
+.role-pill:hover {
+  background: rgba(51, 65, 85, 0.9);
+  color: #fff;
+}
+.role-pill.active {
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  border-color: #34d399;
+  color: #fff;
+  box-shadow: 0 0 12px rgba(16, 185, 129, 0.4);
+}
+.role-pill.spectator-pill.active {
+  background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+  border-color: #60a5fa;
+  color: #fff;
+  box-shadow: 0 0 12px rgba(59, 130, 246, 0.4);
+}
+
+/* --------------------------------------------------------------------------
+   KENDİ TELEFONUNDAN TEK DOKUNUŞLA HIZLI GİRİŞ KARTI (MY QUICK ENTRY CARD)
+   -------------------------------------------------------------------------- */
+.my-quick-entry-card {
+  background: linear-gradient(135deg, rgba(16, 185, 129, 0.14) 0%, rgba(15, 23, 42, 0.95) 100%);
+  border: 1.5px solid rgba(52, 211, 153, 0.5);
+  border-radius: 14px;
+  padding: 12px 14px;
+  margin-bottom: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.28);
+}
+.my-quick-entry-card.compact-hint {
+  background: rgba(30, 41, 59, 0.6);
+  border: 1px dashed rgba(148, 163, 184, 0.35);
+  padding: 8px 12px;
+}
+.mqc-hint-row {
+  font-size: 12px;
+  color: #cbd5e1;
+  line-height: 1.4;
+}
+.mqc-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.mqc-title-wrap {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.mqc-badge {
+  background: rgba(16, 185, 129, 0.25);
+  border: 1px solid rgba(52, 211, 153, 0.55);
+  color: #6ee7b7;
+  font-size: 10px;
+  font-weight: 800;
+  padding: 2px 8px;
+  border-radius: 999px;
+}
+.mqc-player-name {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 800;
+  color: #fff;
+}
+.mqc-caller-tag {
+  background: rgba(234, 179, 8, 0.22);
+  border: 1px solid rgba(250, 204, 21, 0.5);
+  color: #fde047;
+  font-size: 11px;
+  font-weight: 800;
+  padding: 2px 8px;
+  border-radius: 999px;
+}
+.mqc-status-wrap {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.mqc-hand-pts {
+  font-size: 13px;
+  color: #e2e8f0;
+}
+.mqc-hand-pts.pos b {
+  color: #34d399;
+}
+.mqc-hand-pts.neg b {
+  color: #f87171;
+}
+.mqc-sync-pill {
+  font-size: 11px;
+  font-weight: 700;
+  padding: 3px 8px;
+  border-radius: 999px;
+}
+.mqc-sync-pill.synced {
+  background: rgba(16, 185, 129, 0.22);
+  color: #6ee7b7;
+  border: 1px solid rgba(16, 185, 129, 0.45);
+}
+.mqc-sync-pill.waiting {
+  background: rgba(245, 158, 11, 0.2);
+  color: #fcd34d;
+  border: 1px solid rgba(245, 158, 11, 0.45);
+}
+.mqc-sub {
+  font-size: 12px;
+  color: #cbd5e1;
+}
+.mqc-num-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.btn-my-num-pill {
+  min-width: 42px;
+  height: 38px;
+  padding: 0 11px;
+  border-radius: 9px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  background: rgba(15, 23, 42, 0.85);
+  color: #f8fafc;
+  font-size: 14px;
+  font-weight: 800;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.btn-my-num-pill:hover:not(:disabled) {
+  border-color: #34d399;
+  background: rgba(16, 185, 129, 0.2);
+}
+.btn-my-num-pill.selected {
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  border-color: #6ee7b7;
+  color: #fff;
+  box-shadow: 0 0 12px rgba(16, 185, 129, 0.5);
+  transform: scale(1.04);
+}
+.btn-my-num-pill:disabled {
+  opacity: 0.32;
+  cursor: not-allowed;
+}
+
+/* Dağıtım Satırlarında Seçili Oyuncu ve Onay Durumu */
+.dist-row.my-player-row {
+  border: 1.5px solid rgba(52, 211, 153, 0.65) !important;
+  background: linear-gradient(90deg, rgba(16, 185, 129, 0.14) 0%, rgba(15, 23, 42, 0.85) 100%) !important;
+}
+.dist-player-title-line {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.dist-player-sub-line {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 2px;
+}
+.my-player-tag {
+  background: #10b981;
+  color: #022c22;
+  font-size: 10px;
+  font-weight: 900;
+  padding: 1px 6px;
+  border-radius: 6px;
+}
+.player-confirm-badge {
+  font-size: 10.5px;
+  font-weight: 700;
+  padding: 1px 6px;
+  border-radius: 6px;
+}
+.player-confirm-badge.confirmed {
+  background: rgba(16, 185, 129, 0.2);
+  color: #6ee7b7;
+  border: 1px solid rgba(16, 185, 129, 0.4);
+}
+.player-confirm-badge.pending {
+  background: rgba(148, 163, 184, 0.12);
+  color: #94a3b8;
+}
+.dist-hand-delta {
+  font-size: 11.5px;
+  font-weight: 800;
+}
+.dist-hand-delta.pos {
+  color: #34d399;
+}
+.dist-hand-delta.neg {
+  color: #f87171;
+}
+
+/* --------------------------------------------------------------------------
+   ÇETELE SAYFASINDA CANLI OYNANAN EL TAKİP KUTUSU (LIVE ACTIVE HAND TRACKER)
+   -------------------------------------------------------------------------- */
+.live-active-hand-tracker {
+  background: linear-gradient(135deg, rgba(30, 41, 59, 0.92) 0%, rgba(15, 23, 42, 0.96) 100%);
+  border: 1.5px solid rgba(56, 189, 248, 0.4);
+  border-radius: 14px;
+  padding: 12px 14px;
+  margin-bottom: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.laht-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.laht-title-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.laht-badge {
+  font-size: 11px;
+  font-weight: 800;
+  color: #38bdf8;
+  letter-spacing: 0.4px;
+}
+.laht-game-name {
+  font-size: 13px;
+  font-weight: 800;
+  color: #fff;
+  background: rgba(255, 255, 255, 0.08);
+  padding: 3px 9px;
+  border-radius: 8px;
+}
+.laht-right-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.laht-counter {
+  font-size: 12px;
+  font-weight: 700;
+  color: #fcd34d;
+}
+.laht-counter.done {
+  color: #34d399;
+}
+.laht-players-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+}
+@media (max-width: 640px) {
+  .laht-players-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+.laht-player-chip {
+  background: rgba(15, 23, 42, 0.8);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
+  padding: 8px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.laht-player-chip.entered {
+  border-color: rgba(16, 185, 129, 0.45);
+  background: rgba(16, 185, 129, 0.08);
+}
+.laht-player-chip.is-me {
+  box-shadow: 0 0 0 1.5px #34d399;
+}
+.laht-p-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 12px;
+  font-weight: 700;
+  color: #cbd5e1;
+}
+.laht-p-val {
+  font-size: 13px;
+  color: #fff;
+}
+.laht-p-pts.pos {
+  color: #34d399;
+  font-weight: 700;
+}
+.laht-p-pts.neg {
+  color: #f87171;
+  font-weight: 700;
 }

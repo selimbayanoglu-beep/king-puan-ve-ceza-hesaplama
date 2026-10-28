@@ -30,8 +30,13 @@ const DEFAULT_STATE = {
   initialDealer: 0,
   scoringMode: "standard",
   rounds: [],
-  selectedGameKey: "koz",
-  currentInputs: [0, 0, 0, 0],
+  activeHandType: "ceza",
+  selectedCezaKey: "el_almaz",
+  selectedKozSuit: "karo",
+  kozInputs: [0, 0, 0, 0],
+  cezaInputs: [0, 0, 0, 0],
+  kozConfirmed: [false, false, false, false],
+  cezaConfirmed: [false, false, false, false],
 };
 
 const CORS_HEADERS = {
@@ -89,12 +94,90 @@ exports.handler = async (event, context) => {
       return {
         statusCode: 200,
         headers: { ...CORS_HEADERS, "Content-Type": "application/json; charset=utf-8" },
-        body: JSON.stringify({ ok: true, version: newVersion, updatedAt: now }),
+        body: JSON.stringify({ ok: true, version: newVersion, updatedAt: now, state: newState }),
+      };
+    }
+
+    // 2.5. POST /player-input (Oyuncuların kendi telefonlarından anlık koz/ceza girişi — çakışmasız)
+    if (path === "/player-input" && event.httpMethod === "POST") {
+      const payload = JSON.parse(event.body || "{}");
+      let data = await store.get("session_state", { type: "json" });
+      if (!data || !data.state || !Array.isArray(data.state.players)) {
+        data = {
+          version: 1,
+          updatedAt: Date.now(),
+          state: JSON.parse(JSON.stringify(DEFAULT_STATE)),
+        };
+      }
+
+      const cur = data.state;
+      if (!Array.isArray(cur.kozInputs)) cur.kozInputs = [0, 0, 0, 0];
+      if (!Array.isArray(cur.cezaInputs)) cur.cezaInputs = [0, 0, 0, 0];
+      if (!Array.isArray(cur.kozConfirmed)) cur.kozConfirmed = [false, false, false, false];
+      if (!Array.isArray(cur.cezaConfirmed)) cur.cezaConfirmed = [false, false, false, false];
+
+      const action = payload.action || "set_player_unit";
+      const type = payload.type === "koz" ? "koz" : "ceza";
+
+      if (action === "set_player_unit") {
+        const pIdx = Number(payload.playerIdx);
+        const val = Math.max(0, Math.min(13, Number(payload.value) || 0));
+        if (pIdx >= 0 && pIdx < 4) {
+          cur.activeHandType = type;
+          if (type === "koz") {
+            cur.kozInputs[pIdx] = val;
+            cur.kozConfirmed[pIdx] = true;
+          } else {
+            cur.cezaInputs[pIdx] = val;
+            cur.cezaConfirmed[pIdx] = true;
+          }
+        }
+      } else if (action === "select_game") {
+        cur.activeHandType = type;
+        if (type === "koz" && payload.gameKey) {
+          cur.selectedKozSuit = String(payload.gameKey);
+        } else if (type === "ceza" && payload.gameKey) {
+          if (cur.selectedCezaKey !== String(payload.gameKey)) {
+            cur.selectedCezaKey = String(payload.gameKey);
+            cur.cezaInputs = [0, 0, 0, 0];
+            cur.cezaConfirmed = [false, false, false, false];
+          }
+        }
+      } else if (action === "set_all_units") {
+        cur.activeHandType = type;
+        if (Array.isArray(payload.inputs) && payload.inputs.length === 4) {
+          const cleanArr = payload.inputs.map((v) => Math.max(0, Math.min(13, Number(v) || 0)));
+          const confArr = Array.isArray(payload.confirmed) && payload.confirmed.length === 4
+            ? payload.confirmed.map(Boolean)
+            : cleanArr.map((v) => v > 0);
+          if (type === "koz") {
+            cur.kozInputs = cleanArr;
+            cur.kozConfirmed = confArr;
+          } else {
+            cur.cezaInputs = cleanArr;
+            cur.cezaConfirmed = confArr;
+          }
+        }
+      }
+
+      const newVersion = (data.version || 0) + 1;
+      const now = Date.now();
+      await store.setJSON("session_state", {
+        version: newVersion,
+        updatedAt: now,
+        state: cur,
+      });
+
+      return {
+        statusCode: 200,
+        headers: { ...CORS_HEADERS, "Content-Type": "application/json; charset=utf-8" },
+        body: JSON.stringify({ ok: true, version: newVersion, updatedAt: now, state: cur }),
       };
     }
 
     // 3. POST /reset
     if (path === "/reset" && event.httpMethod === "POST") {
+      const payload = JSON.parse(event.body || "{}");
       let data = await store.get("session_state", { type: "json" });
       // Eğer mevcut oyunda el varsa arşive kaydet
       if (data && data.state && data.state.rounds && data.state.rounds.length > 0) {
@@ -116,6 +199,13 @@ exports.handler = async (event, context) => {
       // Tertemiz sıfırla
       const newVersion = (data ? data.version || 0 : 0) + 1;
       const cleanState = JSON.parse(JSON.stringify(DEFAULT_STATE));
+      if (Array.isArray(payload.playerNames) && payload.playerNames.length === 4) {
+        payload.playerNames.forEach((n, idx) => {
+          if (n && String(n).trim()) {
+            cleanState.players[idx].name = String(n).trim();
+          }
+        });
+      }
       await store.setJSON("session_state", {
         version: newVersion,
         updatedAt: Date.now(),
@@ -246,7 +336,9 @@ exports.handler = async (event, context) => {
         const handNo = r.handNo || "";
         const gameTitle = r.gameTitle || r.gameKey || "Koz";
         const callerName = r.callerName || "";
-        const scores = (r.players || []).map((p) => p.scoreDelta || 0);
+        const scores = Array.isArray(r.points)
+          ? r.points
+          : (r.players || []).map((p) => p.scoreDelta || 0);
         csvRows.push([handNo, gameTitle, callerName, ...scores].join(";"));
       });
 
