@@ -18,7 +18,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700;800;900&family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css?v=20261028_v4">
+  <link rel="stylesheet" href="style.css?v=20261028_v5">
 </head>
 <body>
   <div class="app-background-glow glow-1"></div>
@@ -51,26 +51,36 @@
   <nav class="swipe-nav" id="swipeNav">
     <div class="swipe-tabs">
       <button class="swipe-tab active" data-index="0" id="tab0">
-        <span class="tab-icon">👥</span>
-        <span class="tab-label">1. Oyuncular</span>
+        <span class="tab-top">
+          <span class="tab-icon">👥</span>
+        </span>
+        <span class="tab-label">Oyuncular</span>
       </button>
       <button class="swipe-tab" data-index="1" id="tab1">
-        <span class="tab-icon">⚡</span>
-        <span class="tab-label">2. Ceza</span>
-        <span class="tab-count-badge" id="tabBadgeCeza">0/12</span>
+        <span class="tab-top">
+          <span class="tab-icon">⚡</span>
+          <span class="tab-count-badge" id="tabBadgeCeza">0/12</span>
+        </span>
+        <span class="tab-label">Ceza</span>
       </button>
       <button class="swipe-tab" data-index="2" id="tab2">
-        <span class="tab-icon">👑</span>
-        <span class="tab-label">3. Koz</span>
-        <span class="tab-count-badge" id="tabBadgeKoz">0/8</span>
+        <span class="tab-top">
+          <span class="tab-icon">👑</span>
+          <span class="tab-count-badge" id="tabBadgeKoz">0/8</span>
+        </span>
+        <span class="tab-label">Koz</span>
       </button>
       <button class="swipe-tab" data-index="3" id="tab3">
-        <span class="tab-icon">📊</span>
-        <span class="tab-label">4. Çetele</span>
+        <span class="tab-top">
+          <span class="tab-icon">📊</span>
+        </span>
+        <span class="tab-label">Çetele</span>
       </button>
       <button class="swipe-tab" data-index="4" id="tab4">
-        <span class="tab-icon">🎯</span>
-        <span class="tab-label">5. Hedef</span>
+        <span class="tab-top">
+          <span class="tab-icon">🎯</span>
+        </span>
+        <span class="tab-label">Hedef</span>
       </button>
     </div>
     <div class="swipe-track">
@@ -88,15 +98,15 @@
       </div>
       <div class="lpb-right-actions">
         <button type="button" class="btn-live-share" id="btnShareLiveGame" title="Canlı İzleme Linkini Paylaş">
-          🔗 İzleme Linki
+          🔗 Paylaş
         </button>
         <button type="button" class="btn-spectator-toggle" id="btnToggleSpectator" title="Canlı Seyirci / Oyuncu Modu">
-          👀 Seyirci Modu
+          👀 İzle
         </button>
       </div>
     </div>
     <div class="lpb-role-row">
-      <span class="lpb-role-label">📱 Telefonun:</span>
+      <span class="lpb-role-label">📱 Kimlik:</span>
       <div class="lpb-role-pills" id="playerRolePills">
         <!-- JS ile "Tüm Masa", 4 Oyuncu İsmi ve "Sadece İzle" butonları render edilir -->
       </div>
@@ -797,6 +807,6 @@
   </div>
 
   <script src="qrcode.js"></script>
-  <script src="app.js?v=20261028_v4"></script>
+  <script src="app.js?v=20261028_v5"></script>
 </body>
 </html>

@@ -133,7 +133,18 @@ function renderLivePlayerBar(currentHand, callerIdx, isGameOver) {
   if (pillsContainer && state.players) {
     pillsContainer.innerHTML = '';
 
-    // 4 Oyuncu Kimlik Butonları
+    // 1. Tüm Masa (Hakem) Butonu (En başta görünür)
+    const btnAll = document.createElement('button');
+    btnAll.type = 'button';
+    btnAll.className = `role-pill ${myPlayerRole === 'all' ? 'active' : ''}`;
+    btnAll.innerHTML = '👥 Tüm Masa';
+    btnAll.addEventListener('click', () => {
+      triggerHaptic(15);
+      setMyPlayerRole('all', true);
+    });
+    pillsContainer.appendChild(btnAll);
+
+    // 2. 4 Oyuncu Kimlik Butonları
     state.players.forEach((p, idx) => {
       const roleVal = String(idx);
       const btn = document.createElement('button');
@@ -147,27 +158,24 @@ function renderLivePlayerBar(currentHand, callerIdx, isGameOver) {
       pillsContainer.appendChild(btn);
     });
 
-    // Tüm Masa (Hakem) Butonu
-    const btnAll = document.createElement('button');
-    btnAll.type = 'button';
-    btnAll.className = `role-pill ${myPlayerRole === 'all' ? 'active' : ''}`;
-    btnAll.innerHTML = '👥 Tüm Masa';
-    btnAll.addEventListener('click', () => {
-      triggerHaptic(15);
-      setMyPlayerRole('all', true);
-    });
-    pillsContainer.appendChild(btnAll);
-
-    // Canlı İzle (Seyirci) Butonu
+    // 3. Canlı İzle (Seyirci) Butonu
     const btnSpec = document.createElement('button');
     btnSpec.type = 'button';
     btnSpec.className = `role-pill spectator-pill ${myPlayerRole === 'spectator' ? 'active' : ''}`;
-    btnSpec.innerHTML = '👀 Canlı İzle';
+    btnSpec.innerHTML = '👀 İzle';
     btnSpec.addEventListener('click', () => {
       triggerHaptic(15);
       setMyPlayerRole('spectator', true);
     });
     pillsContainer.appendChild(btnSpec);
+
+    // 4. Paylaş Butonu (Mobil tek satırda kolay erişim için)
+    const btnShareInline = document.createElement('button');
+    btnShareInline.type = 'button';
+    btnShareInline.className = 'role-pill share-pill';
+    btnShareInline.innerHTML = '🔗 Paylaş';
+    btnShareInline.addEventListener('click', shareLiveGameLink);
+    pillsContainer.appendChild(btnShareInline);
   }
 }
 
@@ -489,6 +497,8 @@ document.addEventListener('DOMContentLoaded', async () => {
 function initSliderNavigation() {
   const slider = document.getElementById('screensSlider');
   const tabs = document.querySelectorAll('.swipe-tab');
+  const indicator = document.getElementById('swipeIndicator');
+  const maxIndex = Math.max(0, tabs.length - 1);
 
   // Sekmelere tıklama
   tabs.forEach(tab => {
@@ -499,26 +509,55 @@ function initSliderNavigation() {
     });
   });
 
-  // Dokunmatik kaydırma bitişini dinle (Scroll Snap)
+  // Dokunmatik kaydırma sırasında sarı çizgiyi anlık takip ettir ve aktif sekmeyi güncelle
   let scrollTimeout = null;
   slider.addEventListener('scroll', () => {
+    const screenWidth = slider.clientWidth;
+    if (screenWidth <= 0) return;
+
+    const progress = Math.max(0, Math.min(maxIndex, slider.scrollLeft / screenWidth));
+    if (indicator && tabs.length > 0) {
+      const tabWidth = 100 / tabs.length;
+      indicator.style.transition = 'none';
+      indicator.style.width = `${tabWidth}%`;
+      indicator.style.left = `${progress * tabWidth}%`;
+      indicator.style.transform = 'none';
+    }
+
+    const nearestIndex = Math.round(progress);
+    if (nearestIndex !== currentScreenIndex && nearestIndex >= 0 && nearestIndex <= maxIndex) {
+      currentScreenIndex = nearestIndex;
+      tabs.forEach((tab, i) => {
+        tab.classList.toggle('active', i === currentScreenIndex);
+      });
+    }
+
     clearTimeout(scrollTimeout);
     scrollTimeout = setTimeout(() => {
-      const screenWidth = slider.clientWidth;
-      if (screenWidth > 0) {
-        const newIndex = Math.round(slider.scrollLeft / screenWidth);
-        if (newIndex !== currentScreenIndex && newIndex >= 0 && newIndex <= 3) {
-          currentScreenIndex = newIndex;
-          updateSwipeTabs(currentScreenIndex);
-        }
+      const finalIndex = Math.round(slider.scrollLeft / screenWidth);
+      if (finalIndex >= 0 && finalIndex <= maxIndex) {
+        currentScreenIndex = finalIndex;
       }
-    }, 40);
+      updateSwipeTabs(currentScreenIndex);
+    }, 60);
   }, { passive: true });
+
+  window.addEventListener('resize', () => {
+    if (slider.clientWidth > 0) {
+      slider.scrollTo({
+        left: currentScreenIndex * slider.clientWidth,
+        behavior: 'auto'
+      });
+    }
+    updateSwipeTabs(currentScreenIndex);
+  });
 }
 
 function goToScreen(index, smooth = true) {
   const slider = document.getElementById('screensSlider');
-  currentScreenIndex = Math.max(0, Math.min(4, index));
+  const tabs = document.querySelectorAll('.swipe-tab');
+  const maxIndex = Math.max(0, (tabs.length || 5) - 1);
+  currentScreenIndex = Math.max(0, Math.min(maxIndex, index));
   const screenWidth = slider.clientWidth;
   
   slider.scrollTo({
@@ -532,13 +571,18 @@ function goToScreen(index, smooth = true) {
 function updateSwipeTabs(index) {
   const tabs = document.querySelectorAll('.swipe-tab');
   const indicator = document.getElementById('swipeIndicator');
+  const count = tabs.length || 5;
 
   tabs.forEach((tab, i) => {
     tab.classList.toggle('active', i === index);
   });
 
   if (indicator) {
-    indicator.style.transform = `translateX(${index * 100}%)`;
+    const tabWidth = 100 / count;
+    indicator.style.transition = 'left 0.24s cubic-bezier(0.2, 0.8, 0.2, 1), width 0.24s ease';
+    indicator.style.width = `${tabWidth}%`;
+    indicator.style.left = `${index * tabWidth}%`;
+    indicator.style.transform = 'none';
   }
 }
 

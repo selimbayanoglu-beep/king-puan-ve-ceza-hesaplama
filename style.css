@@ -5,10 +5,10 @@
 
 :root {
   --bg-dark: #070a11;
-  --bg-card: rgba(15, 23, 42, 0.78);
-  --bg-card-hover: rgba(22, 34, 60, 0.9);
-  --border-subtle: rgba(255, 255, 255, 0.08);
-  --border-glow: rgba(212, 175, 55, 0.4);
+  --bg-card: rgba(13, 20, 36, 0.94);
+  --bg-card-hover: rgba(22, 34, 60, 0.96);
+  --border-subtle: rgba(255, 255, 255, 0.14);
+  --border-glow: rgba(212, 175, 55, 0.5);
 
   --gold-300: #fef08a;
   --gold-400: #facc15;
@@ -29,9 +29,9 @@
   --cyan-400: #22d3ee;
   --cyan-500: #06b6d4;
 
-  --text-main: #f8fafc;
-  --text-muted: #94a3b8;
-  --text-dim: #64748b;
+  --text-main: #ffffff;
+  --text-muted: #cbd5e1;
+  --text-dim: #94a3b8;
 
   --font-serif: 'Cinzel', serif;
   --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
@@ -43,8 +43,8 @@
   --radius-xl: 28px;
 
   --shadow-card: 0 16px 36px -10px rgba(0, 0, 0, 0.7), 0 0 1px 1px var(--border-subtle);
-  --header-height: 56px;
-  --nav-height: 48px;
+  --header-height: 48px;
+  --nav-height: 54px;
 }
 
 *, *::before, *::after {
@@ -272,75 +272,109 @@ body {
 .btn-icon-danger:hover { background: rgba(244, 63, 94, 0.2); border-color: var(--rose-500); }
 
 /* ==========================================================================
-   KAYDIRILABİLİR SEKME ÇUBUĞU (SWIPE NAV BAR)
+   KAYDIRILABİLİR SEKME ÇUBUĞU (SWIPE NAV BAR — 5 SÜTUN NET GÖRÜNÜM)
    ========================================================================== */
 .swipe-nav {
   position: relative;
   flex-shrink: 0;
   height: var(--nav-height);
-  background: rgba(12, 17, 29, 0.94);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  border-bottom: 1px solid var(--border-subtle);
+  background: #0a101d;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.14);
   z-index: 90;
   display: flex;
   flex-direction: column;
+  width: 100%;
 }
 
 .swipe-tabs {
-  display: flex;
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
   width: 100%;
-  height: calc(var(--nav-height) - 3px);
-  align-items: center;
-  justify-content: space-around;
-  padding: 0 6px;
+  height: calc(var(--nav-height) - 4px);
+  padding: 0;
+  margin: 0;
 }
 
 .swipe-tab {
-  flex: 1;
+  position: relative;
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
   gap: 3px;
+  min-width: 0;
+  width: 100%;
   height: 100%;
-  background: none;
+  background: transparent;
   border: none;
-  color: var(--text-dim);
-  font-size: 11.5px;
-  font-weight: 600;
+  border-right: 1px solid rgba(255, 255, 255, 0.07);
+  color: #cbd5e1;
+  font-size: 12.5px;
+  font-weight: 700;
   font-family: var(--font-sans);
   cursor: pointer;
-  transition: all 0.2s;
+  transition: background 0.18s ease, color 0.18s ease;
   touch-action: manipulation;
   user-select: none;
-  white-space: nowrap;
-  padding: 0 3px;
+  padding: 3px 2px;
 }
-.swipe-tab.active {
-  color: var(--gold-400);
+.swipe-tab:last-child {
+  border-right: none;
+}
+.swipe-tab .tab-top {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  line-height: 1;
 }
 .swipe-tab .tab-icon {
   font-size: 15px;
   line-height: 1;
 }
+.swipe-tab .tab-label {
+  font-size: 12.5px;
+  font-weight: 800;
+  letter-spacing: 0.1px;
+  line-height: 1.1;
+  color: #e2e8f0;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 .swipe-tab .tab-count-badge {
-  font-size: 10px;
-  font-weight: 700;
-  padding: 1px 5px;
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.08);
-  color: var(--text-muted);
+  font-size: 9.5px;
+  font-weight: 800;
+  padding: 1px 4px;
+  border-radius: 5px;
+  background: rgba(255, 255, 255, 0.14);
+  color: #f8fafc;
+  line-height: 1.15;
+}
+
+.swipe-tab.active {
+  color: #fef08a;
+  background: linear-gradient(180deg, rgba(234, 179, 8, 0.28) 0%, rgba(234, 179, 8, 0.10) 100%);
+  box-shadow: inset 0 2px 12px rgba(234, 179, 8, 0.22);
+}
+.swipe-tab.active .tab-label {
+  color: #fef08a;
+  font-weight: 900;
+  text-shadow: 0 0 10px rgba(234, 179, 8, 0.55);
 }
 .swipe-tab.active .tab-count-badge {
-  background: rgba(234, 179, 8, 0.2);
-  color: var(--gold-300);
+  background: #facc15;
+  color: #0f172a;
+  font-weight: 900;
 }
 
 .swipe-track {
   width: 100%;
-  height: 3px;
-  background: rgba(255, 255, 255, 0.04);
+  height: 4px;
+  background: rgba(255, 255, 255, 0.08);
   position: relative;
+  overflow: hidden;
 }
 .swipe-indicator {
   position: absolute;
@@ -348,10 +382,10 @@ body {
   bottom: 0;
   left: 0;
   width: 20%;
-  background: var(--gold-gradient);
-  border-radius: 3px 3px 0 0;
-  box-shadow: 0 0 10px rgba(234, 179, 8, 0.6);
-  transition: transform 0.28s cubic-bezier(0.2, 0.8, 0.2, 1);
+  background: linear-gradient(90deg, #fef08a 0%, #facc15 50%, #eab308 100%);
+  border-radius: 4px 4px 0 0;
+  box-shadow: 0 0 12px rgba(250, 204, 21, 0.9);
+  transition: left 0.24s cubic-bezier(0.2, 0.8, 0.2, 1), width 0.24s ease;
 }
 
 /* ==========================================================================
@@ -382,7 +416,7 @@ body {
   overflow-x: hidden;
   scroll-snap-align: start;
   scroll-snap-stop: always;
-  padding: 12px 12px calc(85px + env(safe-area-inset-bottom));
+  padding: 10px 10px calc(80px + env(safe-area-inset-bottom));
   box-sizing: border-box;
 }
 
@@ -394,11 +428,28 @@ body {
   -webkit-backdrop-filter: blur(18px);
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-lg);
-  padding: 20px 16px;
+  padding: 18px 14px;
   box-shadow: var(--shadow-card);
   display: flex;
   flex-direction: column;
-  gap: 18px;
+  gap: 16px;
+}
+
+@media (max-width: 520px) {
+  .app-screen {
+    padding: 6px 5px calc(70px + env(safe-area-inset-bottom));
+  }
+  .screen-card {
+    padding: 12px 10px;
+    gap: 12px;
+    border-radius: 14px;
+  }
+  .swipe-tab .tab-label {
+    font-size: 11.5px;
+  }
+  .swipe-tab .tab-icon {
+    font-size: 14px;
+  }
 }
 
 /* ==========================================================================
@@ -2874,20 +2925,29 @@ body.spectator-mode .spectator-warning-bar {
    CANLI MASA & OYUNCU TELEFON KİMLİĞİ ÇUBUĞU (LIVE PLAYER BAR)
    -------------------------------------------------------------------------- */
 .live-player-bar {
-  background: rgba(15, 23, 42, 0.92);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-  padding: 8px 14px;
+  background: rgba(15, 23, 42, 0.96);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+  padding: 6px 10px;
   display: flex;
   flex-direction: column;
-  gap: 7px;
+  gap: 5px;
   z-index: 40;
+  flex-shrink: 0;
 }
 .lpb-top-row {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 8px;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
+}
+@media (max-width: 640px) {
+  .lpb-top-row {
+    display: none;
+  }
+  .live-player-bar {
+    padding: 5px 8px;
+  }
 }
 .lpb-left {
   display: flex;
@@ -2921,9 +2981,9 @@ body.spectator-mode .spectator-warning-bar {
 .lpb-role-row {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
   overflow-x: auto;
-  padding-bottom: 2px;
+  padding-bottom: 1px;
   scrollbar-width: none;
 }
 .lpb-role-row::-webkit-scrollbar {
@@ -2931,42 +2991,47 @@ body.spectator-mode .spectator-warning-bar {
 }
 .lpb-role-label {
   font-size: 11.5px;
-  font-weight: 700;
-  color: #94a3b8;
+  font-weight: 800;
+  color: #e2e8f0;
   white-space: nowrap;
 }
 .lpb-role-pills {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 5px;
 }
 .role-pill {
-  background: rgba(30, 41, 59, 0.85);
-  border: 1px solid rgba(255, 255, 255, 0.15);
-  color: #cbd5e1;
+  background: rgba(30, 41, 59, 0.92);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: #e2e8f0;
   font-size: 12px;
   font-weight: 700;
-  padding: 5px 11px;
+  padding: 4px 10px;
   border-radius: 999px;
   cursor: pointer;
   white-space: nowrap;
   transition: all 0.18s ease;
 }
 .role-pill:hover {
-  background: rgba(51, 65, 85, 0.9);
+  background: rgba(51, 65, 85, 0.95);
   color: #fff;
 }
 .role-pill.active {
   background: linear-gradient(135deg, #10b981 0%, #059669 100%);
   border-color: #34d399;
   color: #fff;
-  box-shadow: 0 0 12px rgba(16, 185, 129, 0.4);
+  box-shadow: 0 0 10px rgba(16, 185, 129, 0.45);
 }
 .role-pill.spectator-pill.active {
   background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
   border-color: #60a5fa;
   color: #fff;
-  box-shadow: 0 0 12px rgba(59, 130, 246, 0.4);
+  box-shadow: 0 0 10px rgba(59, 130, 246, 0.45);
+}
+.role-pill.share-pill {
+  background: rgba(239, 68, 68, 0.18);
+  border-color: rgba(239, 68, 68, 0.5);
+  color: #fca5a5;
 }
 
 /* --------------------------------------------------------------------------
