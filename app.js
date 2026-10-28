@@ -621,7 +621,7 @@ async function fetchServerState(initial = false) {
         if (data.state && Array.isArray(data.state.players)) {
           state = data.state;
           ensureStateArrays(state);
-          if (isEditingSetup && (!state.rounds || state.rounds.length === 0)) {
+          if (isEditingSetup) {
             state.players.forEach((p, idx) => {
               const localName = localNamesSnapshot[idx];
               if (localName && localName !== `Oyuncu ${idx + 1}`) {
@@ -878,38 +878,22 @@ function renderSetupScreen() {
     }
   });
 
-  const heroIcon = document.getElementById('setupHeroIcon');
-  const heroTitle = document.getElementById('setupHeroTitle');
-  const heroSub = document.getElementById('setupHeroSub');
-  const replacementNote = document.getElementById('playerReplacementNote');
   const startBtnText = document.getElementById('btnStartGameText');
   const startBtnTopText = document.getElementById('btnStartGameTopText');
   const dealerGroup = document.getElementById('dealerFormGroup');
 
+  if (dealerGroup) {
+    dealerGroup.style.opacity = '1';
+    dealerGroup.style.pointerEvents = 'auto';
+    dealerGroup.title = '';
+  }
+
   if (isGameInProgress) {
-    if (heroIcon) heroIcon.textContent = '🔄';
-    if (heroTitle) heroTitle.textContent = 'Oyuncu Düzenleme & Masa Değişimi';
-    if (heroSub) heroSub.textContent = 'Masadan ayrılan bir oyuncu varsa yerine yeni oyuncunun adını yazabilirsiniz.';
-    if (replacementNote) replacementNote.style.display = 'flex';
-    if (startBtnText) startBtnText.textContent = '✓ Oyuncu Değişikliklerini Kaydet ve Masaya Dön';
-    if (startBtnTopText) startBtnTopText.textContent = '✓ Oyuncu Değişikliklerini Kaydet ve Masaya Dön';
-    if (dealerGroup) {
-      dealerGroup.style.opacity = '0.5';
-      dealerGroup.style.pointerEvents = 'none';
-      dealerGroup.title = 'İlk krupiye oyun başında belirlenmiştir.';
-    }
+    if (startBtnText) startBtnText.textContent = '✓ Değişiklikleri Kaydet ve Masaya Dön';
+    if (startBtnTopText) startBtnTopText.textContent = '✓ Değişiklikleri Kaydet ve Masaya Dön';
   } else {
-    if (heroIcon) heroIcon.textContent = '👥';
-    if (heroTitle) heroTitle.textContent = 'Oyuncular & Masa Kurulumu';
-    if (heroSub) heroSub.textContent = 'Oyuncu isimlerini belirleyin ve oyunu başlatın. Başladıktan sonra bu sayfaya dönmenize gerek kalmaz.';
-    if (replacementNote) replacementNote.style.display = 'none';
     if (startBtnText) startBtnText.textContent = '🚀 Oyunu Başlat ve Ceza Sayfasına Geç ➔';
     if (startBtnTopText) startBtnTopText.textContent = '🚀 Oyunu Başlat ve Ceza Sayfasına Geç ➔';
-    if (dealerGroup) {
-      dealerGroup.style.opacity = '1';
-      dealerGroup.style.pointerEvents = 'auto';
-      dealerGroup.title = '';
-    }
   }
 
   const dealerRow = document.getElementById('dealerPickRow');
@@ -920,7 +904,6 @@ function renderSetupScreen() {
     btn.className = `btn-dealer-pick ${state.initialDealer === idx ? 'selected' : ''}`;
     btn.textContent = `♣2 ${idx + 1}. ${p.name}`;
     btn.addEventListener('click', () => {
-      if (isGameInProgress) return;
       triggerHaptic(15);
       // Önce input kutularında yazılmış olan güncel oyuncu isimlerini state'e kaydet (isimler asla silinmesin!)
       syncSetupInputsToState();
