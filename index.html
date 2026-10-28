@@ -18,7 +18,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700;800;900&family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css?v=20261028_v3">
+  <link rel="stylesheet" href="style.css?v=20261028_v4">
 </head>
 <body>
   <div class="app-background-glow glow-1"></div>
@@ -43,7 +43,7 @@
       <button class="btn-icon" id="btnHelp" title="Kurallar & Puan Tablosu">📖</button>
       <button class="btn-icon" id="btnUndo" title="Son Eli Geri Al">↩️</button>
       <button class="btn-icon" id="btnHeaderArchive" title="Bu Oyunu Arşive Kaydet">💾</button>
-      <button class="btn-icon btn-icon-danger" id="btnNewGame" title="Yeni Oyun">🔄</button>
+      <button class="btn-new-game-top" id="btnNewGame" title="Yeni Oyun Başlat">🔄 <span>Yeni Oyun</span></button>
     </div>
   </header>
 
@@ -158,6 +158,16 @@
             </div>
           </div>
 
+          <!-- Telefondan Anında Görünür Hızlı Başlatma & Yeni Oyun Çubuğu -->
+          <div class="setup-quick-start-bar">
+            <button type="button" class="btn btn-primary btn-hero" id="btnStartGameTop">
+              <span id="btnStartGameTopText">🚀 Oyunu Başlat ve Ceza Sayfasına Geç ➔</span>
+            </button>
+            <button type="button" class="btn btn-danger btn-reset-setup" id="btnResetOnSetup">
+              🔄 Yeni Oyun Başlat (Tüm Masayı Sıfırla)
+            </button>
+          </div>
+
           <div class="form-group">
             <label class="form-label">Puanlama Modeli:</label>
             <div class="mode-select-cards">
@@ -187,7 +197,7 @@
 
           <div class="setup-actions">
             <button type="button" class="btn btn-primary btn-hero" id="btnStartGame">
-              <span id="btnStartGameText">Oyunu Başlat ve Ceza Sayfasına Geç ➔</span>
+              <span id="btnStartGameText">🚀 Oyunu Başlat ve Ceza Sayfasına Geç ➔</span>
             </button>
           </div>
         </div>
@@ -530,6 +540,7 @@
           <button type="button" class="btn btn-secondary" id="btnArchiveDirect" title="Bu oyunu geçmiş arşive kaydet">💾 Oyunu Arşivle</button>
           <button type="button" class="btn btn-secondary" id="btnOpenArchives" title="Geçmiş Oyunlar ve Çete Arşivi">📂 Geçmiş Arşiv</button>
           <button type="button" class="btn btn-secondary" id="btnEditPlayers">👥 Oyuncuları Düzenle</button>
+          <button type="button" class="btn btn-danger btn-footer-jump" id="btnFooterNewGame">🔄 Yeni Oyun Başlat</button>
         </div>
 
       </div>
@@ -786,6 +797,6 @@
   </div>
 
   <script src="qrcode.js"></script>
-  <script src="app.js?v=20261028_v3"></script>
+  <script src="app.js?v=20261028_v4"></script>
 </body>
 </html>

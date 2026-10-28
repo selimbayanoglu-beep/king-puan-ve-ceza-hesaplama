@@ -55,7 +55,8 @@
 
 html, body {
   width: 100%;
-  height: 100%;
+  height: 100vh;
+  height: 100dvh;
   overflow: hidden; /* Dikey kaydırmayı ekranların içine veriyoruz */
   background-color: var(--bg-dark);
   color: var(--text-main);
@@ -63,6 +64,11 @@ html, body {
   line-height: 1.45;
   -webkit-font-smoothing: antialiased;
   -webkit-tap-highlight-color: transparent;
+}
+
+body {
+  display: flex;
+  flex-direction: column;
 }
 
 /* Arka Plan Ambient Parlamaları */
@@ -100,49 +106,52 @@ html, body {
    ÜST SABİT ÇUBUK (HEADER)
    ========================================================================== */
 .app-top-header {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: var(--header-height);
-  background: rgba(10, 14, 23, 0.88);
+  position: relative;
+  flex-shrink: 0;
+  min-height: var(--header-height);
+  background: rgba(10, 14, 23, 0.92);
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
   border-bottom: 1px solid var(--border-subtle);
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0 14px;
-  padding-top: env(safe-area-inset-top);
+  gap: 6px;
+  padding: 4px 10px;
+  padding-top: calc(4px + env(safe-area-inset-top));
   z-index: 100;
 }
 
 .top-brand {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
+  min-width: 0;
+  flex-shrink: 1;
 }
 .suit-badge {
-  font-size: 14px;
+  font-size: 13px;
   color: var(--rose-500);
   background: rgba(0, 0, 0, 0.4);
   padding: 3px 6px;
   border-radius: 6px;
   border: 1px solid var(--border-subtle);
-  letter-spacing: 2px;
+  letter-spacing: 1.5px;
+  white-space: nowrap;
 }
 .brand-title {
   font-family: var(--font-serif);
-  font-size: 16px;
+  font-size: 15px;
   font-weight: 800;
-  letter-spacing: 1px;
+  letter-spacing: 0.6px;
   color: #fff;
+  white-space: nowrap;
 }
 .brand-title span {
   font-family: var(--font-sans);
-  font-size: 10.5px;
+  font-size: 10px;
   font-weight: 700;
-  letter-spacing: 1.5px;
+  letter-spacing: 1px;
   background: var(--gold-gradient);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
@@ -151,7 +160,61 @@ html, body {
 .top-controls {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 5px;
+  flex-shrink: 0;
+}
+
+.btn-new-game-top {
+  height: 34px;
+  padding: 0 10px;
+  border-radius: var(--radius-sm);
+  background: linear-gradient(135deg, #e11d48 0%, #be123c 100%);
+  border: 1px solid rgba(251, 113, 133, 0.6);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 800;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  cursor: pointer;
+  white-space: nowrap;
+  box-shadow: 0 2px 10px rgba(225, 29, 72, 0.35);
+  transition: all 0.2s;
+  touch-action: manipulation;
+}
+.btn-new-game-top:active {
+  transform: scale(0.95);
+}
+
+@media (max-width: 520px) {
+  .suit-badge {
+    display: none;
+  }
+  .brand-title {
+    font-size: 13.5px;
+  }
+  .brand-title span {
+    display: block;
+    font-size: 9px;
+    line-height: 1;
+  }
+  .sync-badge .sync-text {
+    display: none;
+  }
+  .sync-badge {
+    padding: 4px;
+  }
+  .btn-icon {
+    width: 31px;
+    height: 31px;
+    font-size: 13px;
+  }
+  .btn-new-game-top {
+    height: 31px;
+    padding: 0 8px;
+    font-size: 11.5px;
+  }
 }
 
 .sync-badge {
@@ -212,10 +275,8 @@ html, body {
    KAYDIRILABİLİR SEKME ÇUBUĞU (SWIPE NAV BAR)
    ========================================================================== */
 .swipe-nav {
-  position: fixed;
-  top: var(--header-height);
-  left: 0;
-  right: 0;
+  position: relative;
+  flex-shrink: 0;
   height: var(--nav-height);
   background: rgba(12, 17, 29, 0.94);
   backdrop-filter: blur(16px);
@@ -297,11 +358,10 @@ html, body {
    ANA KAYDIRICI (SCREENS SLIDER)
    ========================================================================== */
 .screens-slider {
-  position: fixed;
-  top: calc(var(--header-height) + var(--nav-height));
-  bottom: 0;
-  left: 0;
-  right: 0;
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 0;
+  width: 100%;
   display: flex;
   overflow-x: auto;
   overflow-y: hidden;
@@ -322,7 +382,7 @@ html, body {
   overflow-x: hidden;
   scroll-snap-align: start;
   scroll-snap-stop: always;
-  padding: 14px 12px calc(24px + env(safe-area-inset-bottom));
+  padding: 12px 12px calc(85px + env(safe-area-inset-bottom));
   box-sizing: border-box;
 }
 
@@ -3211,6 +3271,23 @@ body.spectator-mode .spectator-warning-bar {
   flex-direction: column;
   gap: 7px;
   width: 100%;
+}
+
+/* Kurulum Sayfasında Krupiye Altı Hızlı Başlat & Sıfırla Çubuğu */
+.setup-quick-start-bar {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px 12px;
+  border-radius: var(--radius-md);
+  background: rgba(234, 179, 8, 0.08);
+  border: 1.5px solid rgba(234, 179, 8, 0.35);
+}
+.btn-reset-setup {
+  width: 100%;
+  padding: 11px 16px;
+  font-size: 13px;
+  font-weight: 800;
 }
 .fhd-label {
   font-size: 12px;

@@ -839,6 +839,7 @@ function renderSetupScreen() {
   const heroSub = document.getElementById('setupHeroSub');
   const replacementNote = document.getElementById('playerReplacementNote');
   const startBtnText = document.getElementById('btnStartGameText');
+  const startBtnTopText = document.getElementById('btnStartGameTopText');
   const dealerGroup = document.getElementById('dealerFormGroup');
 
   if (isGameInProgress) {
@@ -847,6 +848,7 @@ function renderSetupScreen() {
     if (heroSub) heroSub.textContent = 'Masadan ayrılan bir oyuncu varsa yerine yeni oyuncunun adını yazabilirsiniz.';
     if (replacementNote) replacementNote.style.display = 'flex';
     if (startBtnText) startBtnText.textContent = '✓ Oyuncu Değişikliklerini Kaydet ve Masaya Dön';
+    if (startBtnTopText) startBtnTopText.textContent = '✓ Oyuncu Değişikliklerini Kaydet ve Masaya Dön';
     if (dealerGroup) {
       dealerGroup.style.opacity = '0.5';
       dealerGroup.style.pointerEvents = 'none';
@@ -857,7 +859,8 @@ function renderSetupScreen() {
     if (heroTitle) heroTitle.textContent = 'Oyuncular & Masa Kurulumu';
     if (heroSub) heroSub.textContent = 'Oyuncu isimlerini belirleyin ve oyunu başlatın. Başladıktan sonra bu sayfaya dönmenize gerek kalmaz.';
     if (replacementNote) replacementNote.style.display = 'none';
-    if (startBtnText) startBtnText.textContent = 'Oyunu Başlat ve Ceza Sayfasına Geç ➔';
+    if (startBtnText) startBtnText.textContent = '🚀 Oyunu Başlat ve Ceza Sayfasına Geç ➔';
+    if (startBtnTopText) startBtnTopText.textContent = '🚀 Oyunu Başlat ve Ceza Sayfasına Geç ➔';
     if (dealerGroup) {
       dealerGroup.style.opacity = '1';
       dealerGroup.style.pointerEvents = 'auto';
@@ -2382,10 +2385,17 @@ function initEventListeners() {
 
   // Geri Al & Yeni Oyun
   document.getElementById('btnUndo').addEventListener('click', undoLastHand);
-  document.getElementById('btnNewGame')?.addEventListener('click', () => {
+  const handleNewGameRequest = () => {
     triggerHaptic(20);
-    openResetConfirmModal();
-  });
+    if (!state.rounds || state.rounds.length === 0) {
+      executeResetGame();
+    } else {
+      openResetConfirmModal();
+    }
+  };
+  document.getElementById('btnNewGame')?.addEventListener('click', handleNewGameRequest);
+  document.getElementById('btnResetOnSetup')?.addEventListener('click', handleNewGameRequest);
+  document.getElementById('btnFooterNewGame')?.addEventListener('click', handleNewGameRequest);
 
   // Yeni Oyun Başlatma / Sıfırlama Onay Modalı
   const modalReset = document.getElementById('modalResetConfirm');
@@ -2447,7 +2457,7 @@ function initEventListeners() {
   });
 
   // Kurulum / Oyuncu Düzenleme Sayfası: "Oyunu Başlat / Değişiklikleri Kaydet"
-  document.getElementById('btnStartGame').addEventListener('click', () => {
+  const handleStartOrUpdateGame = () => {
     const isGameInProgress = state.rounds && state.rounds.length > 0;
 
     const oldNames = state.players.map(p => p.name);
@@ -2492,7 +2502,10 @@ function initEventListeners() {
       goToScreen(1, true);
       showToast('Oyun başlatıldı! Ceza sayfasındasınız.', 'amber');
     }
-  });
+  };
+
+  document.getElementById('btnStartGame')?.addEventListener('click', handleStartOrUpdateGame);
+  document.getElementById('btnStartGameTop')?.addEventListener('click', handleStartOrUpdateGame);
 
   // Hızlı Geçiş Butonları (Sonuçlar Sayfasından Ceza ve Koza)
   document.getElementById('btnJumpToCeza').addEventListener('click', () => {
