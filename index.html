@@ -18,22 +18,15 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700;800;900&family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css?v=20261028_v5">
+  <link rel="stylesheet" href="style.css?v=20261028_v6">
 </head>
 <body>
   <div class="app-background-glow glow-1"></div>
   <div class="app-background-glow glow-2"></div>
   <div class="app-background-glow glow-3"></div>
 
-  <!-- Üst Sabit Çubuk (Header & Kontroller) -->
+  <!-- Üst Sabit Çubuk (Sadece Kontroller — Başlık Kaldırıldı) -->
   <header class="app-top-header">
-    <div class="top-brand">
-      <div class="suit-badge">♠ ♥ ♦ ♣</div>
-      <div class="brand-text">
-        <h1 class="brand-title">KING <span>ÇETELE</span></h1>
-      </div>
-    </div>
-
     <div class="top-controls">
       <div class="sync-badge" id="syncBadge" title="Senkronizasyon Durumu">
         <span class="sync-dot online"></span>
@@ -47,39 +40,24 @@
     </div>
   </header>
 
-  <!-- Kaydırılabilir Sekmeler (Swipe Tab Bar) -->
+  <!-- Kaydırılabilir Sekmeler (Swipe Tab Bar — Sade Tek Satır) -->
   <nav class="swipe-nav" id="swipeNav">
     <div class="swipe-tabs">
       <button class="swipe-tab active" data-index="0" id="tab0">
-        <span class="tab-top">
-          <span class="tab-icon">👥</span>
-        </span>
         <span class="tab-label">Oyuncular</span>
       </button>
       <button class="swipe-tab" data-index="1" id="tab1">
-        <span class="tab-top">
-          <span class="tab-icon">⚡</span>
-          <span class="tab-count-badge" id="tabBadgeCeza">0/12</span>
-        </span>
         <span class="tab-label">Ceza</span>
+        <span class="tab-count-badge" id="tabBadgeCeza" style="display: none;">0/12</span>
       </button>
       <button class="swipe-tab" data-index="2" id="tab2">
-        <span class="tab-top">
-          <span class="tab-icon">👑</span>
-          <span class="tab-count-badge" id="tabBadgeKoz">0/8</span>
-        </span>
         <span class="tab-label">Koz</span>
+        <span class="tab-count-badge" id="tabBadgeKoz" style="display: none;">0/8</span>
       </button>
       <button class="swipe-tab" data-index="3" id="tab3">
-        <span class="tab-top">
-          <span class="tab-icon">📊</span>
-        </span>
         <span class="tab-label">Çetele</span>
       </button>
       <button class="swipe-tab" data-index="4" id="tab4">
-        <span class="tab-top">
-          <span class="tab-icon">🎯</span>
-        </span>
         <span class="tab-label">Hedef</span>
       </button>
     </div>
@@ -90,21 +68,6 @@
 
   <!-- CANLI MASA BAĞLANTISI & OYUNCU / SEYİRCİ TELEFON MODU ÇUBUĞU -->
   <div class="live-player-bar" id="livePlayerBar">
-    <div class="lpb-top-row">
-      <div class="lpb-left">
-        <span class="live-pulse-dot"></span>
-        <span class="lpb-live-tag">CANLI MASA</span>
-        <span class="lpb-hand-summary" id="lblLiveBarSummary">1. El • Ceza</span>
-      </div>
-      <div class="lpb-right-actions">
-        <button type="button" class="btn-live-share" id="btnShareLiveGame" title="Canlı İzleme Linkini Paylaş">
-          🔗 Paylaş
-        </button>
-        <button type="button" class="btn-spectator-toggle" id="btnToggleSpectator" title="Canlı Seyirci / Oyuncu Modu">
-          👀 İzle
-        </button>
-      </div>
-    </div>
     <div class="lpb-role-row">
       <span class="lpb-role-label">📱 Kimlik:</span>
       <div class="lpb-role-pills" id="playerRolePills">
@@ -116,7 +79,7 @@
     </div>
   </div>
 
-  <!-- ANA KAYDIRILABİLİR ALAN (4 AYRI SAYFA / SLIDER) -->
+  <!-- ANA KAYDIRILABİLİR ALAN (5 AYRI SAYFA / SLIDER) -->
   <main class="screens-slider" id="screensSlider">
 
     <!-- ======================================================================
@@ -124,19 +87,6 @@
          ====================================================================== -->
     <section class="app-screen screen-setup" id="screen0">
       <div class="screen-card">
-        <div class="card-hero">
-          <div class="hero-icon" id="setupHeroIcon">👥</div>
-          <h2 id="setupHeroTitle">Oyuncular &amp; Masa Kurulumu</h2>
-          <p class="hero-sub" id="setupHeroSub">Oyuncu isimlerini belirleyin ve oyunu başlatın. Başladıktan sonra bu sayfaya dönmenize gerek kalmaz.</p>
-        </div>
-
-        <div class="player-replacement-note" id="playerReplacementNote" style="display: none;">
-          <div class="prn-icon">🔄</div>
-          <div class="prn-text">
-            <b>Oyuncu Değişimi:</b> Masadan ayrılan oyuncunun yerine yeni bir isim yazabilirsiniz. Çıkan oyuncunun puanı, ceza ve koz hakları yeni oyuncuya <u>aynen aktarılır</u>.
-          </div>
-        </div>
-
         <div class="setup-form">
           <div class="form-group">
             <label class="form-label">Oyuncu İsimleri:</label>
@@ -162,13 +112,12 @@
 
           <div class="form-group" id="dealerFormGroup">
             <label class="form-label">İlk Başlayan / Krupiye (♣2 Sinek İkilisi Kimde?):</label>
-            <p class="dealer-sub-hint">Oyuna başlamak için <b>Sinek 2'li (♣2)</b> kimde çıktıysa onu seçin; 1. el o oyuncudan başlar.</p>
             <div class="dealer-pick-row" id="dealerPickRow">
               <!-- JS ile 4 oyuncu butonları render edilir -->
             </div>
           </div>
 
-          <!-- Telefondan Anında Görünür Hızlı Başlatma & Yeni Oyun Çubuğu -->
+          <!-- Hızlı Başlatma & Yeni Oyun Çubuğu -->
           <div class="setup-quick-start-bar">
             <button type="button" class="btn btn-primary btn-hero" id="btnStartGameTop">
               <span id="btnStartGameTopText">🚀 Oyunu Başlat ve Ceza Sayfasına Geç ➔</span>
@@ -203,12 +152,6 @@
                 </div>
               </label>
             </div>
-          </div>
-
-          <div class="setup-actions">
-            <button type="button" class="btn btn-primary btn-hero" id="btnStartGame">
-              <span id="btnStartGameText">🚀 Oyunu Başlat ve Ceza Sayfasına Geç ➔</span>
-            </button>
           </div>
         </div>
       </div>
@@ -807,6 +750,6 @@
   </div>
 
   <script src="qrcode.js"></script>
-  <script src="app.js?v=20261028_v5"></script>
+  <script src="app.js?v=20261028_v6"></script>
 </body>
 </html>
