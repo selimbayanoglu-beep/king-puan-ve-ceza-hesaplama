@@ -421,6 +421,20 @@ let isSyncing = false;
 let serverNetworkUrl = '';
 let syncIntervalId = null;
 let currentScreenIndex = 0;
+let lastLocalSetupEditAt = 0;
+let setupSyncTimer = null;
+
+function syncSetupInputsToState() {
+  ['inputPlayer1', 'inputPlayer2', 'inputPlayer3', 'inputPlayer4'].forEach((id, idx) => {
+    const el = document.getElementById(id);
+    if (el && state.players && state.players[idx]) {
+      const trimmed = el.value.trim();
+      if (trimmed) {
+        state.players[idx].name = trimmed;
+      }
+    }
+  });
+}
 
 function ensureStateArrays(st) {
   if (!st) return;
@@ -550,10 +564,22 @@ async function fetchServerState(initial = false) {
       updateSyncBadge(true);
       if (data.version && data.version > serverVersion) {
         const prevRoundsLen = state.rounds ? state.rounds.length : 0;
+        const localNamesSnapshot = state.players ? state.players.map(p => p.name) : [];
+        const localDealerSnapshot = state.initialDealer;
+        const isEditingSetup = ['inputPlayer1', 'inputPlayer2', 'inputPlayer3', 'inputPlayer4'].some(
+          id => document.activeElement && document.activeElement.id === id
+        ) || (Date.now() - lastLocalSetupEditAt < 5000);
+
         serverVersion = data.version;
         if (data.state && Array.isArray(data.state.players)) {
           state = data.state;
           ensureStateArrays(state);
+          if (isEditingSetup && (!state.rounds || state.rounds.length === 0)) {
+            state.players.forEach((p, idx) => {
+              if (localNamesSnapshot[idx]) p.name = localNamesSnapshot[idx];
+            });
+            state.initialDealer = localDealerSnapshot;
+          }
           recalculateAllScores();
           saveStateToStorage();
           renderAll();
@@ -788,7 +814,16 @@ function renderSetupScreen() {
 
   ['inputPlayer1', 'inputPlayer2', 'inputPlayer3', 'inputPlayer4'].forEach((id, idx) => {
     const el = document.getElementById(id);
-    if (el && document.activeElement !== el) {
+    if (!el || document.activeElement === el) return;
+    const defaultName = `Oyuncu ${idx + 1}`;
+    const currentTyped = el.value.trim();
+    // Eğer kullanıcı kutuya özel bir isim yazdıysa ve state henüz varsayılan isimdeyse, kullanıcının yazdığını koru!
+    if (currentTyped && currentTyped !== defaultName && state.players[idx].name === defaultName) {
+      state.players[idx].name = currentTyped;
+    } else if (state.players[idx].name === defaultName && currentTyped === '') {
+      // Kutu boşsa varsayılan "Oyuncu 1" metnini zorla yazma, placeholder görünsün
+      el.value = '';
+    } else {
       el.value = state.players[idx].name;
     }
   });
@@ -830,12 +865,18 @@ function renderSetupScreen() {
     const btn = document.createElement('button');
     btn.type = 'button';
     btn.className = `btn-dealer-pick ${state.initialDealer === idx ? 'selected' : ''}`;
-    btn.textContent = `${idx + 1}. ${p.name}`;
+    btn.textContent = `♣2 ${idx + 1}. ${p.name}`;
     btn.addEventListener('click', () => {
       if (isGameInProgress) return;
       triggerHaptic(15);
+      // Önce input kutularında yazılmış olan güncel oyuncu isimlerini state'e kaydet (isimler asla silinmesin!)
+      syncSetupInputsToState();
+      lastLocalSetupEditAt = Date.now();
       state.initialDealer = idx;
-      renderSetupScreen();
+      saveStateToStorage();
+      pushStateToServer();
+      renderAll();
+      showToast(`♣2 Sinek 2'li sahibi (Başlangıç oyuncusu): ${state.players[idx].name} seçildi!`, 'emerald');
     });
     dealerRow.appendChild(btn);
   });
@@ -982,6 +1023,41 @@ function renderCezaScreen(currentHand, callerIdx, isGameOver) {
   handNoEl.textContent = `${currentHand}. El (${currentHand} / 20)`;
   callerEl.innerHTML = `<span class="caller-prefix">👑 SÖYLEYEN:</span> <span class="caller-highlight">${escapeHtml(caller.name)}</span>`;
   rightsEl.textContent = `Ceza Hakkı: ${caller.cezaCount} / 3`;
+
+  // 1. Elde (henüz el kaydedilmemişken) Sinek 2'li kimde çıktıysa doğrudan buradan da seçilebilsin
+  const firstHandDealerBar = document.getElementById('firstHandDealerBar');
+  if (firstHandDealerBar) {
+    if (state.rounds.length === 0 && !isGameOver && !isSpectatorMode) {
+      firstHandDealerBar.style.display = 'flex';
+      let buttonsHtml = '';
+      state.players.forEach((p, idx) => {
+        const isSel = state.initialDealer === idx;
+        buttonsHtml += `
+          <button type="button" class="btn-fh-dealer ${isSel ? 'active' : ''}" data-d="${idx}">
+            ♣2 ${escapeHtml(p.name)}
+          </button>
+        `;
+      });
+      firstHandDealerBar.innerHTML = `
+        <span class="fhd-label">♣2 Sinek 2'li Kimde? (Başlayanı Seç):</span>
+        <div class="fhd-btns">${buttonsHtml}</div>
+      `;
+      firstHandDealerBar.querySelectorAll('.btn-fh-dealer').forEach(b => {
+        b.addEventListener('click', () => {
+          const dIdx = parseInt(b.dataset.d, 10);
+          if (isNaN(dIdx)) return;
+          triggerHaptic(15);
+          state.initialDealer = dIdx;
+          saveStateToStorage();
+          pushStateToServer();
+          renderAll();
+          showToast(`♣2 Sinek 2'li sahibi: ${state.players[dIdx].name}! Oyun ${state.players[dIdx].name} ile başlıyor.`, 'emerald');
+        });
+      });
+    } else {
+      firstHandDealerBar.style.display = 'none';
+    }
+  }
 
   const canPlayCeza = caller.cezaCount < 3;
 
@@ -2328,6 +2404,37 @@ function initEventListeners() {
     triggerHaptic(35);
     closeResetModal();
     executeResetGame();
+  });
+
+  // Oyuncu İsim Kutularında Yazarken Anında Kaydet (Krupiye seçildiğinde isimler asla silinmesin)
+  ['inputPlayer1', 'inputPlayer2', 'inputPlayer3', 'inputPlayer4'].forEach((id, idx) => {
+    const el = document.getElementById(id);
+    if (!el) return;
+
+    el.addEventListener('focus', () => {
+      if (el.value === `Oyuncu ${idx + 1}`) {
+        el.select();
+      }
+    });
+
+    el.addEventListener('input', () => {
+      lastLocalSetupEditAt = Date.now();
+      const val = el.value.trim();
+      state.players[idx].name = val || `Oyuncu ${idx + 1}`;
+      saveStateToStorage();
+
+      // Krupiye seçim butonlarındaki isimleri input odağını bozmadan canlı güncelle
+      const dealerBtns = document.querySelectorAll('#dealerPickRow .btn-dealer-pick');
+      if (dealerBtns[idx]) {
+        dealerBtns[idx].textContent = `♣2 ${idx + 1}. ${state.players[idx].name}`;
+      }
+      renderLivePlayerBar(getCurrentHandNumber(), getCurrentCallerIndex(), getCurrentHandNumber() > 20);
+
+      clearTimeout(setupSyncTimer);
+      setupSyncTimer = setTimeout(() => {
+        pushStateToServer();
+      }, 600);
+    });
   });
 
   // Kurulum / Oyuncu Düzenleme Sayfası: "Oyunu Başlat / Değişiklikleri Kaydet"

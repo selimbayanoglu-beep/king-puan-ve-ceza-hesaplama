@@ -18,7 +18,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700;800;900&family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css?v=20261028_live">
+  <link rel="stylesheet" href="style.css?v=20261028_dealer">
 </head>
 <body>
   <div class="app-background-glow glow-1"></div>
@@ -151,7 +151,8 @@
           </div>
 
           <div class="form-group" id="dealerFormGroup">
-            <label class="form-label">İlk Dağıtıcı (Krupiye):</label>
+            <label class="form-label">İlk Başlayan / Krupiye (♣2 Sinek İkilisi Kimde?):</label>
+            <p class="dealer-sub-hint">Oyuna başlamak için <b>Sinek 2'li (♣2)</b> kimde çıktıysa onu seçin; 1. el o oyuncudan başlar.</p>
             <div class="dealer-pick-row" id="dealerPickRow">
               <!-- JS ile 4 oyuncu butonları render edilir -->
             </div>
@@ -222,6 +223,10 @@
           <div class="meta-caller-hero" id="lblCezaCaller">
             <span class="caller-prefix">👑 SÖYLEYEN:</span>
             <span class="caller-highlight">Oyuncu 1</span>
+          </div>
+          <!-- 1. Elde Sinek 2'li (Krupiye) Hızlı Seçim Çubuğu -->
+          <div class="first-hand-dealer-bar" id="firstHandDealerBar" style="display: none;">
+            <!-- JS ile 1. elde Sinek 2'li kimdeyse hızlı seçim butonları render edilir -->
           </div>
         </div>
 
@@ -781,6 +786,6 @@
   </div>
 
   <script src="qrcode.js"></script>
-  <script src="app.js?v=20261028_live"></script>
+  <script src="app.js?v=20261028_dealer"></script>
 </body>
 </html>

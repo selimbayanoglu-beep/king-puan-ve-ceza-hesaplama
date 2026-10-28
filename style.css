@@ -3190,3 +3190,66 @@ body.spectator-mode .spectator-warning-bar {
   color: #f87171;
   font-weight: 700;
 }
+
+/* --------------------------------------------------------------------------
+   SİNEK 2'Lİ (♣2) VE BAŞLANGIÇ KRUPİYESİ SEÇİM STİLLERİ
+   -------------------------------------------------------------------------- */
+.dealer-sub-hint {
+  margin: -2px 0 8px 0;
+  font-size: 12px;
+  color: #94a3b8;
+  line-height: 1.4;
+}
+.dealer-sub-hint b {
+  color: #fde047;
+}
+.first-hand-dealer-bar {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px dashed rgba(255, 255, 255, 0.16);
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  width: 100%;
+}
+.fhd-label {
+  font-size: 12px;
+  font-weight: 700;
+  color: #fde047;
+}
+.fhd-btns {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 6px;
+}
+@media (max-width: 520px) {
+  .fhd-btns {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+.btn-fh-dealer {
+  background: rgba(15, 23, 42, 0.8);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  color: #cbd5e1;
+  font-size: 12px;
+  font-weight: 700;
+  padding: 6px 8px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  text-align: center;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.btn-fh-dealer:hover {
+  border-color: #fde047;
+  color: #fff;
+}
+.btn-fh-dealer.active {
+  background: linear-gradient(135deg, #eab308 0%, #ca8a04 100%);
+  border-color: #fef08a;
+  color: #0f172a;
+  font-weight: 900;
+  box-shadow: 0 0 10px rgba(234, 179, 8, 0.45);
+}
