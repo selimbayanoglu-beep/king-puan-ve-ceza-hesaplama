@@ -1,4 +1,24 @@
-const { getStore } = require("@netlify/blobs");
+const { getStore, connectLambda } = require("@netlify/blobs");
+
+function getKingStore(event) {
+  if (event && event.blobs) {
+    try {
+      connectLambda(event);
+    } catch (e) {
+      // ignore
+    }
+  }
+  const siteID = process.env.NETLIFY_SITE_ID || "9abf3460-2144-445e-8a97-605eec852f80";
+  const token = process.env.NETLIFY_BLOBS_TOKEN;
+  if (siteID && token) {
+    return getStore({
+      name: "king-state",
+      siteID,
+      token,
+    });
+  }
+  return getStore("king-state");
+}
 
 const DEFAULT_STATE = {
   players: [
@@ -27,7 +47,7 @@ exports.handler = async (event, context) => {
   }
 
   const path = event.path.replace(/\/\.netlify\/functions\/api/, "").replace(/^\/api/, "") || "/";
-  const store = getStore("king-state");
+  const store = getKingStore(event);
 
   try {
     // 1. GET /state
