@@ -1,0 +1,7 @@
+services:
+  - type: web
+    name: king-puan-ve-ceza
+    env: python
+    buildCommand: ""
+    startCommand: "python3 server.py --no-browser"
+    plan: free

@@ -18,7 +18,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700;800;900&family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="style.css?v=20261027_22">
 </head>
 <body>
   <div class="app-background-glow glow-1"></div>
@@ -42,6 +42,7 @@
       <button class="btn-icon" id="btnConnectMobile" title="Telefondan Bağlan / QR Kod">📱</button>
       <button class="btn-icon" id="btnHelp" title="Kurallar & Puan Tablosu">📖</button>
       <button class="btn-icon" id="btnUndo" title="Son Eli Geri Al">↩️</button>
+      <button class="btn-icon" id="btnHeaderArchive" title="Bu Oyunu Arşive Kaydet">💾</button>
       <button class="btn-icon btn-icon-danger" id="btnNewGame" title="Yeni Oyun">🔄</button>
     </div>
   </header>
@@ -65,7 +66,11 @@
       </button>
       <button class="swipe-tab" data-index="3" id="tab3">
         <span class="tab-icon">📊</span>
-        <span class="tab-label">4. Sonuçlar</span>
+        <span class="tab-label">4. Çetele</span>
+      </button>
+      <button class="swipe-tab" data-index="4" id="tab4">
+        <span class="tab-icon">🎯</span>
+        <span class="tab-label">5. Hedef</span>
       </button>
     </div>
     <div class="swipe-track">
@@ -82,9 +87,16 @@
     <section class="app-screen screen-setup" id="screen0">
       <div class="screen-card">
         <div class="card-hero">
-          <div class="hero-icon">👥</div>
-          <h2>Oyuncular &amp; Masa Kurulumu</h2>
-          <p class="hero-sub">Oyuncu isimlerini belirleyin ve oyunu başlatın. Başladıktan sonra bu sayfaya dönmenize gerek kalmaz.</p>
+          <div class="hero-icon" id="setupHeroIcon">👥</div>
+          <h2 id="setupHeroTitle">Oyuncular &amp; Masa Kurulumu</h2>
+          <p class="hero-sub" id="setupHeroSub">Oyuncu isimlerini belirleyin ve oyunu başlatın. Başladıktan sonra bu sayfaya dönmenize gerek kalmaz.</p>
+        </div>
+
+        <div class="player-replacement-note" id="playerReplacementNote" style="display: none;">
+          <div class="prn-icon">🔄</div>
+          <div class="prn-text">
+            <b>Oyuncu Değişimi:</b> Masadan ayrılan oyuncunun yerine yeni bir isim yazabilirsiniz. Çıkan oyuncunun puanı, ceza ve koz hakları yeni oyuncuya <u>aynen aktarılır</u>.
+          </div>
         </div>
 
         <div class="setup-form">
@@ -110,7 +122,7 @@
             </div>
           </div>
 
-          <div class="form-group">
+          <div class="form-group" id="dealerFormGroup">
             <label class="form-label">İlk Dağıtıcı (Krupiye):</label>
             <div class="dealer-pick-row" id="dealerPickRow">
               <!-- JS ile 4 oyuncu butonları render edilir -->
@@ -146,7 +158,7 @@
 
           <div class="setup-actions">
             <button type="button" class="btn btn-primary btn-hero" id="btnStartGame">
-              <span>Oyunu Başlat ve Ceza Sayfasına Geç ➔</span>
+              <span id="btnStartGameText">Oyunu Başlat ve Ceza Sayfasına Geç ➔</span>
             </button>
           </div>
         </div>
@@ -160,13 +172,29 @@
       <div class="screen-card">
         
         <!-- Aktif El Durum Başlığı -->
-        <div class="hand-meta-bar ceza-theme">
-          <div class="meta-badge">⚡ CEZA OYUNU</div>
-          <div class="meta-info">
-            <span class="meta-hand-no" id="lblCezaHandNo">1. El (1 / 20)</span>
-            <span class="meta-caller" id="lblCezaCaller">Söyleyen: Oyuncu 1</span>
+        
+        <!-- Son 1 El Kala Acil Strateji Bildirimi -->
+        <div class="last-hand-alert-banner" id="bannerLastHandCeza" style="display: none;">
+          <div class="lha-left">
+            <span class="lha-pulse-icon">🚨</span>
+            <div class="lha-text-wrap">
+              <div class="lha-badge">SON 1 EL KALDI (20. FİNAL ELİ)</div>
+              <div class="lha-title">Kimin ne yapması gerektiğini görmek için Final Raporunu inceleyin!</div>
+            </div>
           </div>
-          <div class="meta-rights" id="lblCezaCallerRights">Ceza Hakkı: 0 / 3</div>
+          <button type="button" class="btn-lha-action" id="btnLhaCeza">📋 Final Raporunu Aç ➔</button>
+        </div>
+
+        <div class="hand-meta-bar ceza-theme">
+          <div class="hand-meta-top">
+            <div class="meta-badge">⚡ CEZA OYUNU</div>
+            <span class="meta-hand-no" id="lblCezaHandNo">1. El (1 / 20)</span>
+            <div class="meta-rights" id="lblCezaCallerRights">Ceza Hakkı: 0 / 3</div>
+          </div>
+          <div class="meta-caller-hero" id="lblCezaCaller">
+            <span class="caller-prefix">👑 SÖYLEYEN:</span>
+            <span class="caller-highlight">Oyuncu 1</span>
+          </div>
         </div>
 
         <!-- Ceza Hakkı Tükendiyse Uyarı -->
@@ -186,27 +214,13 @@
 
         <!-- Seçilen Ceza Dağıtım Alanı -->
         <div class="entry-box" id="cezaEntryBox">
-          <div class="selected-ceza-banner" id="cezaSelectedBanner">
-            <span class="scb-icon" id="cezaBannerIcon">✋</span>
-            <div class="scb-info">
-              <h4 id="cezaBannerTitle">El Almaz</h4>
-              <p id="cezaBannerDesc">Alınan her el -50 puan ceza verir. Toplam 13 el dağıtılmalıdır.</p>
-            </div>
-            <div class="scb-pts" id="cezaBannerPts">-50 P / El</div>
-          </div>
 
           <div class="entry-box-header">
             <div class="rule-hint" id="cezaRuleHint">Alınan cezaları oyunculara paylaştırın.</div>
             <div class="remaining-counter" id="cezaRemainingBadge">Kalan: 13 / 13</div>
           </div>
 
-          <!-- Rıfkı için Tek Dokunuş Seçim Kartı -->
-          <div class="rifki-picker" id="rifkiPickerBox" style="display: none;">
-            <p class="picker-title">Kupa Papazını (K♥️) Alan Oyuncuyu Seçin:</p>
-            <div class="rifki-player-buttons" id="rifkiPlayerButtons">
-              <!-- 4 oyuncu tek tık butonu -->
-            </div>
-          </div>
+
 
           <!-- Diğer cezalar için 4 Oyuncu Dağıtım Satırları -->
           <div class="dist-rows-container" id="cezaPlayersList">
@@ -220,6 +234,16 @@
             </div>
           </div>
 
+          <!-- Yanlış Giriş Düzeltme: Geri Al & Temizle Butonları -->
+          <div class="input-actions-row" id="cezaInputActionsRow">
+            <button type="button" class="btn-input-action btn-undo-action" id="btnUndoCeza" title="Son yapılan işlemi geri al">
+              <span class="ia-icon">↩</span> Geri Al
+            </button>
+            <button type="button" class="btn-input-action btn-clear-action" id="btnClearCeza" title="Tüm girişleri sıfırla">
+              <span class="ia-icon">🗑️</span> Temizle
+            </button>
+          </div>
+
           <div class="validation-bar" id="cezaValidationMsg">
             Lütfen dağılımı eksiksiz tamamlayın.
           </div>
@@ -227,6 +251,16 @@
           <button type="button" class="btn btn-danger btn-hero btn-save-hand" id="btnSaveCeza" disabled>
             <span>✓</span> Ceza Elini Kaydet ve Sonuçlara Geç
           </button>
+
+          <!-- Alt Navigasyon: Koza Git ve Çeteye Geri Dön -->
+          <div class="screen-footer-nav">
+            <button type="button" class="btn btn-koz btn-switch-screen" id="btnSwitchCezaToKoz">
+              <span>👑</span> Koza Git (Koz Oyna)
+            </button>
+            <button type="button" class="btn btn-secondary btn-switch-screen btn-back-screen" id="btnBackToResultsFromCeza">
+              <span>⬅️</span> Çeteye / Sonuçlara Geri Dön
+            </button>
+          </div>
         </div>
 
       </div>
@@ -239,13 +273,54 @@
       <div class="screen-card">
         
         <!-- Aktif El Durum Başlığı -->
-        <div class="hand-meta-bar koz-theme">
-          <div class="meta-badge">👑 KOZ OYUNU</div>
-          <div class="meta-info">
-            <span class="meta-hand-no" id="lblKozHandNo">1. El (1 / 20)</span>
-            <span class="meta-caller" id="lblKozCaller">Söyleyen: Oyuncu 1</span>
+        
+        <!-- Son 1 El Kala Acil Strateji Bildirimi -->
+        <div class="last-hand-alert-banner" id="bannerLastHandKoz" style="display: none;">
+          <div class="lha-left">
+            <span class="lha-pulse-icon">🚨</span>
+            <div class="lha-text-wrap">
+              <div class="lha-badge">SON 1 EL KALDI (20. FİNAL ELİ)</div>
+              <div class="lha-title">Kimin ne yapması gerektiğini görmek için Final Raporunu inceleyin!</div>
+            </div>
           </div>
-          <div class="meta-rights" id="lblKozCallerRights">Koz Hakkı: 0 / 2</div>
+          <button type="button" class="btn-lha-action" id="btnLhaKoz">📋 Final Raporunu Aç ➔</button>
+        </div>
+
+        <div class="hand-meta-bar koz-theme">
+          <div class="hand-meta-top">
+            <div class="meta-badge">👑 KOZ OYUNU</div>
+            <span class="meta-hand-no" id="lblKozHandNo">1. El (1 / 20)</span>
+            <div class="meta-rights" id="lblKozCallerRights">Koz Hakkı: 0 / 2</div>
+          </div>
+          <div class="meta-caller-hero" id="lblKozCaller">
+            <span class="caller-prefix">👑 SÖYLEYEN:</span>
+            <div class="caller-highlight-row">
+              <span class="caller-highlight">Oyuncu 1</span>
+              <span class="caller-koz-suit suit-karo" id="lblKozSuitHero">♦</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Koz Türü Seçim Çubuğu (Karo, Kupa, Maça, Sinek) -->
+        <div class="koz-suits-picker" id="kozSuitsPicker">
+          <div class="koz-suits-grid">
+            <button type="button" class="btn-koz-suit active" data-suit="karo" title="Karo">
+              <span class="suit-icon suit-red">♦</span>
+              <span class="suit-name">Karo</span>
+            </button>
+            <button type="button" class="btn-koz-suit" data-suit="kupa" title="Kupa">
+              <span class="suit-icon suit-red">♥️</span>
+              <span class="suit-name">Kupa</span>
+            </button>
+            <button type="button" class="btn-koz-suit" data-suit="maca" title="Maça">
+              <span class="suit-icon suit-dark">♠</span>
+              <span class="suit-name">Maça</span>
+            </button>
+            <button type="button" class="btn-koz-suit" data-suit="sinek" title="Sinek">
+              <span class="suit-icon suit-dark">♣</span>
+              <span class="suit-name">Sinek</span>
+            </button>
+          </div>
         </div>
 
         <!-- Koz Hakkı Kilitliyse Uyarı (İlk 4 El veya Hak Tükendi) -->
@@ -276,6 +351,16 @@
             </div>
           </div>
 
+          <!-- Yanlış Giriş Düzeltme: Geri Al & Temizle Butonları -->
+          <div class="input-actions-row" id="kozInputActionsRow">
+            <button type="button" class="btn-input-action btn-undo-action" id="btnUndoKoz" title="Son yapılan işlemi geri al">
+              <span class="ia-icon">↩</span> Geri Al
+            </button>
+            <button type="button" class="btn-input-action btn-clear-action" id="btnClearKoz" title="Tüm girişleri sıfırla">
+              <span class="ia-icon">🗑️</span> Temizle
+            </button>
+          </div>
+
           <div class="validation-bar" id="kozValidationMsg">
             Lütfen toplam 13 el olacak şekilde dağılımı yapın.
           </div>
@@ -283,6 +368,16 @@
           <button type="button" class="btn btn-primary btn-hero btn-save-hand" id="btnSaveKoz" disabled>
             <span>✓</span> Koz Elini Kaydet ve Sonuçlara Geç
           </button>
+
+          <!-- Alt Navigasyon: Cezaya Git ve Çeteye Geri Dön -->
+          <div class="screen-footer-nav">
+            <button type="button" class="btn btn-ceza btn-switch-screen" id="btnSwitchKozToCeza">
+              <span>⚡</span> Cezaya Git (Ceza Oyna)
+            </button>
+            <button type="button" class="btn btn-secondary btn-switch-screen btn-back-screen" id="btnBackToResultsFromKoz">
+              <span>⬅️</span> Çeteye / Sonuçlara Geri Dön
+            </button>
+          </div>
         </div>
 
       </div>
@@ -301,8 +396,8 @@
             <h3 class="nt-caller" id="lblResActiveCaller">Sıradaki: Oyuncu 1</h3>
           </div>
           <div class="nt-actions">
-            <button type="button" class="btn btn-sm btn-ceza" id="btnJumpToCeza">⚡ Ceza Girişi Yap</button>
-            <button type="button" class="btn btn-sm btn-koz" id="btnJumpToKoz">👑 Koz Girişi Yap</button>
+            <button type="button" class="btn btn-sm btn-ceza" id="btnJumpToCeza">⚡ Cezaya Git</button>
+            <button type="button" class="btn btn-sm btn-koz" id="btnJumpToKoz">👑 Koza Git</button>
           </div>
         </div>
 
@@ -334,6 +429,9 @@
               <tbody id="ceteleTableBody">
                 <!-- Dinamik satırlar -->
               </tbody>
+              <tfoot id="ceteleTableFoot">
+                <!-- Toplam satırı -->
+              </tfoot>
             </table>
           </div>
         </div>
@@ -377,9 +475,59 @@
         </div>
 
         <!-- Hızlı İşlemler Buton Grubu -->
-        <div class="results-footer-actions">
+        <div class="results-footer-actions" id="resultsFooterActions">
+          <button type="button" class="btn btn-ceza btn-footer-jump" id="btnFooterGoCeza">⚡ Cezaya Git</button>
+          <button type="button" class="btn btn-koz btn-footer-jump" id="btnFooterGoKoz">👑 Koza Git</button>
+          <button type="button" class="btn btn-primary btn-footer-jump" id="btnFooterGoTarget">🎯 Koza Çıkma &amp; Risk Analizi</button>
+          <button type="button" class="btn btn-secondary btn-icon-compact" id="btnPrintScores" title="Yazdır / PDF">🖨️ Yazdır / PDF</button>
+          <button type="button" class="btn btn-secondary" id="btnExportCsv" title="Excel / CSV Formatında İndir">📊 Excel İndir</button>
+          <button type="button" class="btn btn-secondary" id="btnArchiveDirect" title="Bu oyunu geçmiş arşive kaydet">💾 Oyunu Arşivle</button>
+          <button type="button" class="btn btn-secondary" id="btnOpenArchives" title="Geçmiş Oyunlar ve Çete Arşivi">📂 Geçmiş Arşiv</button>
           <button type="button" class="btn btn-secondary" id="btnEditPlayers">👥 Oyuncuları Düzenle</button>
-          <button type="button" class="btn btn-secondary" id="btnPrintScores">🖨️ Yazdır / PDF</button>
+        </div>
+
+      </div>
+    </section>
+
+      <!-- ======================================================================
+         SAYFA 4: KOZA ÇIKMA HEDEFİ & STRATEJİ HESAPLAYICI (SENARYO ANALİZİ)
+         ====================================================================== -->
+    <section class="app-screen screen-target" id="screen4">
+      <div class="screen-card">
+        
+        <!-- Sade Başlık Kartı -->
+        <div class="target-hero-header">
+          <div class="target-title-wrap">
+            <span class="target-hero-badge">🎯 KOZA ÇIKMA HESAPLAYICI</span>
+            <h2 class="target-hero-title">Kimin Kaç Koza Çıkacağı Raporu</h2>
+            <p class="target-hero-desc" id="targetHeroDesc">Masada kalan cezalara göre: Bu cezayı yerse kaç koza çıkacak, yemezse kaç koza çıkacak doğrudan hesaplanır.</p>
+          </div>
+          <button type="button" class="btn-copy-report" id="btnCopyStrategyReport" title="Tüm masanın raporunu kopyala">
+            <span>📋</span> Raporu Kopyala
+          </button>
+        </div>
+
+        <!-- Masada Kalan Oyunların Büyük Durum Şeridi -->
+        <div class="remaining-hero-banner" id="targetRemainingHero">
+          <!-- Örn: 🗡️ Kalan Ceza: 1 Rıfkı (-320 P) | 👑 Kalan Koz: 2 El (26 El) -->
+        </div>
+
+        <!-- 4 Oyuncunun Ayrı Ayrı "Kaç Koza Çıkacak?" Kartları -->
+        <div class="koza-cikma-cards-grid" id="targetKozaCikmaCards">
+          <!-- 4 oyuncunun devasa, net, sade kartları buraya basılır -->
+        </div>
+
+        <!-- Alt Navigasyon Butonları -->
+        <div class="results-footer-actions">
+          <button type="button" class="btn btn-secondary btn-footer-jump" id="btnBackToResultsFromTarget">
+            <span>⬅️</span> Çeteye / Sonuçlara Geri Dön
+          </button>
+          <button type="button" class="btn btn-ceza btn-footer-jump" id="btnGoToCezaFromTarget">
+            <span>⚡</span> Cezaya Git
+          </button>
+          <button type="button" class="btn btn-koz btn-footer-jump" id="btnGoToKozFromTarget">
+            <span>👑</span> Koza Git
+          </button>
         </div>
 
       </div>
@@ -527,7 +675,71 @@
     </div>
   </div>
 
+  <!-- MODAL: Yeni Oyun Başlatma & Sıfırlama Onayı (İkinci Onaylı) -->
+  
+  <!-- Geçmiş Oyunlar & Arşiv Modalı -->
+  <div class="modal-backdrop" id="modalArchives">
+    <div class="modal-box modal-lg" style="max-width: 680px; width: 95%;">
+      <div class="modal-header">
+        <div class="modal-title-wrap">
+          <span class="modal-icon">📂</span>
+          <div>
+            <h3 style="margin: 0; font-size: 17px; color: #fff;">Geçmiş Oyunlar &amp; Çete Arşivi</h3>
+            <span style="font-size: 12px; color: #94a3b8;">Tüm oyunlar kaydedilir, toplu çıktı veya Excel alınabilir</span>
+          </div>
+        </div>
+        <button type="button" class="btn-modal-close" id="btnCloseArchives">✕</button>
+      </div>
+      <div class="modal-body" style="padding: 16px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; flex-wrap: wrap; gap: 8px;">
+          <span style="font-size: 13px; color: #cbd5e1;">Kayıtlı oyunları inceleyin veya Excel formatında indirin:</span>
+          <button type="button" class="btn btn-primary btn-sm" id="btnManualArchive">💾 Aktif Oyunu Arşive Kaydet</button>
+        </div>
+        <div id="archivesListContainer" style="display: flex; flex-direction: column; gap: 10px; max-height: 55vh; overflow-y: auto;">
+          <!-- Dinamik arşiv listesi -->
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-backdrop" id="modalResetConfirm">
+    <div class="modal-box modal-md">
+      <div class="modal-header modal-header-danger">
+        <div class="modal-title-wrap">
+          <span class="modal-badge-icon">⚠️</span>
+          <h3>Yeni Oyun Başlatma Onayı</h3>
+        </div>
+        <button class="modal-close" id="btnCloseResetModal">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="reset-warning-box">
+          <div class="rw-icon">🚨</div>
+          <div class="rw-text">
+            <h4>DİKKAT: Tüm Yazılanlar Silinecektir!</h4>
+            <p>
+              Mevcut oyunda girilen <b>tüm eller</b>, 4 oyuncunun <b>bütün puanları</b> ve <b>çetele tablosu</b> kalıcı olarak silinecektir.
+            </p>
+            <p class="rw-sub">Bu işlem kesinlikle geri alınamaz!</p>
+          </div>
+        </div>
+
+        <div class="second-confirm-wrap">
+          <label class="second-confirm-label" for="chkSecondConfirm">
+            <input type="checkbox" id="chkSecondConfirm">
+            <span>Tüm skorların ve çetelenin silineceğini biliyorum, yeni oyun başlatmayı onaylıyorum.</span>
+          </label>
+        </div>
+      </div>
+      <div class="modal-footer reset-modal-footer">
+        <button type="button" class="btn btn-secondary" id="btnCancelReset">Vazgeç</button>
+        <button type="button" class="btn btn-danger" id="btnConfirmResetFinal" disabled>
+          🗑️ Tümünü Sil ve Yeni Oyun Başlat
+        </button>
+      </div>
+    </div>
+  </div>
+
   <script src="qrcode.js"></script>
-  <script src="app.js"></script>
+  <script src="app.js?v=20261027_22"></script>
 </body>
 </html>

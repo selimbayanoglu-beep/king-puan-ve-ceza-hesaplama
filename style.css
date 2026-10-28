@@ -240,12 +240,12 @@ html, body {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 5px;
+  gap: 3px;
   height: 100%;
   background: none;
   border: none;
   color: var(--text-dim);
-  font-size: 12.5px;
+  font-size: 11.5px;
   font-weight: 600;
   font-family: var(--font-sans);
   cursor: pointer;
@@ -253,6 +253,7 @@ html, body {
   touch-action: manipulation;
   user-select: none;
   white-space: nowrap;
+  padding: 0 3px;
 }
 .swipe-tab.active {
   color: var(--gold-400);
@@ -285,7 +286,7 @@ html, body {
   top: 0;
   bottom: 0;
   left: 0;
-  width: 25%;
+  width: 20%;
   background: var(--gold-gradient);
   border-radius: 3px 3px 0 0;
   box-shadow: 0 0 10px rgba(234, 179, 8, 0.6);
@@ -379,6 +380,28 @@ html, body {
   font-size: 13px;
   font-weight: 700;
   color: var(--gold-300);
+}
+
+.player-replacement-note {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  border-radius: var(--radius-md);
+  background: rgba(16, 185, 129, 0.12);
+  border: 1px solid rgba(16, 185, 129, 0.4);
+  color: #fff;
+  font-size: 12.5px;
+  line-height: 1.4;
+  margin-bottom: 16px;
+  box-shadow: 0 0 16px rgba(16, 185, 129, 0.15);
+}
+.player-replacement-note .prn-icon {
+  font-size: 22px;
+  flex-shrink: 0;
+}
+.player-replacement-note b {
+  color: var(--emerald-400);
 }
 
 .player-input-stack {
@@ -490,11 +513,11 @@ html, body {
    ========================================================================== */
 .hand-meta-bar {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 12px 14px;
-  border-radius: var(--radius-md);
+  flex-direction: column;
+  padding: 10px 14px;
+  border-radius: var(--radius-lg);
   border: 1px solid var(--border-subtle);
+  gap: 8px;
 }
 .hand-meta-bar.koz-theme {
   background: linear-gradient(135deg, rgba(16, 185, 129, 0.16) 0%, rgba(5, 150, 105, 0.06) 100%);
@@ -504,36 +527,164 @@ html, body {
   background: linear-gradient(135deg, rgba(244, 63, 94, 0.16) 0%, rgba(225, 29, 72, 0.06) 100%);
   border-color: rgba(244, 63, 94, 0.35);
 }
+.hand-meta-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+}
 .meta-badge {
   font-size: 11.5px;
   font-weight: 800;
   letter-spacing: 0.5px;
+  white-space: nowrap;
 }
 .koz-theme .meta-badge { color: var(--emerald-400); }
 .ceza-theme .meta-badge { color: var(--rose-400); }
 
-.meta-info {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-}
 .meta-hand-no {
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 700;
-  color: #fff;
-}
-.meta-caller {
-  font-size: 11.5px;
-  color: var(--gold-300);
-  font-weight: 600;
+  color: var(--text-muted);
+  letter-spacing: 0.3px;
 }
 .meta-rights {
   font-size: 11px;
   font-weight: 700;
-  padding: 3px 8px;
+  padding: 3px 9px;
   border-radius: 999px;
-  background: rgba(0, 0, 0, 0.4);
+  background: rgba(0, 0, 0, 0.45);
   color: #fff;
+  white-space: nowrap;
+}
+
+/* Söyleyen Kişi - Büyük, Işıltılı ve Odak Odaklı Banner */
+.meta-caller-hero,
+.meta-caller {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  background: radial-gradient(ellipse at center, rgba(245, 158, 11, 0.4) 0%, rgba(180, 83, 9, 0.25) 100%), rgba(15, 23, 42, 0.85);
+  border: 3px solid rgba(245, 158, 11, 0.95);
+  box-shadow: 0 0 35px rgba(245, 158, 11, 0.6), inset 0 0 25px rgba(245, 158, 11, 0.28);
+  padding: 16px 20px;
+  border-radius: var(--radius-lg);
+  text-align: center;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.caller-prefix {
+  font-size: clamp(13px, 3.8vw, 16px);
+  font-weight: 800;
+  text-transform: uppercase;
+  color: #fde68a;
+  letter-spacing: 2px;
+  white-space: nowrap;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  opacity: 0.95;
+}
+
+.caller-highlight {
+  font-size: clamp(38px, 11.5vw, 56px);
+  font-weight: 900;
+  line-height: 1.05;
+  color: #ffffff;
+  letter-spacing: 1.2px;
+  text-shadow: 0 0 24px rgba(251, 191, 36, 0.95), 0 0 50px rgba(245, 158, 11, 0.65), 0 3px 6px rgba(0, 0, 0, 0.95);
+  word-break: break-word;
+  text-align: center;
+}
+
+/* Söyleyen Yanındaki Koz Simgesi (Karo, Kupa, Maça, Sinek) */
+.caller-highlight-row {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+
+.caller-koz-suit {
+  font-size: clamp(38px, 11.5vw, 56px);
+  line-height: 1;
+  font-weight: 900;
+  display: inline-block;
+  vertical-align: middle;
+  transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+.caller-koz-suit.suit-karo,
+.caller-koz-suit.suit-kupa {
+  color: #ff3344;
+  text-shadow: 0 0 24px rgba(239, 68, 68, 0.95), 0 0 45px rgba(220, 38, 38, 0.6);
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.9));
+}
+.caller-koz-suit.suit-maca,
+.caller-koz-suit.suit-sinek {
+  color: #f8fafc;
+  text-shadow: 0 0 24px rgba(255, 255, 255, 0.95), 0 0 40px rgba(56, 189, 248, 0.6);
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.9));
+}
+
+/* Koz Türü Seçim Çubuğu */
+.koz-suits-picker {
+  margin: 10px 0 6px 0;
+  width: 100%;
+}
+.koz-suits-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+}
+.btn-koz-suit {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  padding: 10px 6px;
+  border-radius: var(--radius-md);
+  background: rgba(255, 255, 255, 0.04);
+  border: 1.5px solid var(--border-subtle);
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all 0.18s;
+  user-select: none;
+  touch-action: manipulation;
+}
+.btn-koz-suit:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+.btn-koz-suit .suit-icon {
+  font-size: 26px;
+  line-height: 1;
+}
+.btn-koz-suit .suit-icon.suit-red {
+  color: #ef4444;
+}
+.btn-koz-suit .suit-icon.suit-dark {
+  color: #cbd5e1;
+}
+.btn-koz-suit .suit-name {
+  font-size: 12px;
+  font-weight: 700;
+}
+.btn-koz-suit.active {
+  background: linear-gradient(135deg, rgba(16, 185, 129, 0.28) 0%, rgba(5, 150, 105, 0.18) 100%);
+  border-color: var(--emerald-400);
+  box-shadow: 0 0 18px rgba(16, 185, 129, 0.45);
+  color: #fff;
+  transform: translateY(-1px);
+}
+.btn-koz-suit.active .suit-icon.suit-red {
+  filter: drop-shadow(0 0 8px rgba(239, 68, 68, 0.9));
+}
+.btn-koz-suit.active .suit-icon.suit-dark {
+  filter: drop-shadow(0 0 8px rgba(255, 255, 255, 0.9));
 }
 
 /* Uyarı Kutusu */
@@ -696,6 +847,121 @@ html, body {
 .btn-qf:active {
   background: rgba(234, 179, 8, 0.2);
   color: var(--gold-300);
+}
+
+/* Giriş Düzeltme Çubuğu: Geri Al & Temizle Butonları */
+.input-actions-row {
+  display: flex;
+  gap: 12px;
+  margin-top: 8px;
+  margin-bottom: 6px;
+  width: 100%;
+}
+.btn-input-action {
+  flex: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 12px 18px;
+  border-radius: var(--radius-md);
+  font-size: 14.5px;
+  font-weight: 800;
+  cursor: pointer;
+  transition: all 0.18s ease;
+  user-select: none;
+  touch-action: manipulation;
+}
+.btn-input-action .ia-icon {
+  font-size: 18px;
+}
+.btn-input-action:active {
+  transform: scale(0.97);
+}
+.btn-undo-action {
+  color: #fef08a;
+  border: 1.5px solid rgba(245, 158, 11, 0.7);
+  background: rgba(245, 158, 11, 0.22);
+  box-shadow: 0 0 16px rgba(245, 158, 11, 0.3);
+}
+.btn-undo-action:hover {
+  color: #ffffff;
+  border-color: #fbbf24;
+  background: rgba(245, 158, 11, 0.35);
+  box-shadow: 0 0 22px rgba(245, 158, 11, 0.5);
+}
+.btn-clear-action {
+  color: #fecaca;
+  border: 1.5px solid rgba(244, 63, 94, 0.7);
+  background: rgba(244, 63, 94, 0.22);
+  box-shadow: 0 0 16px rgba(244, 63, 94, 0.3);
+}
+.btn-clear-action:hover {
+  color: #ffffff;
+  border-color: #f43f5e;
+  background: rgba(244, 63, 94, 0.35);
+  box-shadow: 0 0 22px rgba(244, 63, 94, 0.5);
+}
+
+.screen-footer-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 10px;
+  width: 100%;
+}
+.btn-back-screen {
+  background: rgba(255, 255, 255, 0.08) !important;
+  border: 1.5px solid rgba(255, 255, 255, 0.25) !important;
+  color: #e2e8f0 !important;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.4);
+}
+.btn-back-screen:hover,
+.btn-back-screen:active {
+  background: rgba(255, 255, 255, 0.16) !important;
+  color: #fff !important;
+  border-color: rgba(255, 255, 255, 0.4) !important;
+}
+
+/* Sayfa Altı Karar Değiştirme Butonları (Koza Git / Cezaya Git) */
+.btn-switch-screen {
+  width: 100%;
+  margin-top: 10px;
+  padding: 13px 18px;
+  font-size: 14.5px;
+  font-weight: 800;
+  border-radius: var(--radius-md);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  cursor: pointer;
+  transition: all 0.18s ease;
+  user-select: none;
+  touch-action: manipulation;
+}
+.btn-switch-screen.btn-koz {
+  background: linear-gradient(135deg, rgba(5, 150, 105, 0.85) 0%, rgba(4, 120, 87, 0.85) 100%);
+  color: #fff;
+  border: 1.5px solid rgba(52, 211, 153, 0.6);
+  box-shadow: 0 4px 16px rgba(16, 185, 129, 0.35);
+}
+.btn-switch-screen.btn-koz:hover {
+  background: linear-gradient(135deg, #059669 0%, #047857 100%);
+  box-shadow: 0 0 20px rgba(16, 185, 129, 0.55);
+}
+.btn-switch-screen.btn-ceza {
+  background: linear-gradient(135deg, rgba(225, 29, 72, 0.85) 0%, rgba(190, 18, 60, 0.85) 100%);
+  color: #fff;
+  border: 1.5px solid rgba(251, 113, 133, 0.6);
+  box-shadow: 0 4px 16px rgba(225, 29, 72, 0.35);
+}
+.btn-switch-screen.btn-ceza:hover {
+  background: linear-gradient(135deg, #e11d48 0%, #be123c 100%);
+  box-shadow: 0 0 20px rgba(244, 63, 94, 0.55);
+}
+.ia-icon {
+  font-size: 13px;
 }
 
 .validation-bar {
@@ -866,9 +1132,24 @@ html, body {
 }
 .nt-sub b { color: var(--gold-400); }
 .nt-caller {
-  font-size: 15px;
-  color: #fff;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-top: 6px;
+}
+.nt-caller-prefix {
+  font-size: clamp(12px, 3.6vw, 15px);
   font-weight: 800;
+  color: #fde68a;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+}
+.nt-caller-name {
+  font-size: clamp(32px, 9.5vw, 46px);
+  font-weight: 900;
+  line-height: 1.1;
+  color: #ffffff;
+  text-shadow: 0 0 20px rgba(251, 191, 36, 0.9);
 }
 .nt-actions {
   display: flex;
@@ -1013,6 +1294,22 @@ html, body {
 .cetele-table td.cell-used.neg { color: var(--rose-400); background: rgba(244, 63, 94, 0.08); }
 .cetele-table td.cell-locked { color: #334155; }
 
+.cetele-table tfoot td,
+.history-table tfoot td {
+  border-top: 2px solid rgba(255, 255, 255, 0.2);
+  font-weight: 800;
+  font-family: var(--font-mono);
+  font-size: 13px;
+  background: rgba(255, 255, 255, 0.04);
+}
+.c-caller-badge {
+  display: inline-block;
+  font-size: 10px;
+  margin-left: 3px;
+  vertical-align: middle;
+  filter: drop-shadow(0 0 4px rgba(245, 158, 11, 0.6));
+}
+
 .history-table tfoot td {
   border-top: 2px solid rgba(255, 255, 255, 0.2);
   font-weight: 800;
@@ -1024,13 +1321,46 @@ html, body {
 
 .results-footer-actions {
   display: flex;
-  gap: 8px;
+  gap: 10px;
   flex-wrap: wrap;
-  padding-top: 6px;
+  padding-top: 14px;
 }
-.results-footer-actions .btn {
+.btn-footer-jump {
+  flex: 1 1 calc(50% - 6px);
+  padding: 14px 18px;
+  font-weight: 800;
+  font-size: 15px;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+.btn-footer-jump.btn-ceza {
+  background: linear-gradient(135deg, #e11d48 0%, #be123c 100%);
+  color: #fff;
+  border: 1.5px solid rgba(251, 113, 133, 0.6);
+  box-shadow: 0 4px 16px rgba(225, 29, 72, 0.35);
+}
+.btn-footer-jump.btn-koz {
+  background: linear-gradient(135deg, #059669 0%, #047857 100%);
+  color: #fff;
+  border: 1.5px solid rgba(52, 211, 153, 0.6);
+  box-shadow: 0 4px 16px rgba(16, 185, 129, 0.35);
+}
+.results-footer-actions #btnEditPlayers {
   flex: 1;
-  font-size: 12px;
+  padding: 10px 14px;
+  font-size: 13px;
+  font-weight: 600;
+}
+.btn-icon-compact {
+  flex: 0 0 auto !important;
+  padding: 10px 16px !important;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-muted);
 }
 
 /* ==========================================================================
@@ -1272,4 +1602,1105 @@ html, body {
   .screens-slider { position: static !important; display: block !important; overflow: visible !important; }
   .screen-card { max-width: 100% !important; box-shadow: none !important; border: 1px solid #ccc !important; background: #fff !important; color: #000 !important; }
   .cetele-table th, .cetele-table td, .history-table th, .history-table td { color: #000 !important; border-color: #ddd !important; }
+}
+
+
+/* Sıfırlama Onay Modalı Stilleri */
+.modal-header-danger {
+  border-bottom-color: rgba(244, 63, 94, 0.35);
+  background: rgba(225, 29, 72, 0.08);
+}
+.modal-header-danger h3 {
+  color: #fda4af;
+}
+
+.reset-warning-box {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  padding: 16px;
+  border-radius: var(--radius-md);
+  background: rgba(225, 29, 72, 0.14);
+  border: 1.5px solid rgba(244, 63, 94, 0.5);
+  margin-bottom: 16px;
+}
+.reset-warning-box .rw-icon {
+  font-size: 32px;
+  line-height: 1;
+}
+.reset-warning-box h4 {
+  color: #fecdd3;
+  font-size: 16px;
+  font-weight: 800;
+  margin-bottom: 6px;
+}
+.reset-warning-box p {
+  color: #e2e8f0;
+  font-size: 13.5px;
+  line-height: 1.45;
+  margin-bottom: 4px;
+}
+.reset-warning-box .rw-sub {
+  color: #f43f5e;
+  font-weight: 800;
+  font-size: 12.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.second-confirm-wrap {
+  background: rgba(255, 255, 255, 0.04);
+  border: 1.5px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  padding: 14px 16px;
+  margin-bottom: 10px;
+  transition: border-color 0.2s ease;
+}
+.second-confirm-wrap:has(input:checked) {
+  border-color: rgba(244, 63, 94, 0.6);
+  background: rgba(225, 29, 72, 0.08);
+}
+.second-confirm-label {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  cursor: pointer;
+  user-select: none;
+}
+.second-confirm-label input[type="checkbox"] {
+  width: 22px;
+  height: 22px;
+  accent-color: var(--rose-500);
+  cursor: pointer;
+  flex-shrink: 0;
+}
+.second-confirm-label span {
+  font-size: 13.5px;
+  font-weight: 700;
+  color: #fff;
+  line-height: 1.35;
+}
+
+.reset-modal-footer {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+}
+.reset-modal-footer .btn {
+  padding: 11px 18px;
+  font-size: 13.5px;
+  font-weight: 700;
+}
+
+
+/* ==========================================================================
+   SAYFA 4: KOZA ÇIKMA HEDEFİ & STRATEJİ HESAPLAYICI STİLLERİ
+   ========================================================================== */
+.target-hero-header {
+  padding: 16px 18px;
+  border-radius: var(--radius-lg);
+  background: linear-gradient(135deg, rgba(234, 179, 8, 0.16) 0%, rgba(16, 185, 129, 0.08) 100%);
+  border: 1.5px solid rgba(234, 179, 8, 0.45);
+  box-shadow: 0 0 25px rgba(234, 179, 8, 0.2);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.target-hero-badge {
+  font-size: 11px;
+  font-weight: 800;
+  color: var(--gold-400);
+  letter-spacing: 1px;
+  text-transform: uppercase;
+}
+.target-hero-title {
+  font-size: clamp(20px, 5.5vw, 26px);
+  font-weight: 900;
+  color: #ffffff;
+  letter-spacing: 0.5px;
+}
+.target-hero-desc {
+  font-size: 12.5px;
+  color: var(--text-muted);
+  line-height: 1.4;
+}
+
+.target-section-box {
+  background: rgba(0, 0, 0, 0.35);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.ts-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border-bottom: 1px solid var(--border-subtle);
+  padding-bottom: 8px;
+}
+.ts-icon {
+  font-size: 20px;
+}
+.ts-header h3 {
+  font-size: 15px;
+  font-weight: 800;
+  color: #f1f5f9;
+}
+
+/* Kalan Oyunlar Rozetleri */
+.remaining-chips-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.rem-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--border-subtle);
+  font-size: 12px;
+  font-weight: 700;
+}
+.rem-chip.chip-koz {
+  background: rgba(16, 185, 129, 0.15);
+  border-color: rgba(16, 185, 129, 0.5);
+  color: #6ee7b7;
+}
+.rem-chip.chip-ceza {
+  background: rgba(244, 63, 94, 0.12);
+  border-color: rgba(244, 63, 94, 0.4);
+  color: #fda4af;
+}
+
+/* 4 Oyuncunun Hedef Kartları */
+.target-players-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 10px;
+}
+@media (min-width: 520px) {
+  .target-players-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+.target-p-card {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1.5px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  transition: all 0.2s;
+}
+.target-p-card.is-safe {
+  border-color: rgba(16, 185, 129, 0.4);
+  background: rgba(16, 185, 129, 0.06);
+}
+.target-p-card.is-danger {
+  border-color: rgba(244, 63, 94, 0.4);
+  background: rgba(244, 63, 94, 0.06);
+}
+.tpc-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.tpc-name {
+  font-size: 16px;
+  font-weight: 800;
+  color: #fff;
+}
+.tpc-score {
+  font-size: 18px;
+  font-weight: 900;
+  font-family: var(--font-mono);
+}
+.tpc-score.pos { color: var(--emerald-400); }
+.tpc-score.neg { color: var(--rose-400); }
+.tpc-score.zero { color: var(--gold-400); }
+
+.tpc-stats {
+  display: flex;
+  gap: 10px;
+  font-size: 11.5px;
+  color: var(--text-muted);
+}
+.tpc-stats b { color: #fff; }
+
+.tpc-goal-badge {
+  padding: 8px 10px;
+  border-radius: var(--radius-sm);
+  font-size: 12.5px;
+  font-weight: 700;
+  line-height: 1.35;
+}
+.tpc-goal-badge.goal-needed {
+  background: rgba(234, 179, 8, 0.16);
+  border: 1px solid rgba(234, 179, 8, 0.45);
+  color: #fde047;
+}
+.tpc-goal-badge.goal-safe {
+  background: rgba(16, 185, 129, 0.16);
+  border: 1px solid rgba(16, 185, 129, 0.45);
+  color: #6ee7b7;
+}
+
+/* Oyuncu Seçici (Risk Tablosu ve Simülatör İçin) */
+.target-player-selector {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 12px;
+  overflow-x: auto;
+  padding-bottom: 4px;
+}
+.btn-tp-tab {
+  flex: 1;
+  min-width: 70px;
+  padding: 8px 10px;
+  border-radius: var(--radius-md);
+  background: rgba(255, 255, 255, 0.05);
+  border: 1.5px solid var(--border-subtle);
+  color: var(--text-muted);
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.15s;
+  white-space: nowrap;
+}
+.btn-tp-tab.active {
+  background: linear-gradient(135deg, rgba(234, 179, 8, 0.25) 0%, rgba(202, 138, 4, 0.15) 100%);
+  border-color: var(--gold-400);
+  color: #fff;
+  box-shadow: 0 0 14px rgba(234, 179, 8, 0.35);
+}
+
+/* Senaryo Kartları */
+.target-risk-scenarios {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.scenario-card {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.sc-title {
+  font-size: 13.5px;
+  font-weight: 800;
+  color: var(--text-main);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.sc-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.sc-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 10px;
+  border-radius: var(--radius-sm);
+  background: rgba(0, 0, 0, 0.3);
+  font-size: 12.5px;
+}
+.sc-row-case {
+  font-weight: 600;
+  color: #cbd5e1;
+}
+.sc-row-res {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.sc-row-pts {
+  font-weight: 800;
+  font-family: var(--font-mono);
+}
+.sc-badge {
+  padding: 2px 7px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 800;
+}
+.sc-badge.status-safe {
+  background: rgba(16, 185, 129, 0.2);
+  color: #6ee7b7;
+  border: 1px solid rgba(16, 185, 129, 0.4);
+}
+.sc-badge.status-even {
+  background: rgba(234, 179, 8, 0.2);
+  color: #fde047;
+  border: 1px solid rgba(234, 179, 8, 0.4);
+}
+.sc-badge.status-danger {
+  background: rgba(244, 63, 94, 0.2);
+  color: #fda4af;
+  border: 1px solid rgba(244, 63, 94, 0.4);
+}
+
+/* Simülatör */
+.simulator-box {
+  border-color: rgba(168, 85, 247, 0.4);
+  background: linear-gradient(135deg, rgba(168, 85, 247, 0.08) 0%, rgba(0, 0, 0, 0.4) 100%);
+}
+.sim-intro {
+  font-size: 12.5px;
+  color: var(--text-muted);
+  line-height: 1.4;
+  margin-bottom: 8px;
+}
+.sim-controls-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 10px;
+}
+@media (min-width: 520px) {
+  .sim-controls-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+.sim-control-item {
+  background: rgba(0, 0, 0, 0.35);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  padding: 10px 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+.sim-lbl-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.sim-lbl-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: #fff;
+}
+.sim-lbl-sub {
+  font-size: 11px;
+  color: var(--text-dim);
+}
+.btn-sim-toggle {
+  padding: 8px 12px;
+  border-radius: var(--radius-sm);
+  background: rgba(255, 255, 255, 0.06);
+  border: 1.5px solid var(--border-subtle);
+  color: var(--text-muted);
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.btn-sim-toggle.active {
+  background: rgba(244, 63, 94, 0.25);
+  border-color: var(--rose-500);
+  color: #fecaca;
+  box-shadow: 0 0 12px rgba(244, 63, 94, 0.35);
+}
+
+.sim-result-card {
+  margin-top: 12px;
+  background: rgba(15, 23, 42, 0.85);
+  border: 2px solid rgba(168, 85, 247, 0.6);
+  box-shadow: 0 0 20px rgba(168, 85, 247, 0.3);
+  border-radius: var(--radius-lg);
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.sim-result-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.sim-res-name {
+  font-size: 17px;
+  font-weight: 900;
+  color: #fff;
+}
+.sim-res-calc {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--font-mono);
+}
+.sim-calc-current {
+  color: var(--text-muted);
+  font-size: 13px;
+}
+.sim-calc-arrow {
+  color: var(--gold-400);
+  font-size: 14px;
+}
+.sim-calc-projected {
+  font-size: 18px;
+  font-weight: 900;
+  color: #fff;
+}
+.sim-result-badge {
+  font-size: 12.5px;
+  font-weight: 800;
+  padding: 4px 10px;
+  border-radius: var(--radius-sm);
+  display: inline-block;
+  align-self: flex-start;
+}
+.sim-result-badge.badge-safe {
+  background: rgba(16, 185, 129, 0.25);
+  color: #6ee7b7;
+  border: 1px solid rgba(16, 185, 129, 0.5);
+}
+.sim-result-badge.badge-even {
+  background: rgba(234, 179, 8, 0.25);
+  color: #fde047;
+  border: 1px solid rgba(234, 179, 8, 0.5);
+}
+.sim-result-badge.badge-danger {
+  background: rgba(244, 63, 94, 0.25);
+  color: #fda4af;
+  border: 1px solid rgba(244, 63, 94, 0.5);
+}
+.sim-result-advice {
+  font-size: 12.5px;
+  color: #e2e8f0;
+  line-height: 1.45;
+}
+
+
+/* --------------------------------------------------------------------------
+   SON 1 EL KALA ACİL STRATEJİ BİLDİRİM BANNER'I (Ekran 1, 2, 3)
+   -------------------------------------------------------------------------- */
+.last-hand-alert-banner {
+  background: linear-gradient(135deg, rgba(225, 29, 72, 0.25) 0%, rgba(234, 179, 8, 0.25) 100%);
+  border: 2px solid rgba(244, 63, 94, 0.6);
+  box-shadow: 0 0 20px rgba(244, 63, 94, 0.25);
+  border-radius: 14px;
+  padding: 12px 14px;
+  margin-bottom: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  animation: pulseLhaBorder 2s infinite ease-in-out;
+}
+@keyframes pulseLhaBorder {
+  0%, 100% { border-color: rgba(244, 63, 94, 0.6); box-shadow: 0 0 15px rgba(244, 63, 94, 0.25); }
+  50% { border-color: rgba(234, 179, 8, 0.9); box-shadow: 0 0 25px rgba(234, 179, 8, 0.4); }
+}
+.lha-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.lha-pulse-icon {
+  font-size: 24px;
+  animation: bounceLha 1s infinite alternate;
+}
+@keyframes bounceLha {
+  from { transform: scale(1); }
+  to { transform: scale(1.15); }
+}
+.lha-badge {
+  display: inline-block;
+  background: #e11d48;
+  color: #fff;
+  font-size: 10px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  padding: 2px 7px;
+  border-radius: 6px;
+  margin-bottom: 2px;
+}
+.lha-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: #fff;
+  line-height: 1.3;
+}
+.btn-lha-action {
+  background: #f59e0b;
+  color: #000;
+  font-size: 12px;
+  font-weight: 800;
+  padding: 8px 12px;
+  border-radius: 10px;
+  border: none;
+  cursor: pointer;
+  white-space: nowrap;
+  box-shadow: 0 4px 10px rgba(245, 158, 11, 0.3);
+  transition: all 0.2s ease;
+}
+.btn-lha-action:active {
+  transform: scale(0.96);
+}
+
+/* --------------------------------------------------------------------------
+   RAPOR SAYFASI ÜST BUTONU & BÖLÜMLERİ
+   -------------------------------------------------------------------------- */
+.btn-copy-report {
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: #cbd5e1;
+  font-size: 12px;
+  font-weight: 700;
+  padding: 7px 12px;
+  border-radius: 8px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+.btn-copy-report:active {
+  background: rgba(255, 255, 255, 0.16);
+  color: #fff;
+}
+
+/* --------------------------------------------------------------------------
+   SON 1 EL FİNAL STRATEJİ RAPORU KUTUSU (Screen 4 B)
+   -------------------------------------------------------------------------- */
+.last-hand-report-box {
+  background: linear-gradient(145deg, rgba(30, 27, 75, 0.7) 0%, rgba(15, 23, 42, 0.9) 100%);
+  border: 2px solid rgba(245, 158, 11, 0.7);
+  box-shadow: 0 0 25px rgba(245, 158, 11, 0.2);
+}
+.lhr-title-wrap {
+  display: flex;
+  flex-direction: column;
+}
+.lhr-sub {
+  font-size: 12px;
+  color: #fde047;
+  font-weight: 600;
+}
+.last-hand-spotlight {
+  background: rgba(15, 23, 42, 0.6);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
+  padding: 12px;
+  margin-bottom: 14px;
+  font-size: 13px;
+  color: #e2e8f0;
+  line-height: 1.5;
+}
+.last-hand-spotlight b {
+  color: #fff;
+}
+.last-hand-cards-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.lhc-card {
+  background: rgba(15, 23, 42, 0.85);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 12px;
+  padding: 14px;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+  position: relative;
+  overflow: hidden;
+}
+.lhc-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 5px;
+  height: 100%;
+}
+.lhc-card.is-safe::before { background: #10b981; }
+.lhc-card.is-danger::before { background: #ef4444; }
+.lhc-card.is-even::before { background: #f59e0b; }
+
+.lhc-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  padding-bottom: 8px;
+  margin-bottom: 10px;
+}
+.lhc-name {
+  font-size: 16px;
+  font-weight: 800;
+  color: #fff;
+}
+.lhc-current-pts {
+  font-size: 14px;
+  font-weight: 700;
+}
+.lhc-current-pts.pos { color: #34d399; }
+.lhc-current-pts.zero { color: #fde047; }
+.lhc-current-pts.neg { color: #f87171; }
+
+.lhc-scenarios-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 10px;
+  font-size: 12px;
+}
+.lhc-scenarios-table th, .lhc-scenarios-table td {
+  padding: 6px 8px;
+  text-align: left;
+}
+.lhc-scenarios-table th {
+  color: #94a3b8;
+  font-size: 11px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+.lhc-scenarios-table tr:not(:last-child) td {
+  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+}
+.lhc-tactic-box {
+  background: rgba(245, 158, 11, 0.12);
+  border-left: 3px solid #f59e0b;
+  border-radius: 6px;
+  padding: 8px 10px;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: #fef08a;
+  line-height: 1.4;
+}
+
+/* --------------------------------------------------------------------------
+   OYUN BİTTİĞİNDE NİHAİ KAPANIS RAPORU (Screen 4 A)
+   -------------------------------------------------------------------------- */
+.game-over-report-box {
+  background: linear-gradient(135deg, rgba(6, 78, 59, 0.3) 0%, rgba(15, 23, 42, 0.95) 100%);
+  border: 1px solid rgba(52, 211, 153, 0.4);
+}
+.go-summary-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 10px;
+  margin-top: 10px;
+}
+@media (min-width: 600px) {
+  .go-summary-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+.go-podium-card {
+  background: rgba(15, 23, 42, 0.7);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
+  padding: 12px;
+}
+.go-podium-title {
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  margin-bottom: 6px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.go-podium-card.winner .go-podium-title { color: #34d399; }
+.go-podium-card.loser .go-podium-title { color: #f87171; }
+.go-podium-card.even .go-podium-title { color: #fde047; }
+
+
+/* --------------------------------------------------------------------------
+   SADE & BÜYÜK RAPOR KARTLARI (Koz ve Cezalar Ayrı Ayrı)
+   -------------------------------------------------------------------------- */
+.simple-player-pills {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px;
+  margin-bottom: 14px;
+}
+@media (min-width: 600px) {
+  .simple-player-pills {
+    grid-template-columns: repeat(4, 1fr);
+  }
+}
+.sp-pill {
+  background: rgba(15, 23, 42, 0.7);
+  border: 2px solid rgba(255, 255, 255, 0.12);
+  border-radius: 12px;
+  padding: 10px 8px;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.sp-pill:hover {
+  background: rgba(30, 41, 59, 0.9);
+  border-color: rgba(255, 255, 255, 0.25);
+}
+.sp-pill.active {
+  background: linear-gradient(135deg, rgba(234, 179, 8, 0.2) 0%, rgba(245, 158, 11, 0.3) 100%);
+  border-color: #f59e0b;
+  box-shadow: 0 0 16px rgba(245, 158, 11, 0.35);
+  transform: translateY(-2px);
+}
+.sp-pill-name {
+  font-size: 14px;
+  font-weight: 800;
+  color: #fff;
+}
+.sp-pill-pts {
+  font-size: 13px;
+  font-weight: 800;
+}
+.sp-pill-pts.pos { color: #34d399; }
+.sp-pill-pts.zero { color: #fde047; }
+.sp-pill-pts.neg { color: #f87171; }
+
+/* Oyuncu Durum Afişi */
+.simple-summary-banner {
+  background: rgba(15, 23, 42, 0.85);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 14px;
+  padding: 14px 16px;
+  margin-bottom: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+.ssb-left {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.ssb-name {
+  font-size: 18px;
+  font-weight: 900;
+  color: #fff;
+}
+.ssb-desc {
+  font-size: 13px;
+  color: #cbd5e1;
+}
+.ssb-score-badge {
+  font-size: 18px;
+  font-weight: 900;
+  padding: 6px 14px;
+  border-radius: 10px;
+}
+.ssb-score-badge.pos { background: rgba(16, 185, 129, 0.2); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.5); }
+.ssb-score-badge.zero { background: rgba(234, 179, 8, 0.2); color: #fde047; border: 1px solid rgba(234, 179, 8, 0.5); }
+.ssb-score-badge.neg { background: rgba(244, 63, 94, 0.2); color: #f87171; border: 1px solid rgba(244, 63, 94, 0.5); }
+
+/* Ayrı Ayrı Oyun/Ceza Kartları */
+.simple-cards-container {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  margin-bottom: 20px;
+}
+.simple-game-card {
+  background: rgba(15, 23, 42, 0.85);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 14px;
+  padding: 14px 16px;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+  position: relative;
+  overflow: hidden;
+}
+.simple-game-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 6px;
+  height: 100%;
+}
+.sgc-koz::before { background: #f59e0b; }
+.sgc-kiz::before { background: #ec4899; }
+.sgc-rifki::before { background: #8b5cf6; }
+.sgc-erkek::before { background: #3b82f6; }
+.sgc-soniki::before { background: #f97316; }
+.sgc-kupa::before { background: #ef4444; }
+.sgc-elalmaz::before { background: #14b8a6; }
+
+.sgc-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  padding-bottom: 10px;
+  margin-bottom: 12px;
+}
+.sgc-title-wrap {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.sgc-icon {
+  font-size: 24px;
+}
+.sgc-title {
+  font-size: 16px;
+  font-weight: 800;
+  color: #fff;
+}
+.sgc-rem-tag {
+  font-size: 11px;
+  font-weight: 700;
+  padding: 3px 8px;
+  border-radius: 6px;
+}
+.sgc-rem-tag.active { background: rgba(234, 179, 8, 0.2); color: #fde047; border: 1px solid rgba(234, 179, 8, 0.4); }
+.sgc-rem-tag.done { background: rgba(100, 116, 139, 0.2); color: #94a3b8; border: 1px solid rgba(100, 116, 139, 0.3); }
+
+/* Madde Satırları */
+.sgc-items-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+.sgc-item-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: rgba(255, 255, 255, 0.03);
+  border-radius: 8px;
+  padding: 8px 12px;
+  font-size: 13.5px;
+}
+.sgc-item-case {
+  font-weight: 700;
+  color: #f1f5f9;
+}
+.sgc-item-res {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.sgc-item-pts {
+  font-weight: 800;
+  font-size: 14px;
+}
+.sgc-item-pts.pos { color: #34d399; }
+.sgc-item-pts.zero { color: #fde047; }
+.sgc-item-pts.neg { color: #f87171; }
+
+.sgc-item-badge {
+  font-size: 11px;
+  font-weight: 800;
+  padding: 2px 7px;
+  border-radius: 6px;
+}
+.sgc-item-badge.safe { background: rgba(16, 185, 129, 0.2); color: #34d399; }
+.sgc-item-badge.even { background: rgba(234, 179, 8, 0.2); color: #fde047; }
+.sgc-item-badge.danger { background: rgba(244, 63, 94, 0.2); color: #f87171; }
+
+/* Taktik Kutusu */
+.sgc-tactic-box {
+  background: rgba(245, 158, 11, 0.12);
+  border-left: 4px solid #f59e0b;
+  border-radius: 8px;
+  padding: 10px 12px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #fef08a;
+  line-height: 1.45;
+}
+
+
+/* --------------------------------------------------------------------------
+   YENİ TERTEMİZ KOZA ÇIKMA & KALAN CEZA KARTLARI
+   -------------------------------------------------------------------------- */
+.remaining-hero-banner {
+  background: linear-gradient(135deg, rgba(30, 27, 75, 0.7) 0%, rgba(15, 23, 42, 0.95) 100%);
+  border: 2px solid rgba(245, 158, 11, 0.5);
+  border-radius: 14px;
+  padding: 14px 16px;
+  margin-bottom: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+.rhb-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  font-weight: 700;
+  color: #fff;
+}
+.rhb-badge {
+  padding: 4px 10px;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 800;
+}
+.rhb-badge.koz { background: rgba(234, 179, 8, 0.25); color: #fde047; border: 1px solid rgba(234, 179, 8, 0.5); }
+.rhb-badge.ceza { background: rgba(244, 63, 94, 0.25); color: #fda4af; border: 1px solid rgba(244, 63, 94, 0.5); }
+
+.koza-cikma-cards-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  margin-bottom: 20px;
+}
+.kzc-card {
+  background: rgba(15, 23, 42, 0.9);
+  border: 1.5px solid rgba(255, 255, 255, 0.12);
+  border-radius: 16px;
+  padding: 16px;
+  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.35);
+  position: relative;
+  overflow: hidden;
+}
+.kzc-card.is-pos { border-color: rgba(16, 185, 129, 0.4); }
+.kzc-card.is-neg { border-color: rgba(244, 63, 94, 0.4); }
+.kzc-card.is-zero { border-color: rgba(234, 179, 8, 0.4); }
+
+.kzc-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  padding-bottom: 10px;
+  margin-bottom: 12px;
+}
+.kzc-player-info {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.kzc-player-name {
+  font-size: 18px;
+  font-weight: 900;
+  color: #fff;
+}
+.kzc-current-pts {
+  font-size: 15px;
+  font-weight: 800;
+  padding: 3px 10px;
+  border-radius: 8px;
+}
+.kzc-current-pts.pos { background: rgba(16, 185, 129, 0.2); color: #34d399; }
+.kzc-current-pts.zero { background: rgba(234, 179, 8, 0.2); color: #fde047; }
+.kzc-current-pts.neg { background: rgba(244, 63, 94, 0.2); color: #f87171; }
+
+.kzc-cases-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.kzc-case-row {
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 12px;
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.kzc-case-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 13.5px;
+  font-weight: 700;
+  color: #e2e8f0;
+}
+.kzc-case-pts {
+  font-weight: 800;
+  font-size: 14px;
+}
+.kzc-case-pts.pos { color: #34d399; }
+.kzc-case-pts.zero { color: #fde047; }
+.kzc-case-pts.neg { color: #f87171; }
+
+.kzc-target-koz-callout {
+  background: rgba(10, 15, 30, 0.95);
+  border: 2px solid rgba(245, 158, 11, 0.6);
+  border-radius: 14px;
+  padding: 12px 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 10px;
+  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.5);
+  margin-top: 6px;
+}
+.kzc-target-koz-callout.safe {
+  border-color: rgba(16, 185, 129, 0.75);
+  box-shadow: 0 0 18px rgba(16, 185, 129, 0.25);
+}
+.kzc-target-koz-callout.even {
+  border-color: rgba(234, 179, 8, 0.75);
+  box-shadow: 0 0 18px rgba(234, 179, 8, 0.25);
+}
+.kzc-target-koz-callout.danger {
+  border-color: rgba(244, 63, 94, 0.75);
+  box-shadow: 0 0 18px rgba(244, 63, 94, 0.25);
+}
+
+.kzc-callout-left {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.kzc-callout-label {
+  font-size: 11px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  color: #94a3b8;
+}
+.kzc-callout-sub {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: #e2e8f0;
+}
+
+.kzc-big-koz-number {
+  font-size: 24px;
+  font-weight: 900;
+  letter-spacing: -0.3px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+@media (min-width: 480px) {
+  .kzc-big-koz-number {
+    font-size: 28px;
+  }
+}
+.kzc-big-koz-number.gold {
+  color: #fde047;
+  text-shadow: 0 0 16px rgba(253, 224, 71, 0.5);
+}
+.kzc-big-koz-number.green {
+  color: #34d399;
+  text-shadow: 0 0 16px rgba(52, 211, 153, 0.5);
+}
+.kzc-big-koz-number.rose {
+  color: #fda4af;
+  text-shadow: 0 0 16px rgba(244, 63, 94, 0.5);
 }

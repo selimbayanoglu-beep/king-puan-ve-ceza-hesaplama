@@ -1,0 +1,1350 @@
+[
+  {
+    "id": 1793132546284,
+    "title": "King Maçı (6/20 El - 27.10.2026 23:22:00)",
+    "date": "27.10.2026 23:22:26",
+    "roundsCount": 6,
+    "winner": "alp",
+    "players": [
+      {
+        "id": 0,
+        "name": "selim",
+        "score": -600,
+        "kozCount": 0,
+        "cezaCount": 2
+      },
+      {
+        "id": 1,
+        "name": "berkay",
+        "score": -530,
+        "kozCount": 0,
+        "cezaCount": 2
+      },
+      {
+        "id": 2,
+        "name": "alp",
+        "score": -390,
+        "kozCount": 0,
+        "cezaCount": 1
+      },
+      {
+        "id": 3,
+        "name": "barış",
+        "score": -1030,
+        "kozCount": 0,
+        "cezaCount": 1
+      }
+    ],
+    "rounds": [
+      {
+        "handNo": 1,
+        "callerIdx": 0,
+        "callerName": "selim",
+        "gameKey": "el_almaz",
+        "gameTitle": "El Almaz",
+        "isKoz": false,
+        "distribution": [
+          2,
+          2,
+          4,
+          5
+        ],
+        "points": [
+          -100,
+          -100,
+          -200,
+          -250
+        ],
+        "timestamp": "22:52"
+      },
+      {
+        "handNo": 2,
+        "callerIdx": 1,
+        "callerName": "berkay",
+        "gameKey": "kupa_almaz",
+        "gameTitle": "Kupa Almaz",
+        "isKoz": false,
+        "distribution": [
+          5,
+          1,
+          2,
+          5
+        ],
+        "points": [
+          -150,
+          -30,
+          -60,
+          -150
+        ],
+        "timestamp": "22:54"
+      },
+      {
+        "handNo": 3,
+        "callerIdx": 2,
+        "callerName": "alp",
+        "gameKey": "kupa_almaz",
+        "gameTitle": "Kupa Almaz",
+        "isKoz": false,
+        "distribution": [
+          5,
+          4,
+          1,
+          3
+        ],
+        "points": [
+          -150,
+          -120,
+          -30,
+          -90
+        ],
+        "timestamp": "22:54"
+      },
+      {
+        "handNo": 4,
+        "callerIdx": 3,
+        "callerName": "barış",
+        "gameKey": "kiz_almaz",
+        "gameTitle": "Kız Almaz",
+        "isKoz": false,
+        "distribution": [
+          2,
+          1,
+          1,
+          0
+        ],
+        "points": [
+          -200,
+          -100,
+          -100,
+          0
+        ],
+        "timestamp": "23:09"
+      },
+      {
+        "handNo": 5,
+        "callerIdx": 0,
+        "callerName": "selim",
+        "gameKey": "son_iki",
+        "gameTitle": "Son İki El Almaz",
+        "isKoz": false,
+        "distribution": [
+          0,
+          1,
+          0,
+          1
+        ],
+        "points": [
+          0,
+          -180,
+          0,
+          -180
+        ],
+        "timestamp": "23:10"
+      },
+      {
+        "handNo": 6,
+        "callerIdx": 1,
+        "callerName": "berkay",
+        "gameKey": "son_iki",
+        "gameTitle": "Son İki El Almaz",
+        "isKoz": false,
+        "distribution": [
+          0,
+          0,
+          0,
+          2
+        ],
+        "points": [
+          0,
+          0,
+          0,
+          -360
+        ],
+        "timestamp": "23:16"
+      }
+    ],
+    "scoringMode": "standard"
+  },
+  {
+    "id": 1793132299680,
+    "title": "Saniye Testi",
+    "date": "27.10.2026 23:18:19",
+    "roundsCount": 6,
+    "winner": "alp",
+    "players": [
+      {
+        "id": 0,
+        "name": "selim",
+        "score": -600,
+        "kozCount": 0,
+        "cezaCount": 2
+      },
+      {
+        "id": 1,
+        "name": "berkay",
+        "score": -530,
+        "kozCount": 0,
+        "cezaCount": 2
+      },
+      {
+        "id": 2,
+        "name": "alp",
+        "score": -390,
+        "kozCount": 0,
+        "cezaCount": 1
+      },
+      {
+        "id": 3,
+        "name": "barış",
+        "score": -1030,
+        "kozCount": 0,
+        "cezaCount": 1
+      }
+    ],
+    "rounds": [
+      {
+        "handNo": 1,
+        "callerIdx": 0,
+        "callerName": "selim",
+        "gameKey": "el_almaz",
+        "gameTitle": "El Almaz",
+        "isKoz": false,
+        "distribution": [
+          2,
+          2,
+          4,
+          5
+        ],
+        "points": [
+          -100,
+          -100,
+          -200,
+          -250
+        ],
+        "timestamp": "22:52"
+      },
+      {
+        "handNo": 2,
+        "callerIdx": 1,
+        "callerName": "berkay",
+        "gameKey": "kupa_almaz",
+        "gameTitle": "Kupa Almaz",
+        "isKoz": false,
+        "distribution": [
+          5,
+          1,
+          2,
+          5
+        ],
+        "points": [
+          -150,
+          -30,
+          -60,
+          -150
+        ],
+        "timestamp": "22:54"
+      },
+      {
+        "handNo": 3,
+        "callerIdx": 2,
+        "callerName": "alp",
+        "gameKey": "kupa_almaz",
+        "gameTitle": "Kupa Almaz",
+        "isKoz": false,
+        "distribution": [
+          5,
+          4,
+          1,
+          3
+        ],
+        "points": [
+          -150,
+          -120,
+          -30,
+          -90
+        ],
+        "timestamp": "22:54"
+      },
+      {
+        "handNo": 4,
+        "callerIdx": 3,
+        "callerName": "barış",
+        "gameKey": "kiz_almaz",
+        "gameTitle": "Kız Almaz",
+        "isKoz": false,
+        "distribution": [
+          2,
+          1,
+          1,
+          0
+        ],
+        "points": [
+          -200,
+          -100,
+          -100,
+          0
+        ],
+        "timestamp": "23:09"
+      },
+      {
+        "handNo": 5,
+        "callerIdx": 0,
+        "callerName": "selim",
+        "gameKey": "son_iki",
+        "gameTitle": "Son İki El Almaz",
+        "isKoz": false,
+        "distribution": [
+          0,
+          1,
+          0,
+          1
+        ],
+        "points": [
+          0,
+          -180,
+          0,
+          -180
+        ],
+        "timestamp": "23:10"
+      },
+      {
+        "handNo": 6,
+        "callerIdx": 1,
+        "callerName": "berkay",
+        "gameKey": "son_iki",
+        "gameTitle": "Son İki El Almaz",
+        "isKoz": false,
+        "distribution": [
+          0,
+          0,
+          0,
+          2
+        ],
+        "points": [
+          0,
+          0,
+          0,
+          -360
+        ],
+        "timestamp": "23:16"
+      }
+    ],
+    "scoringMode": "standard"
+  },
+  {
+    "id": 1793132234282,
+    "title": "King Maçı (6/20 El)",
+    "date": "27.10.2026 23:17",
+    "roundsCount": 6,
+    "winner": "alp",
+    "players": [
+      {
+        "id": 0,
+        "name": "selim",
+        "score": -600,
+        "kozCount": 0,
+        "cezaCount": 2
+      },
+      {
+        "id": 1,
+        "name": "berkay",
+        "score": -530,
+        "kozCount": 0,
+        "cezaCount": 2
+      },
+      {
+        "id": 2,
+        "name": "alp",
+        "score": -390,
+        "kozCount": 0,
+        "cezaCount": 1
+      },
+      {
+        "id": 3,
+        "name": "barış",
+        "score": -1030,
+        "kozCount": 0,
+        "cezaCount": 1
+      }
+    ],
+    "rounds": [
+      {
+        "handNo": 1,
+        "callerIdx": 0,
+        "callerName": "selim",
+        "gameKey": "el_almaz",
+        "gameTitle": "El Almaz",
+        "isKoz": false,
+        "distribution": [
+          2,
+          2,
+          4,
+          5
+        ],
+        "points": [
+          -100,
+          -100,
+          -200,
+          -250
+        ],
+        "timestamp": "22:52"
+      },
+      {
+        "handNo": 2,
+        "callerIdx": 1,
+        "callerName": "berkay",
+        "gameKey": "kupa_almaz",
+        "gameTitle": "Kupa Almaz",
+        "isKoz": false,
+        "distribution": [
+          5,
+          1,
+          2,
+          5
+        ],
+        "points": [
+          -150,
+          -30,
+          -60,
+          -150
+        ],
+        "timestamp": "22:54"
+      },
+      {
+        "handNo": 3,
+        "callerIdx": 2,
+        "callerName": "alp",
+        "gameKey": "kupa_almaz",
+        "gameTitle": "Kupa Almaz",
+        "isKoz": false,
+        "distribution": [
+          5,
+          4,
+          1,
+          3
+        ],
+        "points": [
+          -150,
+          -120,
+          -30,
+          -90
+        ],
+        "timestamp": "22:54"
+      },
+      {
+        "handNo": 4,
+        "callerIdx": 3,
+        "callerName": "barış",
+        "gameKey": "kiz_almaz",
+        "gameTitle": "Kız Almaz",
+        "isKoz": false,
+        "distribution": [
+          2,
+          1,
+          1,
+          0
+        ],
+        "points": [
+          -200,
+          -100,
+          -100,
+          0
+        ],
+        "timestamp": "23:09"
+      },
+      {
+        "handNo": 5,
+        "callerIdx": 0,
+        "callerName": "selim",
+        "gameKey": "son_iki",
+        "gameTitle": "Son İki El Almaz",
+        "isKoz": false,
+        "distribution": [
+          0,
+          1,
+          0,
+          1
+        ],
+        "points": [
+          0,
+          -180,
+          0,
+          -180
+        ],
+        "timestamp": "23:10"
+      },
+      {
+        "handNo": 6,
+        "callerIdx": 1,
+        "callerName": "berkay",
+        "gameKey": "son_iki",
+        "gameTitle": "Son İki El Almaz",
+        "isKoz": false,
+        "distribution": [
+          0,
+          0,
+          0,
+          2
+        ],
+        "points": [
+          0,
+          0,
+          0,
+          -360
+        ],
+        "timestamp": "23:16"
+      }
+    ],
+    "scoringMode": "standard"
+  },
+  {
+    "id": 1793129536677,
+    "title": "King Maçı (18/20 El)",
+    "date": "27.10.2026 22:32",
+    "roundsCount": 18,
+    "winner": "Selim",
+    "players": [
+      {
+        "id": 0,
+        "name": "Selim",
+        "score": 380,
+        "kozCount": 2,
+        "cezaCount": 3
+      },
+      {
+        "id": 1,
+        "name": "ALp",
+        "score": -360,
+        "kozCount": 2,
+        "cezaCount": 3
+      },
+      {
+        "id": 2,
+        "name": "Berkay",
+        "score": 310,
+        "kozCount": 2,
+        "cezaCount": 2
+      },
+      {
+        "id": 3,
+        "name": "Barış",
+        "score": -500,
+        "kozCount": 1,
+        "cezaCount": 3
+      }
+    ],
+    "rounds": [
+      {
+        "handNo": 1,
+        "callerIdx": 0,
+        "callerName": "Selim",
+        "gameKey": "el_almaz",
+        "gameTitle": "El Almaz",
+        "isKoz": false,
+        "distribution": [
+          2,
+          5,
+          3,
+          3
+        ],
+        "points": [
+          -100,
+          -250,
+          -150,
+          -150
+        ],
+        "timestamp": "18:56"
+      },
+      {
+        "handNo": 2,
+        "callerIdx": 1,
+        "callerName": "ALp",
+        "gameKey": "kupa_almaz",
+        "gameTitle": "Kupa Almaz",
+        "isKoz": false,
+        "distribution": [
+          0,
+          0,
+          0,
+          13
+        ],
+        "points": [
+          0,
+          0,
+          0,
+          -390
+        ],
+        "timestamp": "19:00"
+      },
+      {
+        "handNo": 3,
+        "callerIdx": 2,
+        "callerName": "Berkay",
+        "gameKey": "son_iki",
+        "gameTitle": "Son İki El Almaz",
+        "isKoz": false,
+        "distribution": [
+          1,
+          1,
+          0,
+          0
+        ],
+        "points": [
+          -180,
+          -180,
+          0,
+          0
+        ],
+        "timestamp": "19:04"
+      },
+      {
+        "handNo": 4,
+        "callerIdx": 3,
+        "callerName": "Barış",
+        "gameKey": "rifki",
+        "gameTitle": "Rıfkı (Kupa Papazı)",
+        "isKoz": false,
+        "distribution": [
+          0,
+          1,
+          0,
+          0
+        ],
+        "points": [
+          0,
+          -320,
+          0,
+          0
+        ],
+        "timestamp": "20:24"
+      },
+      {
+        "handNo": 5,
+        "callerIdx": 0,
+        "callerName": "Selim",
+        "gameKey": "koz",
+        "gameTitle": "Koz (♠ Maça)",
+        "kozSuit": "maca",
+        "isKoz": true,
+        "distribution": [
+          8,
+          1,
+          4,
+          0
+        ],
+        "points": [
+          400,
+          50,
+          200,
+          0
+        ],
+        "timestamp": "22:01"
+      },
+      {
+        "handNo": 6,
+        "callerIdx": 1,
+        "callerName": "ALp",
+        "gameKey": "koz",
+        "gameTitle": "Koz (♥️ Kupa)",
+        "kozSuit": "kupa",
+        "isKoz": true,
+        "distribution": [
+          3,
+          5,
+          4,
+          1
+        ],
+        "points": [
+          150,
+          250,
+          200,
+          50
+        ],
+        "timestamp": "22:02"
+      },
+      {
+        "handNo": 7,
+        "callerIdx": 2,
+        "callerName": "Berkay",
+        "gameKey": "kiz_almaz",
+        "gameTitle": "Kız Almaz",
+        "isKoz": false,
+        "distribution": [
+          1,
+          1,
+          1,
+          1
+        ],
+        "points": [
+          -100,
+          -100,
+          -100,
+          -100
+        ],
+        "timestamp": "22:03"
+      },
+      {
+        "handNo": 8,
+        "callerIdx": 3,
+        "callerName": "Barış",
+        "gameKey": "koz",
+        "gameTitle": "Koz (♥️ Kupa)",
+        "kozSuit": "kupa",
+        "isKoz": true,
+        "distribution": [
+          5,
+          1,
+          3,
+          4
+        ],
+        "points": [
+          250,
+          50,
+          150,
+          200
+        ],
+        "timestamp": "22:04"
+      },
+      {
+        "handNo": 9,
+        "callerIdx": 0,
+        "callerName": "Selim",
+        "gameKey": "rifki",
+        "gameTitle": "Rıfkı (Kupa Papazı)",
+        "isKoz": false,
+        "distribution": [
+          0,
+          0,
+          1,
+          0
+        ],
+        "points": [
+          0,
+          0,
+          -320,
+          0
+        ],
+        "timestamp": "22:04"
+      },
+      {
+        "handNo": 10,
+        "callerIdx": 1,
+        "callerName": "ALp",
+        "gameKey": "koz",
+        "gameTitle": "Koz (♥️ Kupa)",
+        "kozSuit": "kupa",
+        "isKoz": true,
+        "distribution": [
+          3,
+          6,
+          3,
+          1
+        ],
+        "points": [
+          150,
+          300,
+          150,
+          50
+        ],
+        "timestamp": "22:04"
+      },
+      {
+        "handNo": 11,
+        "callerIdx": 2,
+        "callerName": "Berkay",
+        "gameKey": "koz",
+        "gameTitle": "Koz (♦ Karo)",
+        "kozSuit": "karo",
+        "isKoz": true,
+        "distribution": [
+          3,
+          0,
+          10,
+          0
+        ],
+        "points": [
+          150,
+          0,
+          500,
+          0
+        ],
+        "timestamp": "22:04"
+      },
+      {
+        "handNo": 12,
+        "callerIdx": 3,
+        "callerName": "Barış",
+        "gameKey": "el_almaz",
+        "gameTitle": "El Almaz",
+        "isKoz": false,
+        "distribution": [
+          4,
+          5,
+          3,
+          1
+        ],
+        "points": [
+          -200,
+          -250,
+          -150,
+          -50
+        ],
+        "timestamp": "22:05"
+      },
+      {
+        "handNo": 13,
+        "callerIdx": 0,
+        "callerName": "Selim",
+        "gameKey": "son_iki",
+        "gameTitle": "Son İki El Almaz",
+        "isKoz": false,
+        "distribution": [
+          1,
+          0,
+          1,
+          0
+        ],
+        "points": [
+          -180,
+          0,
+          -180,
+          0
+        ],
+        "timestamp": "22:05"
+      },
+      {
+        "handNo": 14,
+        "callerIdx": 1,
+        "callerName": "ALp",
+        "gameKey": "kiz_almaz",
+        "gameTitle": "Kız Almaz",
+        "isKoz": false,
+        "distribution": [
+          1,
+          1,
+          1,
+          1
+        ],
+        "points": [
+          -100,
+          -100,
+          -100,
+          -100
+        ],
+        "timestamp": "22:06"
+      },
+      {
+        "handNo": 15,
+        "callerIdx": 2,
+        "callerName": "Berkay",
+        "gameKey": "koz",
+        "gameTitle": "Koz (♦ Karo)",
+        "kozSuit": "karo",
+        "isKoz": true,
+        "distribution": [
+          0,
+          7,
+          6,
+          0
+        ],
+        "points": [
+          0,
+          350,
+          300,
+          0
+        ],
+        "timestamp": "22:06"
+      },
+      {
+        "handNo": 16,
+        "callerIdx": 3,
+        "callerName": "Barış",
+        "gameKey": "kupa_almaz",
+        "gameTitle": "Kupa Almaz",
+        "isKoz": false,
+        "distribution": [
+          5,
+          5,
+          2,
+          1
+        ],
+        "points": [
+          -150,
+          -150,
+          -60,
+          -30
+        ],
+        "timestamp": "22:06"
+      },
+      {
+        "handNo": 17,
+        "callerIdx": 0,
+        "callerName": "Selim",
+        "gameKey": "koz",
+        "gameTitle": "Koz (♠ Maça)",
+        "kozSuit": "maca",
+        "isKoz": true,
+        "distribution": [
+          7,
+          1,
+          1,
+          4
+        ],
+        "points": [
+          350,
+          50,
+          50,
+          200
+        ],
+        "timestamp": "22:06"
+      },
+      {
+        "handNo": 18,
+        "callerIdx": 1,
+        "callerName": "ALp",
+        "gameKey": "erkek_almaz",
+        "gameTitle": "Erkek Almaz",
+        "isKoz": false,
+        "distribution": [
+          1,
+          1,
+          3,
+          3
+        ],
+        "points": [
+          -60,
+          -60,
+          -180,
+          -180
+        ],
+        "timestamp": "22:07"
+      }
+    ],
+    "scoringMode": "standard"
+  },
+  {
+    "id": 1793128377907,
+    "title": "27 Ekim 2026 Dostluk Maçı",
+    "date": "27.10.2026 22:12",
+    "roundsCount": 18,
+    "winner": "Selim",
+    "players": [
+      {
+        "id": 0,
+        "name": "Selim",
+        "score": 380,
+        "kozCount": 2,
+        "cezaCount": 3
+      },
+      {
+        "id": 1,
+        "name": "ALp",
+        "score": -360,
+        "kozCount": 2,
+        "cezaCount": 3
+      },
+      {
+        "id": 2,
+        "name": "Berkay",
+        "score": 310,
+        "kozCount": 2,
+        "cezaCount": 2
+      },
+      {
+        "id": 3,
+        "name": "Barış",
+        "score": -500,
+        "kozCount": 1,
+        "cezaCount": 3
+      }
+    ],
+    "rounds": [
+      {
+        "handNo": 1,
+        "callerIdx": 0,
+        "callerName": "Selim",
+        "gameKey": "el_almaz",
+        "gameTitle": "El Almaz",
+        "isKoz": false,
+        "distribution": [
+          2,
+          5,
+          3,
+          3
+        ],
+        "points": [
+          -100,
+          -250,
+          -150,
+          -150
+        ],
+        "timestamp": "18:56"
+      },
+      {
+        "handNo": 2,
+        "callerIdx": 1,
+        "callerName": "ALp",
+        "gameKey": "kupa_almaz",
+        "gameTitle": "Kupa Almaz",
+        "isKoz": false,
+        "distribution": [
+          0,
+          0,
+          0,
+          13
+        ],
+        "points": [
+          0,
+          0,
+          0,
+          -390
+        ],
+        "timestamp": "19:00"
+      },
+      {
+        "handNo": 3,
+        "callerIdx": 2,
+        "callerName": "Berkay",
+        "gameKey": "son_iki",
+        "gameTitle": "Son İki El Almaz",
+        "isKoz": false,
+        "distribution": [
+          1,
+          1,
+          0,
+          0
+        ],
+        "points": [
+          -180,
+          -180,
+          0,
+          0
+        ],
+        "timestamp": "19:04"
+      },
+      {
+        "handNo": 4,
+        "callerIdx": 3,
+        "callerName": "Barış",
+        "gameKey": "rifki",
+        "gameTitle": "Rıfkı (Kupa Papazı)",
+        "isKoz": false,
+        "distribution": [
+          0,
+          1,
+          0,
+          0
+        ],
+        "points": [
+          0,
+          -320,
+          0,
+          0
+        ],
+        "timestamp": "20:24"
+      },
+      {
+        "handNo": 5,
+        "callerIdx": 0,
+        "callerName": "Selim",
+        "gameKey": "koz",
+        "gameTitle": "Koz (♠ Maça)",
+        "kozSuit": "maca",
+        "isKoz": true,
+        "distribution": [
+          8,
+          1,
+          4,
+          0
+        ],
+        "points": [
+          400,
+          50,
+          200,
+          0
+        ],
+        "timestamp": "22:01"
+      },
+      {
+        "handNo": 6,
+        "callerIdx": 1,
+        "callerName": "ALp",
+        "gameKey": "koz",
+        "gameTitle": "Koz (♥️ Kupa)",
+        "kozSuit": "kupa",
+        "isKoz": true,
+        "distribution": [
+          3,
+          5,
+          4,
+          1
+        ],
+        "points": [
+          150,
+          250,
+          200,
+          50
+        ],
+        "timestamp": "22:02"
+      },
+      {
+        "handNo": 7,
+        "callerIdx": 2,
+        "callerName": "Berkay",
+        "gameKey": "kiz_almaz",
+        "gameTitle": "Kız Almaz",
+        "isKoz": false,
+        "distribution": [
+          1,
+          1,
+          1,
+          1
+        ],
+        "points": [
+          -100,
+          -100,
+          -100,
+          -100
+        ],
+        "timestamp": "22:03"
+      },
+      {
+        "handNo": 8,
+        "callerIdx": 3,
+        "callerName": "Barış",
+        "gameKey": "koz",
+        "gameTitle": "Koz (♥️ Kupa)",
+        "kozSuit": "kupa",
+        "isKoz": true,
+        "distribution": [
+          5,
+          1,
+          3,
+          4
+        ],
+        "points": [
+          250,
+          50,
+          150,
+          200
+        ],
+        "timestamp": "22:04"
+      },
+      {
+        "handNo": 9,
+        "callerIdx": 0,
+        "callerName": "Selim",
+        "gameKey": "rifki",
+        "gameTitle": "Rıfkı (Kupa Papazı)",
+        "isKoz": false,
+        "distribution": [
+          0,
+          0,
+          1,
+          0
+        ],
+        "points": [
+          0,
+          0,
+          -320,
+          0
+        ],
+        "timestamp": "22:04"
+      },
+      {
+        "handNo": 10,
+        "callerIdx": 1,
+        "callerName": "ALp",
+        "gameKey": "koz",
+        "gameTitle": "Koz (♥️ Kupa)",
+        "kozSuit": "kupa",
+        "isKoz": true,
+        "distribution": [
+          3,
+          6,
+          3,
+          1
+        ],
+        "points": [
+          150,
+          300,
+          150,
+          50
+        ],
+        "timestamp": "22:04"
+      },
+      {
+        "handNo": 11,
+        "callerIdx": 2,
+        "callerName": "Berkay",
+        "gameKey": "koz",
+        "gameTitle": "Koz (♦ Karo)",
+        "kozSuit": "karo",
+        "isKoz": true,
+        "distribution": [
+          3,
+          0,
+          10,
+          0
+        ],
+        "points": [
+          150,
+          0,
+          500,
+          0
+        ],
+        "timestamp": "22:04"
+      },
+      {
+        "handNo": 12,
+        "callerIdx": 3,
+        "callerName": "Barış",
+        "gameKey": "el_almaz",
+        "gameTitle": "El Almaz",
+        "isKoz": false,
+        "distribution": [
+          4,
+          5,
+          3,
+          1
+        ],
+        "points": [
+          -200,
+          -250,
+          -150,
+          -50
+        ],
+        "timestamp": "22:05"
+      },
+      {
+        "handNo": 13,
+        "callerIdx": 0,
+        "callerName": "Selim",
+        "gameKey": "son_iki",
+        "gameTitle": "Son İki El Almaz",
+        "isKoz": false,
+        "distribution": [
+          1,
+          0,
+          1,
+          0
+        ],
+        "points": [
+          -180,
+          0,
+          -180,
+          0
+        ],
+        "timestamp": "22:05"
+      },
+      {
+        "handNo": 14,
+        "callerIdx": 1,
+        "callerName": "ALp",
+        "gameKey": "kiz_almaz",
+        "gameTitle": "Kız Almaz",
+        "isKoz": false,
+        "distribution": [
+          1,
+          1,
+          1,
+          1
+        ],
+        "points": [
+          -100,
+          -100,
+          -100,
+          -100
+        ],
+        "timestamp": "22:06"
+      },
+      {
+        "handNo": 15,
+        "callerIdx": 2,
+        "callerName": "Berkay",
+        "gameKey": "koz",
+        "gameTitle": "Koz (♦ Karo)",
+        "kozSuit": "karo",
+        "isKoz": true,
+        "distribution": [
+          0,
+          7,
+          6,
+          0
+        ],
+        "points": [
+          0,
+          350,
+          300,
+          0
+        ],
+        "timestamp": "22:06"
+      },
+      {
+        "handNo": 16,
+        "callerIdx": 3,
+        "callerName": "Barış",
+        "gameKey": "kupa_almaz",
+        "gameTitle": "Kupa Almaz",
+        "isKoz": false,
+        "distribution": [
+          5,
+          5,
+          2,
+          1
+        ],
+        "points": [
+          -150,
+          -150,
+          -60,
+          -30
+        ],
+        "timestamp": "22:06"
+      },
+      {
+        "handNo": 17,
+        "callerIdx": 0,
+        "callerName": "Selim",
+        "gameKey": "koz",
+        "gameTitle": "Koz (♠ Maça)",
+        "kozSuit": "maca",
+        "isKoz": true,
+        "distribution": [
+          7,
+          1,
+          1,
+          4
+        ],
+        "points": [
+          350,
+          50,
+          50,
+          200
+        ],
+        "timestamp": "22:06"
+      },
+      {
+        "handNo": 18,
+        "callerIdx": 1,
+        "callerName": "ALp",
+        "gameKey": "erkek_almaz",
+        "gameTitle": "Erkek Almaz",
+        "isKoz": false,
+        "distribution": [
+          1,
+          1,
+          3,
+          3
+        ],
+        "points": [
+          -60,
+          -60,
+          -180,
+          -180
+        ],
+        "timestamp": "22:07"
+      }
+    ],
+    "scoringMode": "standard"
+  }
+]

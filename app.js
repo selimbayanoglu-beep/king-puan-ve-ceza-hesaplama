@@ -1,3 +1,138 @@
+
+// --------------------------------------------------------------------------
+// GEÇMİŞ OYUNLAR ARŞİVİ & TOPLU ÇIKTI YÖNETİMİ
+// --------------------------------------------------------------------------
+async function openArchivesModal() {
+  triggerHaptic(15);
+  const modal = document.getElementById('modalArchives');
+  if (!modal) return;
+  modal.classList.add('active');
+  await loadArchivesList();
+}
+
+function closeArchivesModal() {
+  const modal = document.getElementById('modalArchives');
+  if (modal) modal.classList.remove('active');
+}
+
+async function loadArchivesList() {
+  const container = document.getElementById('archivesListContainer');
+  if (!container) return;
+
+  container.innerHTML = '<div style="color: #94a3b8; text-align: center; padding: 20px;">Arşivler yükleniyor...</div>';
+
+  try {
+    const res = await fetch('/api/archives');
+    const data = await res.json();
+    if (!data.ok || !data.archives || data.archives.length === 0) {
+      container.innerHTML = `
+        <div style="background: rgba(255,255,255,0.03); border: 1px dashed rgba(255,255,255,0.15); border-radius: 12px; padding: 24px; text-align: center; color: #94a3b8;">
+          📂 Henüz arşivlenmiş tamamlanmış oyun bulunmuyor.<br>
+          <span style="font-size: 12px; color: #64748b;">Mevcut oyunu kaydetmek için yukarıdaki "Aktif Oyunu Arşive Kaydet" butonuna basabilirsiniz.</span>
+        </div>
+      `;
+      return;
+    }
+
+    let html = '';
+    data.archives.forEach((arc) => {
+      const playersHtml = arc.players.map(p => `
+        <span style="background: rgba(255,255,255,0.05); padding: 3px 8px; border-radius: 6px; font-size: 12px;">
+          ${escapeHtml(p.name)}: <b style="color: ${p.score > 0 ? '#34d399' : (p.score === 0 ? '#fde047' : '#f87171')};">${p.score > 0 ? '+' : ''}${p.score}</b>
+        </span>
+      `).join(' ');
+
+      html += `
+        <div style="background: rgba(15, 23, 42, 0.85); border: 1px solid rgba(255,255,255,0.12); border-radius: 12px; padding: 14px; display: flex; flex-direction: column; gap: 8px;">
+          <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 6px;">
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <span style="font-size: 18px;">👑</span>
+              <span style="font-weight: 800; font-size: 15px; color: #fff;">${escapeHtml(arc.title || 'King Oyunu')}</span>
+              <span style="font-size: 11px; background: rgba(234, 179, 8, 0.2); color: #fde047; padding: 2px 6px; border-radius: 4px;">${arc.roundsCount}/20 El</span>
+            </div>
+            <span style="font-size: 12px; color: #94a3b8;">📅 ${arc.date || ''}</span>
+          </div>
+          <div style="display: flex; flex-wrap: wrap; gap: 6px; margin: 4px 0;">
+            ${playersHtml}
+          </div>
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 4px; padding-top: 6px; border-top: 1px solid rgba(255,255,255,0.06);">
+            <span style="font-size: 12px; color: #a7f3d0;">🏆 Kazanan: <b>${escapeHtml(arc.winner || 'Belirsiz')}</b></span>
+            <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+              <button type="button" class="btn btn-primary btn-sm" onclick="restoreGameFromArchive(${arc.id}, '${escapeHtml(arc.title || 'King Oyunu').replace(/'/g, "\\'")}')" style="padding: 4px 10px; font-size: 12px;">
+                🔄 Masaya Yükle
+              </button>
+              <a href="/api/export-csv?id=${arc.id}" class="btn btn-secondary btn-sm" style="text-decoration: none; padding: 4px 10px; font-size: 12px;" download>
+                📊 Excel İndir
+              </a>
+            </div>
+          </div>
+        </div>
+      `;
+    });
+
+    container.innerHTML = html;
+  } catch (err) {
+    container.innerHTML = '<div style="color: #f87171; text-align: center; padding: 15px;">Arşivler yüklenirken hata oluştu.</div>';
+  }
+}
+
+
+async function restoreGameFromArchive(archiveId, title) {
+  triggerHaptic(20);
+  const ok = confirm(`"${title}" adlı kayıtlı oyunu masaya yüklemek istiyor musunuz?\n\nMevcut masadaki bilgilerin yerine bu oyunun tüm oyuncu isimleri, oynanmış elleri ve puanları gelecektir.`);
+  if (!ok) return;
+
+  try {
+    const res = await fetch('/api/restore-archive', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id: archiveId })
+    });
+    const data = await res.json();
+    if (data.ok && data.state) {
+      state = data.state;
+      saveStateToStorage();
+      renderAll();
+      closeArchivesModal();
+      goToScreen(3, true); // Sonuçlar / Çete ekranına git
+      showToast(`📂 "${title}" tüm bilgileriyle masaya yüklendi!`, 'emerald');
+    } else {
+      showToast('Oyun masaya yüklenemedi.', 'rose');
+    }
+  } catch (err) {
+    showToast('Sunucuya bağlanılamadı.', 'rose');
+  }
+}
+
+async function archiveCurrentGameManual() {
+  triggerHaptic(20);
+  if (!state.rounds || state.rounds.length === 0) {
+    showToast('Henüz oynanmış el bulunmuyor.', 'amber');
+    return;
+  }
+  const now = new Date();
+  const timeStr = now.toLocaleDateString('tr-TR') + ' ' + now.toLocaleTimeString('tr-TR');
+  const title = prompt('Bu oyun için bir isim veya not girin:', `King Maçı (${state.rounds.length}/20 El - ${timeStr})`);
+  if (title === null) return;
+
+  try {
+    const res = await fetch('/api/archive-current', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ title: title.trim() || undefined })
+    });
+    const data = await res.json();
+    if (data.ok) {
+      showToast('💾 Oyun arşive başarıyla kaydedildi!', 'emerald');
+      await loadArchivesList();
+    } else {
+      showToast(data.message || 'Kayıt başarısız.', 'rose');
+    }
+  } catch (err) {
+    showToast('Sunucuya bağlanılamadı.', 'rose');
+  }
+}
+
 /**
  * KING PUAN & CEZA HESAPLAMA SİSTEMİ
  * 4 Bağımsız Ekran (Oyuncular, Koz, Ceza, Sonuçlar) & Yatay Kaydırma (Swipe) Motoru
@@ -179,7 +314,7 @@ function initSliderNavigation() {
 
 function goToScreen(index, smooth = true) {
   const slider = document.getElementById('screensSlider');
-  currentScreenIndex = Math.max(0, Math.min(3, index));
+  currentScreenIndex = Math.max(0, Math.min(4, index));
   const screenWidth = slider.clientWidth;
   
   slider.scrollTo({
@@ -326,14 +461,19 @@ function recalculateAllScores() {
 
   state.rounds.forEach(round => {
     const caller = state.players[round.callerIdx];
-    if (round.isKoz) {
-      caller.kozCount++;
-    } else {
-      caller.cezaCount++;
+    if (caller) {
+      if (round.isKoz) {
+        caller.kozCount++;
+      } else {
+        caller.cezaCount++;
+      }
+      round.callerName = caller.name;
     }
 
     round.points.forEach((pt, pIdx) => {
-      state.players[pIdx].score += pt;
+      if (state.players[pIdx]) {
+        state.players[pIdx].score += pt;
+      }
     });
   });
 }
@@ -416,16 +556,50 @@ function renderAll() {
   renderCezaScreen(currentHand, callerIdx, isGameOver);
   renderKozScreen(currentHand, callerIdx, isGameOver);
   renderResultsScreen(currentHand, callerIdx, isGameOver);
+  renderTargetScreen(currentHand, callerIdx, isGameOver);
 }
 
 // --------------------------------------------------------------------------
 // 1. OYUNCULAR SAYFASI
 // --------------------------------------------------------------------------
 function renderSetupScreen() {
+  const isGameInProgress = state.rounds && state.rounds.length > 0;
+
   document.getElementById('inputPlayer1').value = state.players[0].name;
   document.getElementById('inputPlayer2').value = state.players[1].name;
   document.getElementById('inputPlayer3').value = state.players[2].name;
   document.getElementById('inputPlayer4').value = state.players[3].name;
+
+  const heroIcon = document.getElementById('setupHeroIcon');
+  const heroTitle = document.getElementById('setupHeroTitle');
+  const heroSub = document.getElementById('setupHeroSub');
+  const replacementNote = document.getElementById('playerReplacementNote');
+  const startBtnText = document.getElementById('btnStartGameText');
+  const dealerGroup = document.getElementById('dealerFormGroup');
+
+  if (isGameInProgress) {
+    if (heroIcon) heroIcon.textContent = '🔄';
+    if (heroTitle) heroTitle.textContent = 'Oyuncu Düzenleme & Masa Değişimi';
+    if (heroSub) heroSub.textContent = 'Masadan ayrılan bir oyuncu varsa yerine yeni oyuncunun adını yazabilirsiniz.';
+    if (replacementNote) replacementNote.style.display = 'flex';
+    if (startBtnText) startBtnText.textContent = '✓ Oyuncu Değişikliklerini Kaydet ve Masaya Dön';
+    if (dealerGroup) {
+      dealerGroup.style.opacity = '0.5';
+      dealerGroup.style.pointerEvents = 'none';
+      dealerGroup.title = 'İlk krupiye oyun başında belirlenmiştir.';
+    }
+  } else {
+    if (heroIcon) heroIcon.textContent = '👥';
+    if (heroTitle) heroTitle.textContent = 'Oyuncular & Masa Kurulumu';
+    if (heroSub) heroSub.textContent = 'Oyuncu isimlerini belirleyin ve oyunu başlatın. Başladıktan sonra bu sayfaya dönmenize gerek kalmaz.';
+    if (replacementNote) replacementNote.style.display = 'none';
+    if (startBtnText) startBtnText.textContent = 'Oyunu Başlat ve Ceza Sayfasına Geç ➔';
+    if (dealerGroup) {
+      dealerGroup.style.opacity = '1';
+      dealerGroup.style.pointerEvents = 'auto';
+      dealerGroup.title = '';
+    }
+  }
 
   const dealerRow = document.getElementById('dealerPickRow');
   dealerRow.innerHTML = '';
@@ -435,6 +609,7 @@ function renderSetupScreen() {
     btn.className = `btn-dealer-pick ${state.initialDealer === idx ? 'selected' : ''}`;
     btn.textContent = `${idx + 1}. ${p.name}`;
     btn.addEventListener('click', () => {
+      if (isGameInProgress) return;
       triggerHaptic(15);
       state.initialDealer = idx;
       renderSetupScreen();
@@ -455,6 +630,11 @@ function renderSetupScreen() {
 // 3. KOZ SAYFASI (5. ELDEN İTİBAREN AÇILIR)
 // --------------------------------------------------------------------------
 function renderKozScreen(currentHand, callerIdx, isGameOver) {
+  const remainingHands = 20 - state.rounds.length;
+  const bannerKoz = document.getElementById('bannerLastHandKoz');
+  if (bannerKoz) {
+    bannerKoz.style.display = (remainingHands === 1 && !isGameOver) ? 'flex' : 'none';
+  }
   const caller = state.players[callerIdx] || state.players[0];
   const handNoEl = document.getElementById('lblKozHandNo');
   const callerEl = document.getElementById('lblKozCaller');
@@ -477,7 +657,45 @@ function renderKozScreen(currentHand, callerIdx, isGameOver) {
   }
 
   handNoEl.textContent = `${currentHand}. El (${currentHand} / 20)`;
-  callerEl.textContent = `Söyleyen: ${caller.name}`;
+  
+  if (!state.selectedKozSuit) {
+    state.selectedKozSuit = 'karo'; // Varsayılan: Karo
+  }
+
+  const suitsDef = {
+    karo: { symbol: '♦', name: 'Karo', cssClass: 'suit-karo' },
+    kupa: { symbol: '♥️', name: 'Kupa', cssClass: 'suit-kupa' },
+    maca: { symbol: '♠', name: 'Maça', cssClass: 'suit-maca' },
+    sinek: { symbol: '♣', name: 'Sinek', cssClass: 'suit-sinek' }
+  };
+  const activeSuit = suitsDef[state.selectedKozSuit] || suitsDef.karo;
+
+  callerEl.innerHTML = `
+    <span class="caller-prefix">👑 SÖYLEYEN:</span>
+    <div class="caller-highlight-row">
+      <span class="caller-highlight">${escapeHtml(caller.name)}</span>
+      <span class="caller-koz-suit ${activeSuit.cssClass}" title="Koz: ${activeSuit.name}">${activeSuit.symbol}</span>
+    </div>
+  `;
+
+  // Koz Türü Butonlarını (Karo, Kupa, Maça, Sinek) Yönet
+  const suitButtons = document.querySelectorAll('.btn-koz-suit');
+  suitButtons.forEach(btn => {
+    const s = btn.dataset.suit;
+    if (s === state.selectedKozSuit) {
+      btn.classList.add('active');
+    } else {
+      btn.classList.remove('active');
+    }
+    btn.onclick = () => {
+      triggerHaptic(15);
+      state.selectedKozSuit = s;
+      saveStateToStorage();
+      pushStateToServer();
+      renderKozScreen(currentHand, callerIdx, isGameOver);
+    };
+  });
+
   rightsEl.textContent = `Koz Hakkı: ${caller.kozCount} / 2`;
 
   // King Kuralı: İlk 4 el yalnızca ceza oynanır, koz 5. elden itibaren açılır!
@@ -511,6 +729,11 @@ function renderKozScreen(currentHand, callerIdx, isGameOver) {
 // 3. CEZA SAYFASI
 // --------------------------------------------------------------------------
 function renderCezaScreen(currentHand, callerIdx, isGameOver) {
+  const remainingHands = 20 - state.rounds.length;
+  const bannerCeza = document.getElementById('bannerLastHandCeza');
+  if (bannerCeza) {
+    bannerCeza.style.display = (remainingHands === 1 && !isGameOver) ? 'flex' : 'none';
+  }
   const caller = state.players[callerIdx] || state.players[0];
   const handNoEl = document.getElementById('lblCezaHandNo');
   const callerEl = document.getElementById('lblCezaCaller');
@@ -532,7 +755,7 @@ function renderCezaScreen(currentHand, callerIdx, isGameOver) {
   }
 
   handNoEl.textContent = `${currentHand}. El (${currentHand} / 20)`;
-  callerEl.textContent = `Söyleyen: ${caller.name}`;
+  callerEl.innerHTML = `<span class="caller-prefix">👑 SÖYLEYEN:</span> <span class="caller-highlight">${escapeHtml(caller.name)}</span>`;
   rightsEl.textContent = `Ceza Hakkı: ${caller.cezaCount} / 3`;
 
   const canPlayCeza = caller.cezaCount < 3;
@@ -584,56 +807,73 @@ function renderCezaScreen(currentHand, callerIdx, isGameOver) {
       triggerHaptic(15);
       state.selectedCezaKey = k;
       state.cezaInputs = [0, 0, 0, 0];
+      inputHistories.ceza = [];
       renderCezaScreen(currentHand, callerIdx, isGameOver);
     });
 
     grid.appendChild(btn);
   });
 
-  // Seçilen Ceza Banner Güncelle
+  // Seçilen Ceza Tanımı
   const activeDef = GAME_DEFS[state.selectedCezaKey] || GAME_DEFS.el_almaz;
-  document.getElementById('cezaBannerIcon').textContent = activeDef.icon;
-  document.getElementById('cezaBannerTitle').textContent = activeDef.title;
-  document.getElementById('cezaBannerDesc').textContent = activeDef.desc;
-
-  let unitPts = (state.scoringMode === 'zero_sum') ? (activeDef.baseUnitPoint * 2) : activeDef.baseUnitPoint;
-  document.getElementById('cezaBannerPts').textContent = `${unitPts} P / ${activeDef.unitName}`;
-
-  // Rıfkı Özel Durumu: 4 Oyuncu Tek Dokunuş Seçim Butonları
-  const rifkiBox = document.getElementById('rifkiPickerBox');
-  const rifkiContainer = document.getElementById('rifkiPlayerButtons');
-  const cezaList = document.getElementById('cezaPlayersList');
-  const cezaQuickRow = document.getElementById('cezaQuickFillRow');
-
-  if (activeDef.key === 'rifki') {
-    rifkiBox.style.display = 'flex';
-    cezaList.style.display = 'none';
-    cezaQuickRow.style.display = 'none';
-    rifkiContainer.innerHTML = '';
-
-    state.players.forEach((p, idx) => {
-      const btn = document.createElement('button');
-      btn.type = 'button';
-      const isChosen = state.cezaInputs[idx] === 1;
-      btn.className = `btn-rifki-p ${isChosen ? 'selected' : ''}`;
-      btn.textContent = p.name;
-      btn.addEventListener('click', () => {
-        triggerHaptic(20);
-        state.cezaInputs = [0, 0, 0, 0];
-        state.cezaInputs[idx] = 1;
-        renderCezaScreen(currentHand, callerIdx, isGameOver);
-      });
-      rifkiContainer.appendChild(btn);
-    });
-
-    validateDistribution(activeDef.totalUnits, activeDef.unitName, state.cezaInputs, 'cezaRemainingBadge', 'cezaValidationMsg', 'btnSaveCeza');
-  } else {
-    rifkiBox.style.display = 'none';
-    cezaList.style.display = 'flex';
-    cezaQuickRow.style.display = 'flex';
-
-    renderDistributionList('ceza', activeDef.totalUnits, state.cezaInputs, 'cezaPlayersList', 'cezaQuickButtons', 'cezaRemainingBadge', 'cezaValidationMsg', 'btnSaveCeza');
+  const bannerIcon = document.getElementById('cezaBannerIcon');
+  if (bannerIcon) bannerIcon.textContent = activeDef.icon;
+  const bannerTitle = document.getElementById('cezaBannerTitle');
+  if (bannerTitle) bannerTitle.textContent = activeDef.title;
+  const bannerDesc = document.getElementById('cezaBannerDesc');
+  if (bannerDesc) bannerDesc.textContent = activeDef.desc;
+  const bannerPts = document.getElementById('cezaBannerPts');
+  if (bannerPts) {
+    let unitPts = (state.scoringMode === 'zero_sum') ? (activeDef.baseUnitPoint * 2) : activeDef.baseUnitPoint;
+    bannerPts.textContent = `${unitPts} P / ${activeDef.unitName}`;
   }
+
+  // Ceza Dağıtım Listesi (Rıfkı dahil tüm cezalar standart stepper ve hızlı atama kullanır)
+  const cezaList = document.getElementById('cezaPlayersList');
+  if (cezaList) cezaList.style.display = 'flex';
+  const cezaQuickRow = document.getElementById('cezaQuickFillRow');
+  if (cezaQuickRow) cezaQuickRow.style.display = 'flex';
+
+  renderDistributionList('ceza', activeDef.totalUnits, state.cezaInputs, 'cezaPlayersList', 'cezaQuickButtons', 'cezaRemainingBadge', 'cezaValidationMsg', 'btnSaveCeza');
+}
+
+// Girdi Geçmişi ve Düzeltme Yardımcıları (Geri Al & Temizle)
+const inputHistories = {
+  ceza: [],
+  koz: []
+};
+
+function pushInputHistory(type, inputsArray) {
+  if (!inputHistories[type]) inputHistories[type] = [];
+  inputHistories[type].push([...inputsArray]);
+  if (inputHistories[type].length > 30) inputHistories[type].shift();
+}
+
+function undoInput(type, inputsArray) {
+  if (inputHistories[type] && inputHistories[type].length > 0) {
+    const prev = inputHistories[type].pop();
+    for (let i = 0; i < inputsArray.length; i++) {
+      inputsArray[i] = prev[i];
+    }
+    renderAll();
+    showToast('↩️ Son işlem geri alındı.', 'cyan');
+  } else {
+    showToast('Geri alınacak bir önceki işlem yok.', 'rose');
+  }
+}
+
+function clearInputs(type, inputsArray) {
+  const hasValues = inputsArray.some(v => v > 0);
+  if (!hasValues) {
+    showToast('Girişler zaten sıfır.', 'cyan');
+    return;
+  }
+  pushInputHistory(type, inputsArray);
+  for (let i = 0; i < inputsArray.length; i++) {
+    inputsArray[i] = 0;
+  }
+  renderAll();
+  showToast('🗑️ Tüm girişler temizlendi (sıfırlandı).', 'amber');
 }
 
 // Ortak Dağıtım Listesi Render Yardımcısı (Koz ve Ceza için)
@@ -660,6 +900,7 @@ function renderDistributionList(type, totalUnits, inputsArray, listId, quickId, 
     row.querySelector('[data-action="dec"]').addEventListener('click', () => {
       triggerHaptic(15);
       if (inputsArray[idx] > 0) {
+        pushInputHistory(type, inputsArray);
         inputsArray[idx]--;
         renderAll();
       }
@@ -669,6 +910,7 @@ function renderDistributionList(type, totalUnits, inputsArray, listId, quickId, 
       triggerHaptic(15);
       const sum = inputsArray.reduce((a, b) => a + b, 0);
       if (sum < totalUnits) {
+        pushInputHistory(type, inputsArray);
         inputsArray[idx]++;
         renderAll();
       }
@@ -688,6 +930,7 @@ function renderDistributionList(type, totalUnits, inputsArray, listId, quickId, 
       btn.textContent = p.name;
       btn.addEventListener('click', () => {
         triggerHaptic(20);
+        pushInputHistory(type, inputsArray);
         const currentSumWithoutP = inputsArray.reduce((sum, val, i) => i === idx ? sum : sum + val, 0);
         const remaining = Math.max(0, totalUnits - currentSumWithoutP);
         inputsArray[idx] = remaining;
@@ -695,6 +938,26 @@ function renderDistributionList(type, totalUnits, inputsArray, listId, quickId, 
       });
       quickContainer.appendChild(btn);
     });
+  }
+
+  // Geri Al ve Temizle Butonlarını Yönet (Her zaman açık, belirgin ve tıklanabilir)
+  const undoBtn = document.getElementById(type === 'ceza' ? 'btnUndoCeza' : 'btnUndoKoz');
+  const clearBtn = document.getElementById(type === 'ceza' ? 'btnClearCeza' : 'btnClearKoz');
+
+  if (undoBtn) {
+    undoBtn.disabled = false;
+    undoBtn.onclick = () => {
+      triggerHaptic(20);
+      undoInput(type, inputsArray);
+    };
+  }
+
+  if (clearBtn) {
+    clearBtn.disabled = false;
+    clearBtn.onclick = () => {
+      triggerHaptic(25);
+      clearInputs(type, inputsArray);
+    };
   }
 
   validateDistribution(totalUnits, type === 'koz' ? 'El' : 'Adet', inputsArray, badgeId, msgId, saveBtnId);
@@ -742,17 +1005,26 @@ function renderResultsScreen(currentHand, callerIdx, isGameOver) {
   const btnJumpKoz = document.getElementById('btnJumpToKoz');
   const btnJumpCeza = document.getElementById('btnJumpToCeza');
 
+  const btnFooterCeza = document.getElementById('btnFooterGoCeza');
+  const btnFooterKoz = document.getElementById('btnFooterGoKoz');
+
   if (isGameOver) {
     lblHand.textContent = '20 / 20 (TAMAMLANDI)';
     lblCaller.textContent = 'Şampiyon Belli Oldu! 🏆';
     btnJumpKoz.style.display = 'none';
     btnJumpCeza.style.display = 'none';
+    if (btnFooterCeza) btnFooterCeza.style.display = 'none';
+    if (btnFooterKoz) btnFooterKoz.style.display = 'none';
   } else {
     lblHand.textContent = `${currentHand} / 20`;
-    lblCaller.textContent = `Sıradaki: ${caller.name}`;
-    // İlk 4 el sadece ceza oynanabilir; koz 5. elden itibaren açılır
-    btnJumpKoz.style.display = (state.rounds.length >= 4 && caller.kozCount < 2) ? 'inline-flex' : 'none';
-    btnJumpCeza.style.display = caller.cezaCount < 3 ? 'inline-flex' : 'none';
+    lblCaller.innerHTML = `<span class="nt-caller-prefix">👑 SIRADAKİ SÖYLEYEN:</span> <span class="nt-caller-name">${escapeHtml(caller.name)}</span>`;
+    
+    // Hem üst çağrı kartında hem alt işlem alanında "Cezaya Git" ve "Koza Git" düğmeleri HER ZAMAN açık ve görünür
+    btnJumpCeza.style.display = 'inline-flex';
+    btnJumpKoz.style.display = 'inline-flex';
+
+    if (btnFooterCeza) btnFooterCeza.style.display = 'inline-flex';
+    if (btnFooterKoz) btnFooterKoz.style.display = 'inline-flex';
   }
 
   // 4 Oyuncu Canlı Skor Kartları (Liderlik)
@@ -806,53 +1078,73 @@ function renderMatrixTable() {
   tbody.innerHTML = '';
 
   const rows = [
-    { title: 'Koz (1. Hak)', key: 'koz', isKoz: true, pts: '+50', unit: 0 },
-    { title: 'Koz (2. Hak)', key: 'koz', isKoz: true, pts: '+50', unit: 1 },
-    { title: 'El Almaz', key: 'el_almaz', isKoz: false, pts: state.scoringMode === 'zero_sum' ? '-100' : '-50' },
-    { title: 'Kupa Almaz', key: 'kupa_almaz', isKoz: false, pts: state.scoringMode === 'zero_sum' ? '-60' : '-30' },
-    { title: 'Kız Almaz', key: 'kiz_almaz', isKoz: false, pts: state.scoringMode === 'zero_sum' ? '-200' : '-100' },
-    { title: 'Erkek Almaz', key: 'erkek_almaz', isKoz: false, pts: state.scoringMode === 'zero_sum' ? '-120' : '-60' },
-    { title: 'Rıfkı', key: 'rifki', isKoz: false, pts: state.scoringMode === 'zero_sum' ? '-640' : '-320' },
-    { title: 'Son İki', key: 'son_iki', isKoz: false, pts: state.scoringMode === 'zero_sum' ? '-360' : '-180' }
+    { title: '👑 Koz (1. Hak)', key: 'koz', isKoz: true, pts: '+50', unit: 0 },
+    { title: '👑 Koz (2. Hak)', key: 'koz', isKoz: true, pts: '+50', unit: 1 },
+    { title: '✋ El Almaz (1)', key: 'el_almaz', isKoz: false, pts: state.scoringMode === 'zero_sum' ? '-100' : '-50', roundIdx: 0 },
+    { title: '✋ El Almaz (2)', key: 'el_almaz', isKoz: false, pts: state.scoringMode === 'zero_sum' ? '-100' : '-50', roundIdx: 1 },
+    { title: '♥️ Kupa Almaz (1)', key: 'kupa_almaz', isKoz: false, pts: state.scoringMode === 'zero_sum' ? '-60' : '-30', roundIdx: 0 },
+    { title: '♥️ Kupa Almaz (2)', key: 'kupa_almaz', isKoz: false, pts: state.scoringMode === 'zero_sum' ? '-60' : '-30', roundIdx: 1 },
+    { title: '👸 Kız Almaz (1)', key: 'kiz_almaz', isKoz: false, pts: state.scoringMode === 'zero_sum' ? '-200' : '-100', roundIdx: 0 },
+    { title: '👸 Kız Almaz (2)', key: 'kiz_almaz', isKoz: false, pts: state.scoringMode === 'zero_sum' ? '-200' : '-100', roundIdx: 1 },
+    { title: '🤴 Erkek Almaz (1)', key: 'erkek_almaz', isKoz: false, pts: state.scoringMode === 'zero_sum' ? '-120' : '-60', roundIdx: 0 },
+    { title: '🤴 Erkek Almaz (2)', key: 'erkek_almaz', isKoz: false, pts: state.scoringMode === 'zero_sum' ? '-120' : '-60', roundIdx: 1 },
+    { title: '🍷 Rıfkı (1)', key: 'rifki', isKoz: false, pts: state.scoringMode === 'zero_sum' ? '-640' : '-320', roundIdx: 0 },
+    { title: '🍷 Rıfkı (2)', key: 'rifki', isKoz: false, pts: state.scoringMode === 'zero_sum' ? '-640' : '-320', roundIdx: 1 },
+    { title: '⏳ Son İki (1)', key: 'son_iki', isKoz: false, pts: state.scoringMode === 'zero_sum' ? '-360' : '-180', roundIdx: 0 },
+    { title: '⏳ Son İki (2)', key: 'son_iki', isKoz: false, pts: state.scoringMode === 'zero_sum' ? '-360' : '-180', roundIdx: 1 }
   ];
 
   rows.forEach(r => {
     const tr = document.createElement('tr');
     let cellsHtml = `<td class="th-game">${r.title}</td><td class="th-pts">${r.pts}</td>`;
 
-    for (let pIdx = 0; pIdx < 4; pIdx++) {
-      let cellText = '—';
-      let cellCls = '';
-
-      if (r.isKoz) {
+    if (r.isKoz) {
+      for (let pIdx = 0; pIdx < 4; pIdx++) {
+        let cellText = '—';
+        let cellCls = '';
         const callerKozRounds = state.rounds.filter(rnd => rnd.callerIdx === pIdx && rnd.isKoz);
         const rnd = callerKozRounds[r.unit];
         if (rnd) {
           const pt = rnd.points[pIdx];
-          cellText = `${pt > 0 ? '+' : ''}${pt}`;
+          cellText = `${pt > 0 ? '+' : ''}${pt} <span class="c-caller-badge" title="Söyleyen">👑</span>`;
           cellCls = 'cell-used pos';
         }
-      } else {
-        const rnd = state.rounds.find(x => x.callerIdx === pIdx && x.gameKey === r.key);
+        cellsHtml += `<td class="${cellCls}">${cellText}</td>`;
+      }
+    } else {
+      const cezaRounds = state.rounds.filter(x => x.gameKey === r.key);
+      const rnd = cezaRounds[r.roundIdx];
+
+      for (let pIdx = 0; pIdx < 4; pIdx++) {
+        let cellText = '—';
+        let cellCls = '';
         if (rnd) {
           const pt = rnd.points[pIdx];
-          cellText = `${pt}`;
-          cellCls = 'cell-used neg';
-        } else {
-          const globalUsage = getGlobalGameUsageCount(r.key);
-          if (globalUsage >= 2 || state.players[pIdx].cezaCount >= 3) {
-            cellText = '✕';
-            cellCls = 'cell-locked';
-          }
+          const isCaller = rnd.callerIdx === pIdx;
+          const callerTag = isCaller ? ' <span class="c-caller-badge" title="Söyleyen">👑</span>' : '';
+          cellText = `${pt > 0 ? '+' : ''}${pt}${callerTag}`;
+          cellCls = pt < 0 ? 'cell-used neg' : pt > 0 ? 'cell-used pos' : 'cell-used';
         }
+        cellsHtml += `<td class="${cellCls}">${cellText}</td>`;
       }
-
-      cellsHtml += `<td class="${cellCls}">${cellText}</td>`;
     }
 
     tr.innerHTML = cellsHtml;
     tbody.appendChild(tr);
   });
+
+  // Toplam Satırı (Tüm oyuncuların toplam puanı)
+  const tfoot = document.getElementById('ceteleTableFoot');
+  if (tfoot) {
+    let footHtml = `<tr><td colspan="2" style="text-align: left; font-weight: 800;">TOPLAM</td>`;
+    for (let pIdx = 0; pIdx < 4; pIdx++) {
+      const p = state.players[pIdx];
+      const cls = p.score > 0 ? 'score-gain' : p.score < 0 ? 'score-loss' : '';
+      footHtml += `<td class="cell-used ${cls}">${p.score > 0 ? '+' : ''}${p.score}</td>`;
+    }
+    footHtml += `</tr>`;
+    tfoot.innerHTML = footHtml;
+  }
 }
 
 function renderHistoryTable() {
@@ -920,7 +1212,11 @@ function saveKozHand() {
     callerIdx: callerIdx,
     callerName: state.players[callerIdx].name,
     gameKey: 'koz',
-    gameTitle: 'Koz',
+    gameTitle: `Koz (${(activeKozSuit => {
+      const defs = { karo: '♦ Karo', kupa: '♥️ Kupa', maca: '♠ Maça', sinek: '♣ Sinek' };
+      return defs[activeKozSuit] || '♦ Karo';
+    })(state.selectedKozSuit)})`,
+    kozSuit: state.selectedKozSuit || 'karo',
     isKoz: true,
     distribution: distribution,
     points: points,
@@ -930,6 +1226,7 @@ function saveKozHand() {
   state.rounds.push(roundData);
   recalculateAllScores();
   state.kozInputs = [0, 0, 0, 0];
+  inputHistories.koz = [];
   saveStateToStorage();
   pushStateToServer();
   triggerHaptic(40);
@@ -972,6 +1269,7 @@ function saveCezaHand() {
   state.rounds.push(roundData);
   recalculateAllScores();
   state.cezaInputs = [0, 0, 0, 0];
+  inputHistories.ceza = [];
   saveStateToStorage();
   pushStateToServer();
   triggerHaptic(40);
@@ -999,32 +1297,516 @@ function undoLastHand() {
   showToast(`${removed.handNo}. el geri alındı.`, 'amber');
 }
 
-function resetGame() {
-  if (state.rounds.length > 0) {
-    if (!confirm('Tüm oyun skorları ve çetele sıfırlanacak. Emin misiniz?')) {
-      return;
-    }
+function openResetConfirmModal() {
+  const modalReset = document.getElementById('modalResetConfirm');
+  const chkConfirm = document.getElementById('chkSecondConfirm');
+  const btnConfirm = document.getElementById('btnConfirmResetFinal');
+
+  if (modalReset) {
+    if (chkConfirm) chkConfirm.checked = false;
+    if (btnConfirm) btnConfirm.disabled = true;
+    modalReset.classList.add('active');
   }
-  const currentNames = state.players.map(p => p.name);
+}
+
+function executeResetGame() {
+  // HER ŞEYİ TERTEMİZ SIFIRLA (Eski isimler asla gelmesin)
   state = {
     players: [
-      { id: 0, name: currentNames[0] || 'Oyuncu 1', score: 0, kozCount: 0, cezaCount: 0 },
-      { id: 1, name: currentNames[1] || 'Oyuncu 2', score: 0, kozCount: 0, cezaCount: 0 },
-      { id: 2, name: currentNames[2] || 'Oyuncu 3', score: 0, kozCount: 0, cezaCount: 0 },
-      { id: 3, name: currentNames[3] || 'Oyuncu 4', score: 0, kozCount: 0, cezaCount: 0 },
+      { id: 0, name: 'Oyuncu 1', score: 0, kozCount: 0, cezaCount: 0 },
+      { id: 1, name: 'Oyuncu 2', score: 0, kozCount: 0, cezaCount: 0 },
+      { id: 2, name: 'Oyuncu 3', score: 0, kozCount: 0, cezaCount: 0 },
+      { id: 3, name: 'Oyuncu 4', score: 0, kozCount: 0, cezaCount: 0 },
     ],
     initialDealer: 0,
-    scoringMode: state.scoringMode || 'standard',
+    scoringMode: 'standard',
     rounds: [],
     selectedCezaKey: 'el_almaz',
+    selectedKozSuit: 'karo',
     kozInputs: [0, 0, 0, 0],
     cezaInputs: [0, 0, 0, 0]
   };
+  inputHistories.ceza = [];
+  inputHistories.koz = [];
+
+  // Input kutularını da tamamen temizle (Yeni isimler girilsin)
+  ['inputPlayer1', 'inputPlayer2', 'inputPlayer3', 'inputPlayer4'].forEach((id) => {
+    const el = document.getElementById(id);
+    if (el) el.value = '';
+  });
+
   saveStateToStorage();
   pushStateToServer();
   renderAll();
   goToScreen(0, true);
-  showToast('Yeni oyun başlatıldı!', 'emerald');
+  showToast('🔄 Masa ve oyuncu adları sıfırlandı. Yeni oyuncuları yazabilirsiniz.', 'emerald');
+}
+
+
+// ==========================================================================
+// 5. KOZA ÇIKMA HEDEFİ & STRATEJİ HESAPLAYICI (SAYFA 4)
+// ==========================================================================
+let targetSelectedPlayerId = 0;
+let simKoz = 0;
+let simKiz = 0;
+let simRifki = false;
+let simErkek = 0;
+
+function renderTargetScreen(currentHand, callerIdx, isGameOver) {
+  const container = document.getElementById('screen4');
+  if (!container) return;
+
+  // 1. Kalan Oyunlar Hesabı
+  const gameLimits = {
+    el_almaz: 2,
+    kupa_almaz: 2,
+    kiz_almaz: 2,
+    erkek_almaz: 2,
+    rifki: 2,
+    son_iki: 2,
+    koz: 8
+  };
+  const playedCounts = {
+    el_almaz: 0,
+    kupa_almaz: 0,
+    kiz_almaz: 0,
+    erkek_almaz: 0,
+    rifki: 0,
+    son_iki: 0,
+    koz: 0
+  };
+
+  state.rounds.forEach(r => {
+    if (r.isKoz) {
+      playedCounts.koz++;
+    } else if (playedCounts[r.gameKey] !== undefined) {
+      playedCounts[r.gameKey]++;
+    }
+  });
+
+  const remaining = {
+    koz: Math.max(0, gameLimits.koz - playedCounts.koz),
+    el_almaz: Math.max(0, gameLimits.el_almaz - playedCounts.el_almaz),
+    kupa_almaz: Math.max(0, gameLimits.kupa_almaz - playedCounts.kupa_almaz),
+    kiz_almaz: Math.max(0, gameLimits.kiz_almaz - playedCounts.kiz_almaz),
+    erkek_almaz: Math.max(0, gameLimits.erkek_almaz - playedCounts.erkek_almaz),
+    rifki: Math.max(0, gameLimits.rifki - playedCounts.rifki),
+    son_iki: Math.max(0, gameLimits.son_iki - playedCounts.son_iki)
+  };
+
+  const totalRemainingHands = 20 - state.rounds.length;
+
+  // Kalan Cezaların Tespiti (BİTMİŞ OLANLARI ASLA GÖSTERME!)
+  const cezaNames = {
+    rifki: { name: 'Rıfkı (Kupa Papazı)', icon: '🗡️', penalty: 320, type: 'single' },
+    kiz_almaz: { name: 'Kız Almaz', icon: '👸', penalty: 100, type: 'multi', maxUnits: 4, unitName: 'Kız' },
+    erkek_almaz: { name: 'Erkek Almaz', icon: '🤴', penalty: 60, type: 'multi', maxUnits: 4, unitName: 'Erkek' },
+    son_iki: { name: 'Son İki El', icon: '⏳', penalty: 180, type: 'multi', maxUnits: 2, unitName: 'El' },
+    kupa_almaz: { name: 'Kupa Almaz', icon: '♥️', penalty: 30, type: 'kupa' },
+    el_almaz: { name: 'El Almaz', icon: '🃏', penalty: 50, type: 'el' }
+  };
+
+  const remainingCezaKeys = Object.keys(cezaNames).filter(k => remaining[k] > 0);
+
+  // 1. Kalan Oyunlar Şeridi (Hero Banner)
+  const heroBanner = document.getElementById('targetRemainingHero');
+  if (heroBanner) {
+    if (totalRemainingHands <= 0) {
+      heroBanner.innerHTML = `
+        <div class="rhb-item">
+          <span>🏁 <b>Oyun Tamamlandı:</b> Tüm 20 el oynandı, çete bağlandı.</span>
+        </div>
+      `;
+    } else {
+      let heroHtml = '';
+      if (remainingCezaKeys.length > 0) {
+        const cezaSummary = remainingCezaKeys.map(k => `${cezaNames[k].icon} ${remaining[k]} ${cezaNames[k].name}`).join(', ');
+        heroHtml += `
+          <div class="rhb-item">
+            <span class="rhb-badge ceza">⚡ Kalan Ceza: ${remainingCezaKeys.reduce((a, k) => a + remaining[k], 0)} El</span>
+            <span>${cezaSummary}</span>
+          </div>
+        `;
+      } else {
+        heroHtml += `
+          <div class="rhb-item">
+            <span class="rhb-badge ceza" style="background:rgba(16,185,129,0.2); color:#34d399; border:1px solid rgba(16,185,129,0.4);">✓ Tüm Cezalar Bitti</span>
+            <span>Masada hiç ceza kalmadı!</span>
+          </div>
+        `;
+      }
+
+      heroHtml += `
+        <div class="rhb-item">
+          <span class="rhb-badge koz">👑 Kalan Koz: ${remaining.koz} El</span>
+          <span>Toplam ${remaining.koz * 13} El (+${remaining.koz * 13 * 50} Puan)</span>
+        </div>
+      `;
+      heroBanner.innerHTML = heroHtml;
+    }
+  }
+
+  // 2. 4 Oyuncunun "Kaç Koza Çıkacak?" Kartları
+  const cardsGrid = document.getElementById('targetKozaCikmaCards');
+  if (!cardsGrid) return;
+
+  if (totalRemainingHands <= 0) {
+    // Oyun Tamamen Bittiğinde
+    const sorted = [...state.players].sort((a, b) => b.score - a.score);
+    cardsGrid.innerHTML = `
+      <div style="background: rgba(15, 23, 42, 0.9); border: 2px solid rgba(52, 211, 153, 0.4); border-radius: 16px; padding: 18px;">
+        <h3 style="color: #34d399; margin-bottom: 12px; font-size: 16px;">🏆 20 El Sonucu — Nihai Masa Durumu</h3>
+        <div style="display: flex; flex-direction: column; gap: 8px;">
+          ${sorted.map(p => `
+            <div style="display: flex; justify-content: space-between; align-items: center; background: rgba(255,255,255,0.04); padding: 10px 14px; border-radius: 10px;">
+              <span style="font-weight: 800; font-size: 15px; color: #fff;">👤 ${escapeHtml(p.name)}</span>
+              <span style="font-weight: 800; font-size: 15px; color: ${p.score > 0 ? '#34d399' : (p.score === 0 ? '#fde047' : '#f87171')};">
+                ${p.score > 0 ? '+' : ''}${p.score} P (${p.score > 0 ? 'Koza Çıktı' : (p.score === 0 ? 'Oyun Biten' : 'Ceza Yiyen')})
+              </span>
+            </div>
+          `).join('')}
+        </div>
+      </div>
+    `;
+    return;
+  }
+
+  // Oyun Devam Ediyorken:
+  cardsGrid.innerHTML = '';
+
+  state.players.forEach(player => {
+    const curPts = player.score;
+    const isPos = curPts > 0;
+    const isZero = curPts === 0;
+
+    const card = document.createElement('div');
+    card.className = `kzc-card ${isPos ? 'is-pos' : (isZero ? 'is-zero' : 'is-neg')}`;
+
+    let casesHtml = '';
+
+    // =======================================================================
+    // DURUM 1: MASADA KALAN CEZA VARSA
+    // =======================================================================
+    if (remainingCezaKeys.length > 0) {
+      remainingCezaKeys.forEach(cKey => {
+        const cDef = cezaNames[cKey];
+
+        // 1. CEZAYI YEMEZSE (0 Ceza)
+        let neededNoPenalty = curPts < 0 ? Math.ceil(Math.abs(curPts) / 50) : 0;
+        let calloutNoPenalty = '';
+        if (curPts < 0) {
+          const projected = curPts + (neededNoPenalty * 50);
+          calloutNoPenalty = `
+            <div class="kzc-target-koz-callout">
+              <div class="kzc-callout-left">
+                <span class="kzc-callout-label">🎯 KOZA ÇIKMAK İÇİN:</span>
+                <span class="kzc-callout-sub">+${neededNoPenalty * 50} P ➔ ${projected > 0 ? '+' : ''}${projected} Puan ile biter</span>
+              </div>
+              <div class="kzc-big-koz-number gold">
+                👑 EN AZ ${neededNoPenalty} EL KOZ
+              </div>
+            </div>
+          `;
+        } else if (curPts === 0) {
+          calloutNoPenalty = `
+            <div class="kzc-target-koz-callout even">
+              <div class="kzc-callout-left">
+                <span class="kzc-callout-label">⚖️ TAM 0 PUANDA (BAŞABAŞ):</span>
+                <span class="kzc-callout-sub">Artıya geçmek için tek el yeter</span>
+              </div>
+              <div class="kzc-big-koz-number gold">
+                👑 EN AZ 1 EL KOZ
+              </div>
+            </div>
+          `;
+        } else {
+          calloutNoPenalty = `
+            <div class="kzc-target-koz-callout safe">
+              <div class="kzc-callout-left">
+                <span class="kzc-callout-label">🏆 MEVCUT DURUM (+${curPts} P):</span>
+                <span class="kzc-callout-sub">0 el koz alsa bile artıda tamamlar</span>
+              </div>
+              <div class="kzc-big-koz-number green">
+                ✓ ZATEN KOZDA
+              </div>
+            </div>
+          `;
+        }
+
+        casesHtml += `
+          <div class="kzc-case-row">
+            <div class="kzc-case-top">
+              <span>🛡️ <b>${cDef.name}'ı Yemezse (0 Ceza):</b></span>
+              <span class="kzc-case-pts ${isPos ? 'pos' : (isZero ? 'zero' : 'neg')}">${isPos ? '+' : ''}${curPts} P</span>
+            </div>
+            ${calloutNoPenalty}
+          </div>
+        `;
+
+        // 2. CEZAYI YERSE (Tekil veya Çoklu Dağılım)
+        if (cDef.type === 'single') {
+          // RIFKI (-320 P)
+          const ptsWithCeza = curPts - cDef.penalty;
+          const neededWithCeza = ptsWithCeza < 0 ? Math.ceil(Math.abs(ptsWithCeza) / 50) : 0;
+          let calloutWithCeza = '';
+
+          if (ptsWithCeza < 0) {
+            const projected = ptsWithCeza + (neededWithCeza * 50);
+            calloutWithCeza = `
+              <div class="kzc-target-koz-callout danger">
+                <div class="kzc-callout-left">
+                  <span class="kzc-callout-label">⚠️ CEZA YERSE KURTULMAK İÇİN:</span>
+                  <span class="kzc-callout-sub">+${neededWithCeza * 50} P ➔ ${projected > 0 ? '+' : ''}${projected} Puan ile biter</span>
+                </div>
+                <div class="kzc-big-koz-number rose">
+                  💥 EN AZ ${neededWithCeza} EL KOZ
+                </div>
+              </div>
+            `;
+          } else if (ptsWithCeza === 0) {
+            calloutWithCeza = `
+              <div class="kzc-target-koz-callout even">
+                <div class="kzc-callout-left">
+                  <span class="kzc-callout-label">⚖️ OYUN BİTEN OLUR (0 P):</span>
+                  <span class="kzc-callout-sub">Artıya geçmek için tek el yeter</span>
+                </div>
+                <div class="kzc-big-koz-number gold">
+                  👑 EN AZ 1 EL KOZ
+                </div>
+              </div>
+            `;
+          } else {
+            calloutWithCeza = `
+              <div class="kzc-target-koz-callout safe">
+                <div class="kzc-callout-left">
+                  <span class="kzc-callout-label">🏆 CEZA YESE BİLE ARTIDA:</span>
+                  <span class="kzc-callout-sub">+${ptsWithCeza} P ile koza çıkmış kalır</span>
+                </div>
+                <div class="kzc-big-koz-number green">
+                  ✓ ZATEN KOZDA
+                </div>
+              </div>
+            `;
+          }
+
+          casesHtml += `
+            <div class="kzc-case-row">
+              <div class="kzc-case-top">
+                <span>💥 <b>${cDef.name}'ı Yerse (-${cDef.penalty} P):</b></span>
+                <span class="kzc-case-pts ${ptsWithCeza > 0 ? 'pos' : (ptsWithCeza === 0 ? 'zero' : 'neg')}">${ptsWithCeza > 0 ? '+' : ''}${ptsWithCeza} P</span>
+              </div>
+              ${calloutWithCeza}
+            </div>
+          `;
+
+        } else if (cDef.type === 'multi') {
+          // KIZ ALMAZ (-100 P / kız), ERKEK ALMAZ (-60 P / erkek), SON İKİ (-180 P / el)
+          for (let u = 1; u <= cDef.maxUnits; u++) {
+            const penPts = u * cDef.penalty;
+            const ptsWithU = curPts - penPts;
+            const neededWithU = ptsWithU < 0 ? Math.ceil(Math.abs(ptsWithU) / 50) : 0;
+            let calloutU = '';
+
+            if (ptsWithU < 0) {
+              const projected = ptsWithU + (neededWithU * 50);
+              calloutU = `
+                <div class="kzc-target-koz-callout danger">
+                  <div class="kzc-callout-left">
+                    <span class="kzc-callout-label">⚠️ CEZA YERSE GEREKEN:</span>
+                    <span class="kzc-callout-sub">+${neededWithU * 50} P ➔ ${projected > 0 ? '+' : ''}${projected} Puan ile biter</span>
+                  </div>
+                  <div class="kzc-big-koz-number rose">
+                    💥 EN AZ ${neededWithU} EL KOZ
+                  </div>
+                </div>
+              `;
+            } else if (ptsWithU === 0) {
+              calloutU = `
+                <div class="kzc-target-koz-callout even">
+                  <div class="kzc-callout-left">
+                    <span class="kzc-callout-label">⚖️ OYUN BİTEN (0 P):</span>
+                    <span class="kzc-callout-sub">Artıya geçmek için tek el yeter</span>
+                  </div>
+                  <div class="kzc-big-koz-number gold">
+                    👑 EN AZ 1 EL KOZ
+                  </div>
+                </div>
+              `;
+            } else {
+              calloutU = `
+                <div class="kzc-target-koz-callout safe">
+                  <div class="kzc-callout-left">
+                    <span class="kzc-callout-label">🏆 HALA ARTIDA:</span>
+                    <span class="kzc-callout-sub">+${ptsWithU} P ile koza çıkmış kalır</span>
+                  </div>
+                  <div class="kzc-big-koz-number green">
+                    ✓ ZATEN KOZDA
+                  </div>
+                </div>
+              `;
+            }
+
+            casesHtml += `
+              <div class="kzc-case-row">
+                <div class="kzc-case-top">
+                  <span>💥 <b>${u} ${cDef.unitName} Yerse (-${penPts} P):</b></span>
+                  <span class="kzc-case-pts ${ptsWithU > 0 ? 'pos' : (ptsWithU === 0 ? 'zero' : 'neg')}">${ptsWithU > 0 ? '+' : ''}${ptsWithU} P</span>
+                </div>
+                ${calloutU}
+              </div>
+            `;
+          }
+        } else {
+          // Kupa veya El Almaz
+          const penPts = 2 * cDef.penalty;
+          const ptsWithU = curPts - penPts;
+          const needed = ptsWithU < 0 ? Math.ceil(Math.abs(ptsWithU) / 50) : 0;
+          casesHtml += `
+            <div class="kzc-case-row">
+              <div class="kzc-case-top">
+                <span>💥 <b>Bu Cezadan Kağıt/El Yerse:</b></span>
+                <span class="kzc-case-pts ${ptsWithU > 0 ? 'pos' : (ptsWithU === 0 ? 'zero' : 'neg')}">${ptsWithU > 0 ? '+' : ''}${ptsWithU} P</span>
+              </div>
+              <div class="kzc-target-koz-callout danger">
+                <span>⚠️ <b>Koza Çıkmak İçin:</b> En az <b>${needed} el koz</b> almalı!</span>
+              </div>
+            </div>
+          `;
+        }
+      });
+
+    } else {
+      // =======================================================================
+      // DURUM 2: MASADA HİÇ CEZA KALMAMIŞSA (SADECE KOZ KALDIYSA)
+      // =======================================================================
+      const neededKoz = curPts < 0 ? Math.ceil(Math.abs(curPts) / 50) : 0;
+      let kozCallout = '';
+      if (curPts < 0) {
+        const projected = curPts + (neededKoz * 50);
+        kozCallout = `
+          <div class="kzc-target-koz-callout">
+            <div class="kzc-callout-left">
+              <span class="kzc-callout-label">🎯 KOZA ÇIKMAK İÇİN:</span>
+              <span class="kzc-callout-sub">+${neededKoz * 50} P ➔ ${projected > 0 ? '+' : ''}${projected} Puan ile biter</span>
+            </div>
+            <div class="kzc-big-koz-number gold">
+              👑 EN AZ ${neededKoz} EL KOZ
+            </div>
+          </div>
+        `;
+      } else if (curPts === 0) {
+        kozCallout = `
+          <div class="kzc-target-koz-callout even">
+            <div class="kzc-callout-left">
+              <span class="kzc-callout-label">⚖️ TAM 0 PUANDA:</span>
+              <span class="kzc-callout-sub">Artıya geçmek için tek el yeter</span>
+            </div>
+            <div class="kzc-big-koz-number gold">
+              👑 EN AZ 1 EL KOZ
+            </div>
+          </div>
+        `;
+      } else {
+        kozCallout = `
+          <div class="kzc-target-koz-callout safe">
+            <div class="kzc-callout-left">
+              <span class="kzc-callout-label">🏆 MEVCUT DURUM:</span>
+              <span class="kzc-callout-sub">Ekstra her el +50 P kâr yazar</span>
+            </div>
+            <div class="kzc-big-koz-number green">
+              ✓ ZATEN KOZDA (+${curPts} P)
+            </div>
+          </div>
+        `;
+      }
+
+      casesHtml += `
+        <div class="kzc-case-row">
+          <div class="kzc-case-top">
+            <span>👑 <b>Kalan Koz Ellerinde:</b></span>
+            <span class="kzc-case-pts ${isPos ? 'pos' : (isZero ? 'zero' : 'neg')}">${isPos ? '+' : ''}${curPts} P</span>
+          </div>
+          ${kozCallout}
+        </div>
+      `;
+    }
+
+    card.innerHTML = `
+      <div class="kzc-header">
+        <div class="kzc-player-info">
+          <span style="font-size: 20px;">👤</span>
+          <span class="kzc-player-name">${escapeHtml(player.name)}</span>
+        </div>
+        <span class="kzc-current-pts ${isPos ? 'pos' : (isZero ? 'zero' : 'neg')}">
+          Şu Anki Puan: ${isPos ? '+' : ''}${curPts} P
+        </span>
+      </div>
+      <div class="kzc-cases-list">
+        ${casesHtml}
+      </div>
+    `;
+
+    cardsGrid.appendChild(card);
+  });
+}
+
+function updateSimulatorView(player) {
+  if (!player) return;
+
+  const lblName = document.getElementById('lblSimPlayerName');
+  const lblCurrent = document.getElementById('lblSimCurrentPts');
+  const lblProjected = document.getElementById('lblSimProjectedPts');
+  const lblBadge = document.getElementById('lblSimBadge');
+  const lblAdvice = document.getElementById('lblSimAdvice');
+
+  const lblKoz = document.getElementById('lblSimKozVal');
+  const lblKiz = document.getElementById('lblSimKizVal');
+  const lblErkek = document.getElementById('lblSimErkekVal');
+  const btnRifki = document.getElementById('btnSimRifkiToggle');
+
+  if (lblKoz) lblKoz.textContent = simKoz;
+  if (lblKiz) lblKiz.textContent = simKiz;
+  if (lblErkek) lblErkek.textContent = simErkek;
+
+  if (btnRifki) {
+    btnRifki.className = `btn-sim-toggle ${simRifki ? 'active' : ''}`;
+    btnRifki.innerHTML = simRifki ? '<span>🗡️ Rıfkı YEDİ (-320 P)</span>' : '<span>🗡️ Yemedi (0 P)</span>';
+  }
+
+  const curPts = player.score;
+  const delta = (simKoz * 50) - (simKiz * 100) - (simRifki ? 320 : 0) - (simErkek * 60);
+  const projected = curPts + delta;
+
+  if (lblName) lblName.textContent = player.name;
+  if (lblCurrent) lblCurrent.textContent = `Şu An: ${curPts > 0 ? '+' : ''}${curPts} P`;
+  if (lblProjected) {
+    lblProjected.textContent = `Tahmini: ${projected > 0 ? '+' : ''}${projected} P`;
+    lblProjected.style.color = projected > 0 ? '#34d399' : (projected === 0 ? '#fde047' : '#f87171');
+  }
+
+  if (lblBadge) {
+    if (projected > 0) {
+      lblBadge.className = 'sim-result-badge badge-safe';
+      lblBadge.textContent = '🏆 Koza Çıkmış Oluyor (Artıda)';
+    } else if (projected === 0) {
+      lblBadge.className = 'sim-result-badge badge-even';
+      lblBadge.textContent = '⚖️ Başabaş (0 Puan - Oyun Biten)';
+    } else {
+      lblBadge.className = 'sim-result-badge badge-danger';
+      lblBadge.textContent = '⚠️ Cezaya Düşen Oluyor (Ekside)';
+    }
+  }
+
+  if (lblAdvice) {
+    if (projected > 0) {
+      lblAdvice.innerHTML = `Bu senaryoda <b>${escapeHtml(player.name)}</b> oyunu <b>+${projected} puan</b> ile güvenle artıda bitirir.`;
+    } else if (projected === 0) {
+      lblAdvice.innerHTML = `Bu senaryoda <b>${escapeHtml(player.name)}</b> tam <b>0 puana (başabaşa)</b> ulaşır, ne ceza yer ne kâr eder.`;
+    } else {
+      const moreNeeded = Math.ceil(Math.abs(projected) / 50);
+      lblAdvice.innerHTML = `Bu senaryoda <b>${escapeHtml(player.name)}</b> <b>${projected} puanda</b> kalarak ceza yer! Sıfırlamak için <b>${moreNeeded} el daha koz</b> alması veya ceza yememesi gerekir.`;
+    }
+  }
 }
 
 // ==========================================================================
@@ -1037,17 +1819,62 @@ function initEventListeners() {
 
   // Geri Al & Yeni Oyun
   document.getElementById('btnUndo').addEventListener('click', undoLastHand);
-  document.getElementById('btnNewGame').addEventListener('click', resetGame);
+  document.getElementById('btnNewGame')?.addEventListener('click', () => {
+    triggerHaptic(20);
+    openResetConfirmModal();
+  });
 
-  // Kurulum Sayfası: "Oyunu Başlat"
+  // Yeni Oyun Başlatma / Sıfırlama Onay Modalı
+  const modalReset = document.getElementById('modalResetConfirm');
+  const btnCloseReset = document.getElementById('btnCloseResetModal');
+  const btnCancelReset = document.getElementById('btnCancelReset');
+  const btnConfirmReset = document.getElementById('btnConfirmResetFinal');
+  const chkConfirm = document.getElementById('chkSecondConfirm');
+
+  const closeResetModal = () => {
+    modalReset?.classList.remove('active');
+  };
+
+  btnCloseReset?.addEventListener('click', closeResetModal);
+  btnCancelReset?.addEventListener('click', closeResetModal);
+
+  chkConfirm?.addEventListener('change', () => {
+    triggerHaptic(10);
+    if (btnConfirmReset) {
+      btnConfirmReset.disabled = !chkConfirm.checked;
+    }
+  });
+
+  btnConfirmReset?.addEventListener('click', () => {
+    triggerHaptic(35);
+    closeResetModal();
+    executeResetGame();
+  });
+
+  // Kurulum / Oyuncu Düzenleme Sayfası: "Oyunu Başlat / Değişiklikleri Kaydet"
   document.getElementById('btnStartGame').addEventListener('click', () => {
-    state.players[0].name = document.getElementById('inputPlayer1').value.trim() || 'Oyuncu 1';
-    state.players[1].name = document.getElementById('inputPlayer2').value.trim() || 'Oyuncu 2';
-    state.players[2].name = document.getElementById('inputPlayer3').value.trim() || 'Oyuncu 3';
-    state.players[3].name = document.getElementById('inputPlayer4').value.trim() || 'Oyuncu 4';
+    const isGameInProgress = state.rounds && state.rounds.length > 0;
 
-    const selRadio = document.querySelector('input[name="scoringMode"]:checked');
-    if (selRadio) state.scoringMode = selRadio.value;
+    const oldNames = state.players.map(p => p.name);
+    const newNames = [
+      document.getElementById('inputPlayer1').value.trim() || 'Oyuncu 1',
+      document.getElementById('inputPlayer2').value.trim() || 'Oyuncu 2',
+      document.getElementById('inputPlayer3').value.trim() || 'Oyuncu 3',
+      document.getElementById('inputPlayer4').value.trim() || 'Oyuncu 4'
+    ];
+
+    let changedPlayers = [];
+    for (let i = 0; i < 4; i++) {
+      if (oldNames[i] !== newNames[i]) {
+        changedPlayers.push({ old: oldNames[i], new: newNames[i], idx: i });
+      }
+      state.players[i].name = newNames[i];
+    }
+
+    if (!isGameInProgress) {
+      const selRadio = document.querySelector('input[name="scoringMode"]:checked');
+      if (selRadio) state.scoringMode = selRadio.value;
+    }
 
     recalculateAllScores();
     saveStateToStorage();
@@ -1055,9 +1882,20 @@ function initEventListeners() {
     triggerHaptic(25);
     renderAll();
 
-    // Ceza sayfasına pürüzsüzce kaydır (King kurallarına göre ilk 4 el cezadır)
-    goToScreen(1, true);
-    showToast('Oyun başlatıldı! Ceza sayfasındasınız.', 'amber');
+    if (isGameInProgress) {
+      // Oyun devam ediyorsa Sonuçlar (Çetele) ekranına geri dön
+      goToScreen(3, true);
+      if (changedPlayers.length > 0) {
+        const desc = changedPlayers.map(cp => `${cp.old} ➔ ${cp.new}`).join(', ');
+        showToast(`${desc} devri yapıldı! Puanlar ve haklar aynen korundu.`, 'emerald');
+      } else {
+        showToast('Oyuncu isimleri güncellendi.', 'emerald');
+      }
+    } else {
+      // Yeni oyun ise Ceza ekranına geç
+      goToScreen(1, true);
+      showToast('Oyun başlatıldı! Ceza sayfasındasınız.', 'amber');
+    }
   });
 
   // Hızlı Geçiş Butonları (Sonuçlar Sayfasından Ceza ve Koza)
@@ -1069,13 +1907,42 @@ function initEventListeners() {
     triggerHaptic(15);
     goToScreen(2, true); // Koz = Ekran 2
   });
-  document.getElementById('btnGoCezaFromKoz').addEventListener('click', () => {
+  // Alt Butonlar: Cezaya Git & Koza Git
+  document.getElementById('btnFooterGoCeza')?.addEventListener('click', () => {
+    triggerHaptic(15);
+    goToScreen(1, true); // Ceza = Ekran 1
+  });
+  document.getElementById('btnFooterGoKoz')?.addEventListener('click', () => {
+    triggerHaptic(15);
+    goToScreen(2, true); // Koz = Ekran 2
+  });
+  document.getElementById('btnGoCezaFromKoz')?.addEventListener('click', () => {
     triggerHaptic(15);
     goToScreen(1, true); // Koz ekranından Ceza ekranına (1) git
   });
-  document.getElementById('btnGoKozFromCeza').addEventListener('click', () => {
+  document.getElementById('btnGoKozFromCeza')?.addEventListener('click', () => {
     triggerHaptic(15);
     goToScreen(2, true); // Ceza ekranından Koz ekranına (2) git
+  });
+
+  // Sayfa Altı Karar Değiştirme ve Geri Dön Butonları
+  document.getElementById('btnSwitchCezaToKoz')?.addEventListener('click', () => {
+    triggerHaptic(15);
+    goToScreen(2, true); // Ceza sayfasından Koz sayfasına (Ekran 2) geç
+  });
+  document.getElementById('btnSwitchKozToCeza')?.addEventListener('click', () => {
+    triggerHaptic(15);
+    goToScreen(1, true); // Koz sayfasından Ceza sayfasına (Ekran 1) geç
+  });
+
+  // Sayfa Altı: Çeteye / Sonuçlara Geri Dön Butonları
+  document.getElementById('btnBackToResultsFromCeza')?.addEventListener('click', () => {
+    triggerHaptic(15);
+    goToScreen(3, true); // Sonuçlar & Çetele sayfasına (Ekran 3) geri dön
+  });
+  document.getElementById('btnBackToResultsFromKoz')?.addEventListener('click', () => {
+    triggerHaptic(15);
+    goToScreen(3, true); // Sonuçlar & Çetele sayfasına (Ekran 3) geri dön
   });
 
   // Oyuncuları Düzenle (Sonuçlar sayfasından Sayfa 0'a)
@@ -1085,6 +1952,110 @@ function initEventListeners() {
   });
 
   // Yazdır / PDF
+  
+  // Screen 4: Koza Çıkma & Strateji Simülatör Dinleyicileri
+  document.getElementById('btnSimKozDec')?.addEventListener('click', () => {
+    triggerHaptic(15);
+    if (simKoz > 0) {
+      simKoz--;
+      const selP = state.players.find(p => p.id === targetSelectedPlayerId) || state.players[0];
+      updateSimulatorView(selP);
+    }
+  });
+  document.getElementById('btnSimKozInc')?.addEventListener('click', () => {
+    triggerHaptic(15);
+    if (simKoz < 13) {
+      simKoz++;
+      const selP = state.players.find(p => p.id === targetSelectedPlayerId) || state.players[0];
+      updateSimulatorView(selP);
+    }
+  });
+
+  document.getElementById('btnSimKizDec')?.addEventListener('click', () => {
+    triggerHaptic(15);
+    if (simKiz > 0) {
+      simKiz--;
+      const selP = state.players.find(p => p.id === targetSelectedPlayerId) || state.players[0];
+      updateSimulatorView(selP);
+    }
+  });
+  document.getElementById('btnSimKizInc')?.addEventListener('click', () => {
+    triggerHaptic(15);
+    if (simKiz < 4) {
+      simKiz++;
+      const selP = state.players.find(p => p.id === targetSelectedPlayerId) || state.players[0];
+      updateSimulatorView(selP);
+    }
+  });
+
+  document.getElementById('btnSimRifkiToggle')?.addEventListener('click', () => {
+    triggerHaptic(20);
+    simRifki = !simRifki;
+    const selP = state.players.find(p => p.id === targetSelectedPlayerId) || state.players[0];
+    updateSimulatorView(selP);
+  });
+
+  document.getElementById('btnSimErkekDec')?.addEventListener('click', () => {
+    triggerHaptic(15);
+    if (simErkek > 0) {
+      simErkek--;
+      const selP = state.players.find(p => p.id === targetSelectedPlayerId) || state.players[0];
+      updateSimulatorView(selP);
+    }
+  });
+  document.getElementById('btnSimErkekInc')?.addEventListener('click', () => {
+    triggerHaptic(15);
+    if (simErkek < 8) {
+      simErkek++;
+      const selP = state.players.find(p => p.id === targetSelectedPlayerId) || state.players[0];
+      updateSimulatorView(selP);
+    }
+  });
+
+  // Hızlı Gezinme Butonları (Screen 4 ve Diğer Ekranlar)
+  document.getElementById('btnFooterGoTarget')?.addEventListener('click', () => {
+    triggerHaptic(15);
+    goToScreen(4, true); // Screen 4'e git
+  });
+  document.getElementById('btnBackToResultsFromTarget')?.addEventListener('click', () => {
+    triggerHaptic(15);
+    goToScreen(3, true); // Sonuçlar (Screen 3)'e git
+  });
+  document.getElementById('btnGoToCezaFromTarget')?.addEventListener('click', () => {
+    triggerHaptic(15);
+    goToScreen(1, true); // Ceza (Screen 1)'e git
+  });
+  document.getElementById('btnGoToKozFromTarget')?.addEventListener('click', () => {
+    triggerHaptic(15);
+    goToScreen(2, true); // Koz (Screen 2)'ye git
+  });
+
+    // Son 1 El Banner Tıklamaları -> Screen 4'e geç
+  ['btnLhaCeza', 'btnLhaKoz', 'btnLhaResults'].forEach(id => {
+    document.getElementById(id)?.addEventListener('click', () => {
+      triggerHaptic(20);
+      goToScreen(4, true);
+    });
+  });
+
+  // Strateji Raporunu Kopyala Butonu
+  document.getElementById('btnCopyStrategyReport')?.addEventListener('click', copyStrategyReportToClipboard);
+
+  
+  // Arşiv ve Dışa Aktarma Butonları
+  document.getElementById('btnExportCsv')?.addEventListener('click', () => {
+    triggerHaptic(15);
+    window.location.href = '/api/export-csv';
+  });
+  document.getElementById('btnOpenArchives')?.addEventListener('click', openArchivesModal);
+  document.getElementById('btnCloseArchives')?.addEventListener('click', closeArchivesModal);
+  document.getElementById('modalArchives')?.addEventListener('click', (e) => {
+    if (e.target === document.getElementById('modalArchives')) closeArchivesModal();
+  });
+  document.getElementById('btnManualArchive')?.addEventListener('click', archiveCurrentGameManual);
+  document.getElementById('btnArchiveDirect')?.addEventListener('click', archiveCurrentGameManual);
+  document.getElementById('btnHeaderArchive')?.addEventListener('click', archiveCurrentGameManual);
+
   document.getElementById('btnPrintScores').addEventListener('click', () => {
     window.print();
   });
@@ -1140,7 +2111,7 @@ function initEventListeners() {
   });
 
   // Modalların dışına tıklayınca kapatma
-  [modalHelp, modalMobile].forEach(modal => {
+  [modalHelp, modalMobile, modalReset].forEach(modal => {
     if (modal) {
       modal.addEventListener('click', (e) => {
         if (e.target === modal) modal.classList.remove('active');
@@ -1176,6 +2147,105 @@ function openMobileConnectModal() {
   modal.classList.add('active');
 }
 
+
+function copyStrategyReportToClipboard() {
+  triggerHaptic(15);
+  const totalRemainingHands = 20 - state.rounds.length;
+
+  const gameLimits = { el_almaz: 2, kupa_almaz: 2, kiz_almaz: 2, erkek_almaz: 2, rifki: 2, son_iki: 2, koz: 8 };
+  const played = { el_almaz: 0, kupa_almaz: 0, kiz_almaz: 0, erkek_almaz: 0, rifki: 0, son_iki: 0, koz: 0 };
+  state.rounds.forEach(r => {
+    if (r.isKoz) played.koz++;
+    else if (played[r.gameKey] !== undefined) played[r.gameKey]++;
+  });
+  const remaining = {
+    koz: Math.max(0, gameLimits.koz - played.koz),
+    rifki: Math.max(0, gameLimits.rifki - played.rifki),
+    kiz_almaz: Math.max(0, gameLimits.kiz_almaz - played.kiz_almaz),
+    erkek_almaz: Math.max(0, gameLimits.erkek_almaz - played.erkek_almaz),
+    son_iki: Math.max(0, gameLimits.son_iki - played.son_iki),
+    kupa_almaz: Math.max(0, gameLimits.kupa_almaz - played.kupa_almaz),
+    el_almaz: Math.max(0, gameLimits.el_almaz - played.el_almaz),
+  };
+
+  const cezaNames = {
+    rifki: { name: 'Rıfkı', penalty: 320, type: 'single' },
+    kiz_almaz: { name: 'Kız Almaz', penalty: 100, type: 'multi', maxUnits: 4, unitName: 'Kız' },
+    erkek_almaz: { name: 'Erkek Almaz', penalty: 60, type: 'multi', maxUnits: 4, unitName: 'Erkek' },
+    son_iki: { name: 'Son İki', penalty: 180, type: 'multi', maxUnits: 2, unitName: 'El' },
+    kupa_almaz: { name: 'Kupa Almaz', penalty: 30, type: 'kupa' },
+    el_almaz: { name: 'El Almaz', penalty: 50, type: 'el' }
+  };
+  const remCezaKeys = Object.keys(cezaNames).filter(k => remaining[k] > 0);
+
+  let out = `🎯 KİNG KOZA ÇIKMA HEDEF RAPORU
+`;
+  out += `👑 Kalan Koz: ${remaining.koz} El | ⚡ Kalan Ceza: ${remCezaKeys.map(k => `${remaining[k]} ${cezaNames[k].name}`).join(', ') || 'Yok'}
+`;
+  out += `----------------------------------------
+`;
+
+  state.players.forEach(p => {
+    out += `👤 ${p.name} (Şu An: ${p.score > 0 ? '+' : ''}${p.score} P)
+`;
+    if (remCezaKeys.length > 0) {
+      remCezaKeys.forEach(ck => {
+        const cDef = cezaNames[ck];
+        // Yemezse
+        const nNo = p.score < 0 ? Math.ceil(Math.abs(p.score) / 50) : 0;
+        out += `  🛡️ ${cDef.name} Yemezse: ${p.score > 0 ? '+' : ''}${p.score} P ➔ ${p.score < 0 ? `En az ${nNo} el koz almalı` : 'Koza çıkmış'}
+`;
+        // Yerse
+        if (cDef.type === 'single') {
+          const after = p.score - cDef.penalty;
+          const nW = after < 0 ? Math.ceil(Math.abs(after) / 50) : 0;
+          out += `  💥 ${cDef.name} Yerse (-${cDef.penalty} P ➔ ${after} P) ➔ ${after < 0 ? `En az ${nW} el koz almalı` : 'Koza çıkmış'}
+`;
+        } else if (cDef.type === 'multi') {
+          for (let u = 1; u <= cDef.maxUnits; u++) {
+            const after = p.score - (u * cDef.penalty);
+            const nW = after < 0 ? Math.ceil(Math.abs(after) / 50) : 0;
+            out += `  💥 ${u} ${cDef.unitName} Yerse (-${u * cDef.penalty} P ➔ ${after} P) ➔ ${after < 0 ? `En az ${nW} el koz almalı` : 'Koza çıkmış'}
+`;
+          }
+        }
+      });
+    } else {
+      const nKoz = p.score < 0 ? Math.ceil(Math.abs(p.score) / 50) : 0;
+      out += `  👑 Koza çıkmak için en az ${nKoz} el koz almalı
+`;
+    }
+    out += `
+`;
+  });
+
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(out).then(() => {
+      showToast('📋 Rapor panoya kopyalandı!', 'emerald');
+    }).catch(() => {
+      fallbackCopyText(out);
+    });
+  } else {
+    fallbackCopyText(out);
+  }
+}
+
+function fallbackCopyText(text) {
+  const ta = document.createElement('textarea');
+  ta.value = text;
+  ta.style.position = 'fixed';
+  ta.style.opacity = '0';
+  document.body.appendChild(ta);
+  ta.select();
+  try {
+    document.execCommand('copy');
+    showToast('📋 Strateji raporu kopyalandı!', 'emerald');
+  } catch (err) {
+    showToast('Kopyalama başarısız oldu.', 'rose');
+  }
+  document.body.removeChild(ta);
+}
+
 function copyMatrixToClipboard() {
   const pNames = state.players.map(p => p.name).join('\t');
   let txt = `KING SKOR VE ÇETELE TABLOSU\n`;
@@ -1183,26 +2253,37 @@ function copyMatrixToClipboard() {
   txt += `Oyun\tPuan\t${pNames}\n`;
 
   const rows = [
-    { title: 'Koz 1', key: 'koz', idx: 0 },
-    { title: 'Koz 2', key: 'koz', idx: 1 },
-    { title: 'El Almaz', key: 'el_almaz' },
-    { title: 'Kupa Almaz', key: 'kupa_almaz' },
-    { title: 'Kız Almaz', key: 'kiz_almaz' },
-    { title: 'Erkek Almaz', key: 'erkek_almaz' },
-    { title: 'Rıfkı', key: 'rifki' },
-    { title: 'Son İki', key: 'son_iki' }
+    { title: 'Koz (1. Hak)', key: 'koz', isKoz: true, unit: 0 },
+    { title: 'Koz (2. Hak)', key: 'koz', isKoz: true, unit: 1 },
+    { title: 'El Almaz (1)', key: 'el_almaz', isKoz: false, roundIdx: 0 },
+    { title: 'El Almaz (2)', key: 'el_almaz', isKoz: false, roundIdx: 1 },
+    { title: 'Kupa Almaz (1)', key: 'kupa_almaz', isKoz: false, roundIdx: 0 },
+    { title: 'Kupa Almaz (2)', key: 'kupa_almaz', isKoz: false, roundIdx: 1 },
+    { title: 'Kız Almaz (1)', key: 'kiz_almaz', isKoz: false, roundIdx: 0 },
+    { title: 'Kız Almaz (2)', key: 'kiz_almaz', isKoz: false, roundIdx: 1 },
+    { title: 'Erkek Almaz (1)', key: 'erkek_almaz', isKoz: false, roundIdx: 0 },
+    { title: 'Erkek Almaz (2)', key: 'erkek_almaz', isKoz: false, roundIdx: 1 },
+    { title: 'Rıfkı (1)', key: 'rifki', isKoz: false, roundIdx: 0 },
+    { title: 'Rıfkı (2)', key: 'rifki', isKoz: false, roundIdx: 1 },
+    { title: 'Son İki (1)', key: 'son_iki', isKoz: false, roundIdx: 0 },
+    { title: 'Son İki (2)', key: 'son_iki', isKoz: false, roundIdx: 1 }
   ];
 
   rows.forEach(r => {
-    txt += `${r.title}\t`;
+    txt += `${r.title}\t${r.isKoz ? '+50' : ''}`;
     for (let pIdx = 0; pIdx < 4; pIdx++) {
       let cell = '—';
-      if (r.key === 'koz') {
+      if (r.isKoz) {
         const pk = state.rounds.filter(rnd => rnd.callerIdx === pIdx && rnd.isKoz);
-        if (pk[r.idx]) cell = `${pk[r.idx].points[pIdx]}P`;
+        if (pk[r.unit]) cell = `${pk[r.unit].points[pIdx]}P (👑)`;
       } else {
-        const rnd = state.rounds.find(x => x.callerIdx === pIdx && x.gameKey === r.key);
-        if (rnd) cell = `${rnd.points[pIdx]}P`;
+        const cezaRounds = state.rounds.filter(x => x.gameKey === r.key);
+        const rnd = cezaRounds[r.roundIdx];
+        if (rnd) {
+          const pt = rnd.points[pIdx];
+          const isCaller = rnd.callerIdx === pIdx;
+          cell = `${pt}P${isCaller ? ' (👑)' : ''}`;
+        }
       }
       txt += `\t${cell}`;
     }
@@ -1215,7 +2296,7 @@ function copyMatrixToClipboard() {
   });
 
   navigator.clipboard.writeText(txt).then(() => {
-    showToast('Çetele panoya kopyalandı!', 'emerald');
+    showToast('Çetele tablosu panoya kopyalandı!', 'emerald');
   }).catch(() => {
     showToast('Kopyalama başarısız oldu.', 'rose');
   });

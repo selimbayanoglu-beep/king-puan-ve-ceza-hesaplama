@@ -17,12 +17,17 @@ import subprocess
 import sys
 import time
 import webbrowser
+import csv
+import io
+from datetime import datetime
 from pathlib import Path
 from typing import Any
 
-DEFAULT_PORT = 8888
+DEFAULT_PORT = int(os.environ.get("PORT", 8888))
 DIR_PATH = Path(__file__).resolve().parent
 STATE_FILE = DIR_PATH / "session_state.json"
+ARCHIVE_FILE = DIR_PATH / "games_archive.json"
+
 
 # Varsayılan Oyun Durumu
 DEFAULT_STATE: dict[str, Any] = {
@@ -89,19 +94,104 @@ class GameSession:
         self.save()
         return self.version
 
+    def archive_current_game(self, title: str | None = None) -> bool:
+        if not self.state or not self.state.get("rounds"):
+            return False
+        try:
+            archives = []
+            if ARCHIVE_FILE.exists():
+                try:
+                    with open(ARCHIVE_FILE, "r", encoding="utf-8") as f:
+                        archives = json.load(f)
+                        if not isinstance(archives, list):
+                            archives = []
+                except Exception:
+                    archives = []
+
+            # En yüksek puanlı oyuncuyu bul (Kazanan)
+            players = self.state.get("players", [])
+            winner = None
+            if players:
+                winner = sorted(players, key=lambda p: p.get("score", 0), reverse=True)[0].get("name")
+
+            now_str = datetime.now().strftime("%d.%m.%Y %H:%M:%S")
+            rounds_count = len(self.state.get("rounds", []))
+            game_id = int(time.time() * 1000)
+
+            record = {
+                "id": game_id,
+                "title": title or f"Oyun {len(archives) + 1} ({rounds_count}/20 El)",
+                "date": now_str,
+                "roundsCount": rounds_count,
+                "winner": winner,
+                "players": json.loads(json.dumps(players)),
+                "rounds": json.loads(json.dumps(self.state.get("rounds", []))),
+                "scoringMode": self.state.get("scoringMode", "standard"),
+            }
+
+            archives.insert(0, record)  # En yeni oyun en başa
+            # En son 100 oyunu sakla
+            archives = archives[:100]
+
+            with open(ARCHIVE_FILE, "w", encoding="utf-8") as f:
+                json.dump(archives, f, ensure_ascii=False, indent=2)
+            print(f"[ARŞİV] Oyun başarıyla arşivlendi: {record['title']} (ID: {game_id})")
+            return True
+        except Exception as e:
+            print(f"[HATA] Oyun arşivlenemedi: {e}")
+            return False
+
     def reset_state(self, names: list[str] | None = None) -> int:
+        # Sıfırlamadan önce mevcut oyunu arşivle (eğer en az 1 el oynandıysa)
+        if self.state and self.state.get("rounds"):
+            self.archive_current_game()
+
+        # HER ŞEYİ TERTEMİZ SIFIRLA (Eski isimler asla gelmesin)
         new_state = json.loads(json.dumps(DEFAULT_STATE))
-        if names and len(names) == 4:
+        if names and len(names) == 4 and any(n.strip() for n in names):
             for i, name in enumerate(names):
-                new_state["players"][i]["name"] = name
-        elif self.state and "players" in self.state:
-            for i, p in enumerate(self.state["players"][:4]):
-                new_state["players"][i]["name"] = p.get("name", f"Oyuncu {i+1}")
+                new_state["players"][i]["name"] = name.strip() or f"Oyuncu {i+1}"
+        else:
+            for i in range(4):
+                new_state["players"][i]["name"] = f"Oyuncu {i+1}"
+
         self.state = new_state
         self.version += 1
         self.updated_at = int(time.time() * 1000)
         self.save()
         return self.version
+
+    def restore_archive(self, archive_id: int) -> bool:
+        if not ARCHIVE_FILE.exists():
+            return False
+        try:
+            target_game = None
+            with open(ARCHIVE_FILE, "r", encoding="utf-8") as f:
+                archives = json.load(f)
+                for item in archives:
+                    if item.get("id") == archive_id:
+                        target_game = item
+                        break
+            if not target_game:
+                return False
+
+            # Arşivdeki oyunun tüm bilgilerini masaya yükle
+            restored_state = json.loads(json.dumps(DEFAULT_STATE))
+            restored_state["players"] = target_game.get("players", restored_state["players"])
+            restored_state["rounds"] = target_game.get("rounds", [])
+            restored_state["scoringMode"] = target_game.get("scoringMode", "standard")
+            restored_state["initialDealer"] = target_game.get("initialDealer", 0)
+
+            self.state = restored_state
+            self.version += 1
+            self.updated_at = int(time.time() * 1000)
+            self.save()
+            print(f"[ARŞİV] Oyun masaya başarıyla geri yüklendi: {target_game.get('title')}")
+            return True
+        except Exception as e:
+            print(f"[HATA] Arşiv geri yüklenemedi: {e}")
+            return False
+
 
 
 SESSION = GameSession(STATE_FILE)
@@ -177,6 +267,135 @@ class KingHTTPHandler(http.server.SimpleHTTPRequestHandler):
             self.wfile.write(body)
             return
 
+                # API: Geçmiş Oyunlar Arşivi
+        if self.path == "/api/archives":
+            archives = []
+            if ARCHIVE_FILE.exists():
+                try:
+                    with open(ARCHIVE_FILE, "r", encoding="utf-8") as f:
+                        archives = json.load(f)
+                except Exception:
+                    archives = []
+            # Hafif liste (tur detayları olmadan özet)
+            summary_list = []
+            for a in archives:
+                summary_list.append({
+                    "id": a.get("id"),
+                    "title": a.get("title"),
+                    "date": a.get("date"),
+                    "roundsCount": a.get("roundsCount"),
+                    "winner": a.get("winner"),
+                    "players": [{"name": p.get("name"), "score": p.get("score")} for p in a.get("players", [])],
+                })
+            body = json.dumps({"ok": True, "archives": summary_list}, ensure_ascii=False).encode("utf-8")
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json; charset=utf-8")
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+            return
+
+        # API: Belirli Bir Arşivin Detayı
+        if self.path.startswith("/api/archive-detail"):
+            archive_id = None
+            if "?" in self.path:
+                query = self.path.split("?")[1]
+                for part in query.split("&"):
+                    if part.startswith("id="):
+                        try:
+                            archive_id = int(part.split("=")[1])
+                        except ValueError:
+                            pass
+            found = None
+            if ARCHIVE_FILE.exists():
+                try:
+                    with open(ARCHIVE_FILE, "r", encoding="utf-8") as f:
+                        for item in json.load(f):
+                            if item.get("id") == archive_id:
+                                found = item
+                                break
+                except Exception:
+                    pass
+            if found:
+                body = json.dumps({"ok": True, "game": found}, ensure_ascii=False).encode("utf-8")
+                self.send_response(200)
+                self.send_header("Content-Type", "application/json; charset=utf-8")
+                self.send_header("Content-Length", str(len(body)))
+                self.end_headers()
+                self.wfile.write(body)
+                return
+            else:
+                self.send_response(404)
+                self.end_headers()
+                return
+
+        # API: Excel / CSV Olarak İndir (Toplu Çıktı)
+        if self.path.startswith("/api/export-csv"):
+            archive_id = None
+            if "?" in self.path:
+                query = self.path.split("?")[1]
+                for part in query.split("&"):
+                    if part.startswith("id="):
+                        try:
+                            archive_id = int(part.split("=")[1])
+                        except ValueError:
+                            pass
+
+            target_game = None
+            if archive_id and ARCHIVE_FILE.exists():
+                try:
+                    with open(ARCHIVE_FILE, "r", encoding="utf-8") as f:
+                        for item in json.load(f):
+                            if item.get("id") == archive_id:
+                                target_game = item
+                                break
+                except Exception:
+                    pass
+            if not target_game:
+                target_game = {
+                    "title": "Aktif Oyun",
+                    "date": datetime.now().strftime("%d.%m.%Y %H:%M:%S"),
+                    "players": SESSION.state.get("players", []),
+                    "rounds": SESSION.state.get("rounds", []),
+                }
+
+            # CSV Oluştur
+            output = io.StringIO()
+            # UTF-8 BOM ekle ki Excel Türkçe karakterleri doğru göstersin
+            output.write('\ufeff')
+            writer = csv.writer(output, delimiter=';')
+
+            players = target_game.get("players", [])
+            p_names = [p.get("name", f"Oyuncu {i+1}") for i, p in enumerate(players)]
+
+            writer.writerow(["KING PUAN VE CEZA HESAPLAMA ÇETESİ"])
+            writer.writerow(["Tarih", target_game.get("date", "")])
+            writer.writerow(["Toplam El", len(target_game.get("rounds", []))])
+            writer.writerow([])
+            writer.writerow(["El No", "Oyun Türü", "Söyleyen", *p_names])
+
+            rounds = target_game.get("rounds", [])
+            for r in rounds:
+                hand_no = r.get("handNo", "")
+                game_title = r.get("gameTitle", r.get("gameKey", "Koz"))
+                caller_name = r.get("callerName", "")
+                scores = [p.get("scoreDelta", 0) for p in r.get("players", [])]
+                writer.writerow([hand_no, game_title, caller_name, *scores])
+
+            writer.writerow([])
+            writer.writerow(["TOPLAM PUANLAR", "", "", *[p.get("score", 0) for p in players]])
+
+            csv_data = output.getvalue().encode("utf-8")
+            filename = f"king_cete_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv"
+
+            self.send_response(200)
+            self.send_header("Content-Type", "text/csv; charset=utf-8")
+            self.send_header("Content-Disposition", f'attachment; filename="{filename}"')
+            self.send_header("Content-Length", str(len(csv_data)))
+            self.end_headers()
+            self.wfile.write(csv_data)
+            return
+
         # API: Canlı Oyun Durumu
         if self.path == "/api/state" or self.path.startswith("/api/state?"):
             data = {
@@ -226,6 +445,35 @@ class KingHTTPHandler(http.server.SimpleHTTPRequestHandler):
                 self.send_response(400)
                 self.end_headers()
                 return
+
+        if self.path == "/api/archive-current":
+            title = payload.get("title")
+            success = SESSION.archive_current_game(title)
+            res = {"ok": success, "message": "Oyun arşivlendi" if success else "Arşivlenecek el bulunamadı"}
+            body = json.dumps(res, ensure_ascii=False).encode("utf-8")
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json; charset=utf-8")
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+            return
+
+        if self.path == "/api/restore-archive":
+            archive_id = payload.get("id")
+            if archive_id is not None:
+                try:
+                    archive_id = int(archive_id)
+                except ValueError:
+                    archive_id = None
+            success = SESSION.restore_archive(archive_id) if archive_id else False
+            res = {"ok": success, "version": SESSION.version, "state": SESSION.state}
+            body = json.dumps(res, ensure_ascii=False).encode("utf-8")
+            self.send_response(200 if success else 400)
+            self.send_header("Content-Type", "application/json; charset=utf-8")
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+            return
 
         if self.path == "/api/reset":
             names = payload.get("playerNames")

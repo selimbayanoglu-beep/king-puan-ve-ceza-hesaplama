@@ -1,0 +1,53 @@
+{
+  "version": 90,
+  "updatedAt": 1793132553090,
+  "state": {
+    "players": [
+      {
+        "id": 0,
+        "name": "Oyuncu 1",
+        "score": 0,
+        "kozCount": 0,
+        "cezaCount": 0
+      },
+      {
+        "id": 1,
+        "name": "Oyuncu 2",
+        "score": 0,
+        "kozCount": 0,
+        "cezaCount": 0
+      },
+      {
+        "id": 2,
+        "name": "Oyuncu 3",
+        "score": 0,
+        "kozCount": 0,
+        "cezaCount": 0
+      },
+      {
+        "id": 3,
+        "name": "Oyuncu 4",
+        "score": 0,
+        "kozCount": 0,
+        "cezaCount": 0
+      }
+    ],
+    "initialDealer": 0,
+    "scoringMode": "standard",
+    "rounds": [],
+    "selectedCezaKey": "el_almaz",
+    "selectedKozSuit": "karo",
+    "kozInputs": [
+      0,
+      0,
+      0,
+      0
+    ],
+    "cezaInputs": [
+      0,
+      0,
+      0,
+      0
+    ]
+  }
+}
