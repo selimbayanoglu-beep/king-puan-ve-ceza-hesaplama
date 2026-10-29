@@ -3302,3 +3302,96 @@ body.spectator-mode .spectator-warning-bar {
   font-weight: 900;
   box-shadow: 0 0 10px rgba(234, 179, 8, 0.45);
 }
+
+/* --------------------------------------------------------------------------
+   OYUNCU CEZA (3 ÜÇGEN: ▲▲▲) & KOZ (2 YUVARLAK: ●●) HAK GÖSTERGELERİ
+   -------------------------------------------------------------------------- */
+.player-rights-badges {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  vertical-align: middle;
+  line-height: 1;
+  user-select: none;
+}
+
+.prb-group {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 2px 5px;
+  border-radius: 6px;
+  background: rgba(15, 23, 42, 0.72);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+}
+
+.prb-ceza {
+  border-color: rgba(244, 63, 94, 0.45);
+  background: rgba(244, 63, 94, 0.12);
+}
+
+.prb-koz {
+  border-color: rgba(16, 185, 129, 0.45);
+  background: rgba(16, 185, 129, 0.12);
+}
+
+.prb-sym {
+  font-size: 12px;
+  line-height: 1;
+  font-weight: 900;
+  display: inline-block;
+}
+
+/* Üçgenler: Ceza Hakları (3 Adet) — Oynandıysa Dolu (▲), Oynanmadıysa Boş (△) */
+.prb-tri.filled {
+  color: #fb7185;
+  text-shadow: 0 0 6px rgba(244, 63, 94, 0.65);
+}
+.prb-tri.empty {
+  color: rgba(251, 113, 133, 0.45);
+}
+
+/* Yuvarlaklar: Koz Hakları (2 Adet) — Oynandıysa Dolu (●), Oynanmadıysa Boş (○) */
+.prb-cir.filled {
+  color: #34d399;
+  text-shadow: 0 0 6px rgba(16, 185, 129, 0.65);
+}
+.prb-cir.empty {
+  color: rgba(52, 211, 153, 0.45);
+}
+
+/* Kompakt / Satır İçi Görünümler */
+.player-rights-badges.prb-inline .prb-group,
+.player-rights-badges.prb-sm .prb-group {
+  padding: 1px 4px;
+  gap: 1.5px;
+}
+.player-rights-badges.prb-inline .prb-sym,
+.player-rights-badges.prb-sm .prb-sym {
+  font-size: 10.5px;
+}
+
+.lc-rights-row {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  margin: 2px 0 4px 0;
+}
+
+.th-p-name {
+  font-weight: 800;
+  line-height: 1.2;
+}
+.th-rights-wrap {
+  margin-top: 3px;
+  display: flex;
+  justify-content: center;
+}
+
+.btn-qf {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  flex-wrap: wrap;
+}

@@ -51,8 +51,8 @@ function setMyPlayerRole(role, showToastMsg = true) {
         const pIdx = parseInt(role, 10);
         const pName = (state && state.players && state.players[pIdx]) ? state.players[pIdx].name : `Oyuncu ${pIdx + 1}`;
         showToast(`📱 Telefon Modu: ${pName} seçildi! Kendi koz ve ceza puanını tek dokunuşla girebilirsin.`, 'emerald');
-        if (currentScreenIndex === 0 && state.rounds && state.rounds.length > 0) {
-          const targetScreen = state.activeHandType === 'koz' && state.rounds.length >= 4 ? 2 : 1;
+        const targetScreen = (state.activeHandType === 'koz' && state.rounds && state.rounds.length >= 4) ? 2 : 1;
+        if (currentScreenIndex !== targetScreen) {
           goToScreen(targetScreen, true);
         }
       }
@@ -113,6 +113,26 @@ function disableSpectatorMode() {
   setMyPlayerRole('all', true);
 }
 
+function renderPlayerRightsSymbols(player, extraClass = '') {
+  if (!player) return '';
+  const cezaCount = Math.min(3, Math.max(0, player.cezaCount || 0));
+  const kozCount = Math.min(2, Math.max(0, player.kozCount || 0));
+
+  let cezaSyms = '';
+  for (let i = 0; i < 3; i++) {
+    const isPlayed = i < cezaCount;
+    cezaSyms += `<span class="prb-sym prb-tri ${isPlayed ? 'filled' : 'empty'}">${isPlayed ? '▲' : '△'}</span>`;
+  }
+
+  let kozSyms = '';
+  for (let i = 0; i < 2; i++) {
+    const isPlayed = i < kozCount;
+    kozSyms += `<span class="prb-sym prb-cir ${isPlayed ? 'filled' : 'empty'}">${isPlayed ? '●' : '○'}</span>`;
+  }
+
+  return `<span class="player-rights-badges ${extraClass}" title="Ceza: ${cezaCount}/3 (▲) • Koz: ${kozCount}/2 (●)"><span class="prb-group prb-ceza">${cezaSyms}</span><span class="prb-group prb-koz">${kozSyms}</span></span>`;
+}
+
 function renderLivePlayerBar(currentHand, callerIdx, isGameOver) {
   const summaryEl = document.getElementById('lblLiveBarSummary');
   const pillsContainer = document.getElementById('playerRolePills');
@@ -144,13 +164,13 @@ function renderLivePlayerBar(currentHand, callerIdx, isGameOver) {
     });
     pillsContainer.appendChild(btnAll);
 
-    // 2. 4 Oyuncu Kimlik Butonları
+    // 2. 4 Oyuncu Kimlik Butonları (Yanında ▲▲▲ Ceza ve ●● Koz Sembolleriyle)
     state.players.forEach((p, idx) => {
       const roleVal = String(idx);
       const btn = document.createElement('button');
       btn.type = 'button';
       btn.className = `role-pill player-role-pill ${myPlayerRole === roleVal ? 'active' : ''}`;
-      btn.innerHTML = `👤 ${escapeHtml(p.name)}`;
+      btn.innerHTML = `<span>👤 ${escapeHtml(p.name)}</span> ${renderPlayerRightsSymbols(p, 'prb-inline')}`;
       btn.addEventListener('click', () => {
         triggerHaptic(15);
         setMyPlayerRole(roleVal, true);
@@ -594,7 +614,10 @@ async function fetchNetworkInfo() {
     const res = await fetch('/api/network-info', { cache: 'no-store' });
     if (res.ok) {
       const data = await res.json();
-      if (data.url) serverNetworkUrl = data.url;
+      // Docker, ters vekil veya port yönlendirme arkasında sunucunun yerel
+      // adresi dışarıdan erişilemez olabilir. Telefon bağlantısı için
+      // tarayıcının gerçekten açtığı adres her zaman doğru kaynaktır.
+      serverNetworkUrl = window.location.origin || data.url || serverNetworkUrl;
       return data;
     }
   } catch (e) {}
@@ -832,10 +855,6 @@ function isGameAvailableForCaller(callerIdx, gameKey) {
     return false;
   }
 
-  if (getPlayerGameUsageCount(callerIdx, gameKey) >= 1) {
-    return false;
-  }
-
   return true;
 }
 
@@ -902,7 +921,7 @@ function renderSetupScreen() {
     const btn = document.createElement('button');
     btn.type = 'button';
     btn.className = `btn-dealer-pick ${state.initialDealer === idx ? 'selected' : ''}`;
-    btn.textContent = `♣2 ${idx + 1}. ${p.name}`;
+    btn.innerHTML = `<span class="bdp-name">♣2 ${idx + 1}. ${escapeHtml(p.name)}</span> ${renderPlayerRightsSymbols(p, 'prb-inline')}`;
     btn.addEventListener('click', () => {
       triggerHaptic(15);
       // Önce input kutularında yazılmış olan güncel oyuncu isimlerini state'e kaydet (isimler asla silinmesin!)
@@ -975,6 +994,7 @@ function renderKozScreen(currentHand, callerIdx, isGameOver) {
     <span class="caller-prefix">👑 SÖYLEYEN:</span>
     <div class="caller-highlight-row">
       <span class="caller-highlight">${escapeHtml(caller.name)}</span>
+      ${renderPlayerRightsSymbols(caller)}
       <span class="caller-koz-suit ${activeSuit.cssClass}" title="Koz: ${activeSuit.name}">${activeSuit.symbol}</span>
     </div>
   `;
@@ -999,7 +1019,7 @@ function renderKozScreen(currentHand, callerIdx, isGameOver) {
     };
   });
 
-  rightsEl.textContent = `Koz Hakkı: ${caller.kozCount} / 2`;
+  rightsEl.innerHTML = `Koz: <b>${caller.kozCount}/2</b> • Ceza: <b>${caller.cezaCount}/3</b> ${renderPlayerRightsSymbols(caller, 'prb-sm')}`;
 
   // King Kuralı: İlk 4 el yalnızca ceza oynanır, koz 5. elden itibaren açılır!
   if (state.rounds.length < 4) {
@@ -1058,8 +1078,8 @@ function renderCezaScreen(currentHand, callerIdx, isGameOver) {
   }
 
   handNoEl.textContent = `${currentHand}. El (${currentHand} / 20)`;
-  callerEl.innerHTML = `<span class="caller-prefix">👑 SÖYLEYEN:</span> <span class="caller-highlight">${escapeHtml(caller.name)}</span>`;
-  rightsEl.textContent = `Ceza Hakkı: ${caller.cezaCount} / 3`;
+  callerEl.innerHTML = `<span class="caller-prefix">👑 SÖYLEYEN:</span> <span class="caller-highlight">${escapeHtml(caller.name)}</span> ${renderPlayerRightsSymbols(caller)}`;
+  rightsEl.innerHTML = `Ceza: <b>${caller.cezaCount}/3</b> • Koz: <b>${caller.kozCount}/2</b> ${renderPlayerRightsSymbols(caller, 'prb-sm')}`;
 
   // 1. Elde (henüz el kaydedilmemişken) Sinek 2'li kimde çıktıysa doğrudan buradan da seçilebilsin
   const firstHandDealerBar = document.getElementById('firstHandDealerBar');
@@ -1294,7 +1314,7 @@ function renderMyQuickEntryCard(type, totalUnits, inputsArray) {
     <div class="mqc-header">
       <div class="mqc-title-wrap">
         <span class="mqc-badge">📱 SENİN TELEFONUN</span>
-        <h4 class="mqc-player-name">${escapeHtml(me.name)}</h4>
+        <h4 class="mqc-player-name">${escapeHtml(me.name)} ${renderPlayerRightsSymbols(me)}</h4>
         ${isCaller ? '<span class="mqc-caller-tag">👑 Söyleyen Sensin</span>' : ''}
       </div>
       <div class="mqc-status-wrap">
@@ -1358,6 +1378,7 @@ function renderDistributionList(type, totalUnits, inputsArray, listId, quickId, 
       <div class="dist-player-info">
         <div class="dist-player-title-line">
           <span class="dist-player-name">${escapeHtml(p.name)}</span>
+          ${renderPlayerRightsSymbols(p)}
           ${isMe ? '<span class="my-player-tag">📱 SEN</span>' : ''}
           <span class="player-confirm-badge ${isConfirmed ? 'confirmed' : 'pending'}">
             ${isConfirmed ? '✓ Girdi' : '⏳ Bekleniyor'}
@@ -1417,7 +1438,7 @@ function renderDistributionList(type, totalUnits, inputsArray, listId, quickId, 
     container.appendChild(row);
   });
 
-  // Hızlı Kalanı Ata Butonları
+    // Hızlı Kalanı Ata Butonları
   const quickContainer = document.getElementById(quickId);
   if (quickContainer) {
     quickContainer.innerHTML = '';
@@ -1425,7 +1446,7 @@ function renderDistributionList(type, totalUnits, inputsArray, listId, quickId, 
       const btn = document.createElement('button');
       btn.type = 'button';
       btn.className = 'btn-qf';
-      btn.textContent = p.name;
+      btn.innerHTML = `<span>${escapeHtml(p.name)}</span> ${renderPlayerRightsSymbols(p, 'prb-sm')}`;
       btn.disabled = isSpectatorMode;
       btn.addEventListener('click', () => {
         if (isSpectatorMode) return;
@@ -1534,7 +1555,7 @@ function renderLiveActiveHandTracker(currentHand, callerIdx, isGameOver) {
     playersLiveHtml += `
       <div class="laht-player-chip ${isConf ? 'entered' : 'waiting'} ${isMe ? 'is-me' : ''}">
         <div class="laht-p-top">
-          <span class="laht-p-name">${escapeHtml(p.name)}</span>
+          <span class="laht-p-name">${escapeHtml(p.name)} ${renderPlayerRightsSymbols(p, 'prb-sm')}</span>
           <span class="laht-p-status">${isConf ? '✓' : '⏳'}</span>
         </div>
         <div class="laht-p-val">
@@ -1597,7 +1618,7 @@ function renderResultsScreen(currentHand, callerIdx, isGameOver) {
     if (btnFooterKoz) btnFooterKoz.style.display = 'none';
   } else {
     lblHand.textContent = `${currentHand} / 20`;
-    lblCaller.innerHTML = `<span class="nt-caller-prefix">👑 SIRADAKİ SÖYLEYEN:</span> <span class="nt-caller-name">${escapeHtml(caller.name)}</span>`;
+    lblCaller.innerHTML = `<span class="nt-caller-prefix">👑 SIRADAKİ SÖYLEYEN:</span> <span class="nt-caller-name">${escapeHtml(caller.name)}</span> ${renderPlayerRightsSymbols(caller)}`;
     
     // Hem üst çağrı kartında hem alt işlem alanında "Cezaya Git" ve "Koza Git" düğmeleri HER ZAMAN açık ve görünür
     btnJumpCeza.style.display = 'inline-flex';
@@ -1630,12 +1651,15 @@ function renderResultsScreen(currentHand, callerIdx, isGameOver) {
         <span class="lc-name">${escapeHtml(p.name)}</span>
         ${isTurn ? '<span class="lc-turn-badge">Sıradaki</span>' : ''}
       </div>
+      <div class="lc-rights-row">
+        ${renderPlayerRightsSymbols(p)}
+      </div>
       <div class="lc-score ${p.score > 0 ? 'pos' : p.score < 0 ? 'neg' : ''}">
         ${p.score > 0 ? '+' : ''}${p.score}
       </div>
       <div class="lc-stats">
-        <span>Koz: <b>${p.kozCount}/2</b></span>
         <span>Ceza: <b>${p.cezaCount}/3</b></span>
+        <span>Koz: <b>${p.kozCount}/2</b></span>
       </div>
     `;
     board.appendChild(card);
@@ -1649,10 +1673,12 @@ function renderResultsScreen(currentHand, callerIdx, isGameOver) {
 }
 
 function renderMatrixTable() {
-  document.getElementById('thPlayer1').textContent = state.players[0].name;
-  document.getElementById('thPlayer2').textContent = state.players[1].name;
-  document.getElementById('thPlayer3').textContent = state.players[2].name;
-  document.getElementById('thPlayer4').textContent = state.players[3].name;
+  for (let i = 0; i < 4; i++) {
+    const thEl = document.getElementById(`thPlayer${i + 1}`);
+    if (thEl && state.players[i]) {
+      thEl.innerHTML = `<div class="th-p-name">${escapeHtml(state.players[i].name)}</div><div class="th-rights-wrap">${renderPlayerRightsSymbols(state.players[i], 'prb-sm')}</div>`;
+    }
+  }
 
   const tbody = document.getElementById('ceteleTableBody');
   tbody.innerHTML = '';
@@ -2328,6 +2354,7 @@ function renderTargetScreen(currentHand, callerIdx, isGameOver) {
         <div class="kzc-player-info">
           <span style="font-size: 20px;">👤</span>
           <span class="kzc-player-name">${escapeHtml(player.name)}</span>
+          ${renderPlayerRightsSymbols(player)}
         </div>
         <span class="kzc-current-pts ${isPos ? 'pos' : (isZero ? 'zero' : 'neg')}">
           Şu Anki Puan: ${isPos ? '+' : ''}${curPts} P

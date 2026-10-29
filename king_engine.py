@@ -148,11 +148,6 @@ class KingGame:
         if global_played >= 2:
             return False
 
-        # Oyuncu kendisi bu cezayı daha önce söyledi mi?
-        already_called = any(r.caller_idx == p_idx and r.game_key == game_key for r in self.rounds)
-        if already_called:
-            return False
-
         return True
 
     def record_hand(self, game_key: str, distribution: List[int]) -> HandResult:
