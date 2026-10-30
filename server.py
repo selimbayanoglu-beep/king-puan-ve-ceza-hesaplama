@@ -556,6 +556,44 @@ class KingHTTPHandler(http.server.SimpleHTTPRequestHandler):
             self.wfile.write(body)
             return
 
+        if self.path == "/api/pull-github":
+            import urllib.request
+            files_to_sync = [
+                "index.html",
+                "style.css",
+                "app.js",
+                "king_engine.py",
+                "server.py",
+                "icon.svg",
+                "manifest.json",
+                "qrcode.js",
+            ]
+            repo_base = "https://raw.githubusercontent.com/selimbayanoglu-beep/king-puan-ve-ceza-hesaplama/main/"
+            updated_files = []
+            errors = []
+            for fname in files_to_sync:
+                try:
+                    url = f"{repo_base}{fname}?t={int(time.time())}"
+                    req = urllib.request.Request(url, headers={"Cache-Control": "no-cache"})
+                    with urllib.request.urlopen(req, timeout=15) as resp:
+                        data = resp.read()
+                    if data:
+                        target_path = os.path.join(BASE_DIR, fname)
+                        with open(target_path, "wb") as f:
+                            f.write(data)
+                        updated_files.append(fname)
+                except Exception as exc:
+                    errors.append(f"{fname}: {exc}")
+
+            res = {"ok": len(errors) == 0, "updated": updated_files, "errors": errors}
+            body = json.dumps(res, ensure_ascii=False).encode("utf-8")
+            self.send_response(200 if not errors else 500)
+            self.send_header("Content-Type", "application/json; charset=utf-8")
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+            return
+
         self.send_response(404)
         self.end_headers()
 
