@@ -18,7 +18,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700;800;900&family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css?v=20261029_v8">
+  <link rel="stylesheet" href="style.css?v=20261030_v9">
 </head>
 <body>
   <div class="app-background-glow glow-1"></div>
@@ -191,6 +191,11 @@
           <div class="first-hand-dealer-bar" id="firstHandDealerBar" style="display: none;">
             <!-- JS ile 1. elde Sinek 2'li kimdeyse hızlı seçim butonları render edilir -->
           </div>
+          <!-- KING İlanı Hızlı Düğmesi -->
+          <div class="king-call-bar" id="cezaKingCallBar">
+            <span class="kcb-text">👑 <b>KING:</b> Söyleyen 11+ el alırsa ceza/koz ne olursa olsun oyunu kazanır</span>
+            <button type="button" class="btn-king-declare" id="btnOpenKingFromCeza">🏆 KING! (11+ El)</button>
+          </div>
         </div>
 
         <!-- Ceza Hakkı Tükendiyse Uyarı -->
@@ -298,6 +303,11 @@
               <span class="caller-koz-suit suit-karo" id="lblKozSuitHero">♦</span>
             </div>
           </div>
+          <!-- KING İlanı Hızlı Düğmesi -->
+          <div class="king-call-bar" id="kozKingCallBar">
+            <span class="kcb-text">👑 <b>KING:</b> Söyleyen 11+ el alırsa ceza/koz ne olursa olsun oyunu kazanır</span>
+            <button type="button" class="btn-king-declare" id="btnOpenKingFromKoz">🏆 KING! (11+ El)</button>
+          </div>
         </div>
 
         <!-- Koz Türü Seçim Çubuğu (Karo, Kupa, Maça, Sinek) -->
@@ -402,6 +412,7 @@
           <div class="nt-actions">
             <button type="button" class="btn btn-sm btn-ceza" id="btnJumpToCeza">⚡ Cezaya Git</button>
             <button type="button" class="btn btn-sm btn-koz" id="btnJumpToKoz">👑 Koza Git</button>
+            <button type="button" class="btn btn-sm btn-king-declare" id="btnJumpToKing">🏆 KING! (11+ El)</button>
           </div>
         </div>
 
@@ -749,7 +760,66 @@
     </div>
   </div>
 
+  <!-- 👑 KING (11+ EL DOĞRUDAN ZAFER) İLAN MODALI -->
+  <div class="modal-backdrop" id="modalKingDeclare">
+    <div class="modal-box modal-md king-declare-modal">
+      <div class="modal-header king-modal-header">
+        <div class="modal-title-wrap">
+          <span class="modal-badge-icon">🏆</span>
+          <div>
+            <h3>👑 KING İLANI (11+ El Doğrudan Zafer)</h3>
+            <span style="font-size: 12px; color: #fde047;">Ceza ve koz durumu ne olursa olsun 11+ el alan oyunu kazanır!</span>
+          </div>
+        </div>
+        <button class="modal-close" id="btnCloseKingModal">&times;</button>
+      </div>
+      <div class="modal-body king-modal-body">
+        <div class="king-caller-banner" id="kingModalCallerBanner">
+          <!-- JS ile sıradaki oyuncu adı ve hakları render edilir -->
+        </div>
+
+        <div class="king-form-section">
+          <label class="king-form-label">1. Oynanan Koz Rengini Seçin:</label>
+          <div class="king-suits-row" id="kingModalSuitsRow">
+            <button type="button" class="btn-king-suit active" data-ksuit="karo">♦ Karo</button>
+            <button type="button" class="btn-king-suit" data-ksuit="kupa">♥️ Kupa</button>
+            <button type="button" class="btn-king-suit" data-ksuit="maca">♠ Maça</button>
+            <button type="button" class="btn-king-suit" data-ksuit="sinek">♣ Sinek</button>
+          </div>
+        </div>
+
+        <div class="king-form-section">
+          <label class="king-form-label" id="lblKingTricksPrompt">2. Söyleyen Kaç El Aldı? (En Az 11 El = Oyunu Kazanır):</label>
+          <div class="king-tricks-grid" id="kingModalTricksGrid">
+            <button type="button" class="btn-king-trick active" data-tricks="11">
+              <span class="kt-num">11 El</span>
+              <span class="kt-tag">🏆 KING KAZANIR</span>
+            </button>
+            <button type="button" class="btn-king-trick" data-tricks="12">
+              <span class="kt-num">12 El</span>
+              <span class="kt-tag">🏆 KING KAZANIR</span>
+            </button>
+            <button type="button" class="btn-king-trick" data-tricks="13">
+              <span class="kt-num">13 El</span>
+              <span class="kt-tag">🏆 TAM KING!</span>
+            </button>
+          </div>
+        </div>
+
+        <div class="king-rule-note">
+          💡 <b>Kural:</b> Sıra kendisinde olan oyuncu <b>KING</b> der ve <b>11, 12 veya 13 el</b> alırsa, o ana kadarki ceza ve koz puanları ne olursa olsun oyunu doğrudan kazanır!
+        </div>
+      </div>
+      <div class="modal-footer king-modal-footer">
+        <button type="button" class="btn btn-secondary" id="btnCancelKingModal">Vazgeç</button>
+        <button type="button" class="btn btn-king-confirm" id="btnConfirmKingWin">
+          🏆 KING Yaptı (11+ El) — Oyunu Kazandı İlan Et!
+        </button>
+      </div>
+    </div>
+  </div>
+
   <script src="qrcode.js"></script>
-  <script src="app.js?v=20261029_v8"></script>
+  <script src="app.js?v=20261030_v9"></script>
 </body>
 </html>

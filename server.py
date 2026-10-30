@@ -113,10 +113,12 @@ class GameSession:
                 except Exception:
                     archives = []
 
-            # En yüksek puanlı oyuncuyu bul (Kazanan)
+            # En yüksek puanlı oyuncuyu bul (Kazanan — Eğer KING ilanı ile kazanıldıysa doğrudan o kazanır)
             players = self.state.get("players", [])
             winner = None
-            if players:
+            if self.state.get("kingWinnerName"):
+                winner = f"{self.state.get('kingWinnerName')} (👑 KING!)"
+            elif players:
                 winner = sorted(players, key=lambda p: p.get("score", 0), reverse=True)[0].get("name")
 
             now_str = datetime.now().strftime("%d.%m.%Y %H:%M:%S")
@@ -233,6 +235,12 @@ def get_local_ip() -> str:
 
 class KingHTTPHandler(http.server.SimpleHTTPRequestHandler):
     """Statik dosya ve canlı senkronizasyon REST API işleyicisi."""
+
+    extensions_map = {
+        **http.server.SimpleHTTPRequestHandler.extensions_map,
+        ".json": "application/json",
+        ".svg": "image/svg+xml",
+    }
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, directory=str(DIR_PATH), **kwargs)
@@ -416,12 +424,6 @@ class KingHTTPHandler(http.server.SimpleHTTPRequestHandler):
             self.end_headers()
             self.wfile.write(body)
             return
-
-        # Özel PWA MIME Tipleri
-        if self.path == "/manifest.json":
-            self.send_header("Content-Type", "application/manifest+json; charset=utf-8")
-        elif self.path == "/icon.svg" or self.path.endswith(".svg"):
-            self.send_header("Content-Type", "image/svg+xml; charset=utf-8")
 
         super().do_GET()
 

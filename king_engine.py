@@ -111,6 +111,8 @@ class KingGame:
         self.player_names = player_names or ["Oyuncu 1", "Oyuncu 2", "Oyuncu 3", "Oyuncu 4"]
         self.scoring_mode = scoring_mode  # standard, zero_sum, bloody
         self.rounds: List[HandResult] = []
+        self.king_winner_idx: Optional[int] = None
+        self.king_winner_tricks: Optional[int] = None
 
     def get_current_hand_number(self) -> int:
         return len(self.rounds) + 1
@@ -184,6 +186,33 @@ class KingGame:
             points=points,
         )
         self.rounds.append(res)
+        if def_.is_koz and distribution[caller_idx] >= 11:
+            self.king_winner_idx = caller_idx
+            self.king_winner_tricks = distribution[caller_idx]
+        return res
+
+    def declare_king_win(self, tricks: int = 11) -> HandResult:
+        """Sıradaki oyuncu KING der ve 11+ el alırsa ceza ve koz durumu ne olursa olsun oyunu kazanır."""
+        if tricks < 11 or tricks > 13:
+            raise ValueError("KING kazanmak için en az 11 el (11, 12 veya 13) alınmalıdır!")
+        hand_no = self.get_current_hand_number()
+        caller_idx = self.get_current_caller_index()
+        dist = [0, 0, 0, 0]
+        dist[caller_idx] = tricks
+        rem = 13 - tricks
+        if rem > 0:
+            dist[(caller_idx + 1) % 4] = rem
+        pts = [c * 50 for c in dist]
+        res = HandResult(
+            hand_no=hand_no,
+            caller_idx=caller_idx,
+            game_key="koz",
+            distribution=dist,
+            points=pts,
+        )
+        self.rounds.append(res)
+        self.king_winner_idx = caller_idx
+        self.king_winner_tricks = tricks
         return res
 
     def get_leaderboard(self) -> List[Dict[str, any]]:

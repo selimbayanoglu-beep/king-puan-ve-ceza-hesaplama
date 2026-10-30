@@ -140,7 +140,11 @@ function renderLivePlayerBar(currentHand, callerIdx, isGameOver) {
 
   if (summaryEl) {
     if (isGameOver) {
-      summaryEl.textContent = '20/20 El Tamamlandı 🏆';
+      if (hasKingWinner()) {
+        summaryEl.innerHTML = `🏆 <b>KING ZAFERİ:</b> 👑 ${escapeHtml(state.kingWinnerName)} (${state.kingWinnerTricks || 11} El) Oyunu Kazandı!`;
+      } else {
+        summaryEl.textContent = '20/20 El Tamamlandı 🏆';
+      }
     } else {
       const isKozActive = state.activeHandType === 'koz' && state.rounds.length >= 4;
       const activeGameTitle = isKozActive
@@ -770,12 +774,19 @@ function loadStateFromStorage() {
 // ==========================================================================
 // PUAN VE HAK HESAPLAMA MOTORU
 // ==========================================================================
+function hasKingWinner() {
+  return typeof state.kingWinnerIdx === 'number' && state.kingWinnerIdx >= 0 && state.kingWinnerIdx < 4;
+}
+
 function recalculateAllScores() {
   state.players.forEach(p => {
     p.score = 0;
     p.kozCount = 0;
     p.cezaCount = 0;
   });
+  state.kingWinnerIdx = null;
+  state.kingWinnerName = null;
+  state.kingWinnerTricks = null;
 
   state.rounds.forEach(round => {
     const caller = state.players[round.callerIdx];
@@ -793,6 +804,15 @@ function recalculateAllScores() {
         state.players[pIdx].score += pt;
       }
     });
+
+    const callerTricks = (round.isKoz && Array.isArray(round.distribution)) ? (round.distribution[round.callerIdx] || 0) : 0;
+    if (round.isKingWin || (round.isKoz && callerTricks >= 11)) {
+      round.isKingWin = true;
+      round.kingTricks = round.kingTricks || callerTricks || 11;
+      state.kingWinnerIdx = round.callerIdx;
+      state.kingWinnerName = caller ? caller.name : round.callerName;
+      state.kingWinnerTricks = round.kingTricks;
+    }
   });
 }
 
@@ -865,7 +885,7 @@ function renderAll() {
   ensureStateArrays(state);
   const currentHand = getCurrentHandNumber();
   const callerIdx = getCurrentCallerIndex();
-  const isGameOver = currentHand > 20;
+  const isGameOver = currentHand > 20 || hasKingWinner();
 
   renderLivePlayerBar(currentHand, callerIdx, isGameOver);
   renderSetupScreen();
@@ -967,14 +987,19 @@ function renderKozScreen(currentHand, callerIdx, isGameOver) {
   const playedKozCount = state.rounds.filter(r => r.isKoz).length;
 
   document.getElementById('tabBadgeKoz').textContent = `${playedKozCount}/8`;
+  const kozKingBar = document.getElementById('kozKingCallBar');
 
   if (isGameOver) {
-    handNoEl.textContent = 'Oyun Bitti (20/20)';
-    callerEl.textContent = 'Sonuçları İnceleyin';
+    handNoEl.textContent = hasKingWinner() ? '🏆 KING İLE BİTTİ' : 'Oyun Bitti (20/20)';
+    callerEl.innerHTML = hasKingWinner()
+      ? `👑 KING ŞAMPİYONU: <span class="caller-highlight">${escapeHtml(state.kingWinnerName)}</span> (${state.kingWinnerTricks || 11} El)`
+      : 'Sonuçları İnceleyin';
     entryBox.style.display = 'none';
     lockedAlert.style.display = 'none';
+    if (kozKingBar) kozKingBar.style.display = 'none';
     return;
   }
+  if (kozKingBar) kozKingBar.style.display = isSpectatorMode ? 'none' : 'flex';
 
   handNoEl.textContent = `${currentHand}. El (${currentHand} / 20)`;
   
@@ -1067,15 +1092,20 @@ function renderCezaScreen(currentHand, callerIdx, isGameOver) {
   const playedCezaCount = state.rounds.filter(r => !r.isKoz).length;
 
   document.getElementById('tabBadgeCeza').textContent = `${playedCezaCount}/12`;
+  const cezaKingBar = document.getElementById('cezaKingCallBar');
 
   if (isGameOver) {
-    handNoEl.textContent = 'Oyun Bitti (20/20)';
-    callerEl.textContent = 'Sonuçları İnceleyin';
+    handNoEl.textContent = hasKingWinner() ? '🏆 KING İLE BİTTİ' : 'Oyun Bitti (20/20)';
+    callerEl.innerHTML = hasKingWinner()
+      ? `👑 KING ŞAMPİYONU: <span class="caller-highlight">${escapeHtml(state.kingWinnerName)}</span> (${state.kingWinnerTricks || 11} El)`
+      : 'Sonuçları İnceleyin';
     entryBox.style.display = 'none';
     lockedAlert.style.display = 'none';
     grid.style.display = 'none';
+    if (cezaKingBar) cezaKingBar.style.display = 'none';
     return;
   }
+  if (cezaKingBar) cezaKingBar.style.display = isSpectatorMode ? 'none' : 'flex';
 
   handNoEl.textContent = `${currentHand}. El (${currentHand} / 20)`;
   callerEl.innerHTML = `<span class="caller-prefix">👑 SÖYLEYEN:</span> <span class="caller-highlight">${escapeHtml(caller.name)}</span> ${renderPlayerRightsSymbols(caller)}`;
@@ -1605,56 +1635,72 @@ function renderResultsScreen(currentHand, callerIdx, isGameOver) {
   const lblCaller = document.getElementById('lblResActiveCaller');
   const btnJumpKoz = document.getElementById('btnJumpToKoz');
   const btnJumpCeza = document.getElementById('btnJumpToCeza');
+  const btnJumpKing = document.getElementById('btnJumpToKing');
 
   const btnFooterCeza = document.getElementById('btnFooterGoCeza');
   const btnFooterKoz = document.getElementById('btnFooterGoKoz');
 
   if (isGameOver) {
-    lblHand.textContent = '20 / 20 (TAMAMLANDI)';
-    lblCaller.textContent = 'Şampiyon Belli Oldu! 🏆';
+    if (hasKingWinner()) {
+      lblHand.textContent = '🏆 KING ZAFERİ İLE BİTTİ!';
+      lblCaller.innerHTML = `👑 KING ŞAMPİYONU: <span class="nt-caller-name" style="color:#fde047;">${escapeHtml(state.kingWinnerName)}</span> <span style="font-size:13px; color:#34d399;">(${state.kingWinnerTricks || 11} El Aldı — Ceza ve Koz Durumu Ne Olursa Olsun Kazandı!) 🏆</span>`;
+    } else {
+      lblHand.textContent = '20 / 20 (TAMAMLANDI)';
+      lblCaller.textContent = 'Şampiyon Belli Oldu! 🏆';
+    }
     btnJumpKoz.style.display = 'none';
     btnJumpCeza.style.display = 'none';
+    if (btnJumpKing) btnJumpKing.style.display = 'none';
     if (btnFooterCeza) btnFooterCeza.style.display = 'none';
     if (btnFooterKoz) btnFooterKoz.style.display = 'none';
   } else {
     lblHand.textContent = `${currentHand} / 20`;
     lblCaller.innerHTML = `<span class="nt-caller-prefix">👑 SIRADAKİ SÖYLEYEN:</span> <span class="nt-caller-name">${escapeHtml(caller.name)}</span> ${renderPlayerRightsSymbols(caller)}`;
     
-    // Hem üst çağrı kartında hem alt işlem alanında "Cezaya Git" ve "Koza Git" düğmeleri HER ZAMAN açık ve görünür
+    // Hem üst çağrı kartında hem alt işlem alanında "Cezaya Git", "Koza Git" ve "KING" düğmeleri HER ZAMAN açık ve görünür
     btnJumpCeza.style.display = 'inline-flex';
     btnJumpKoz.style.display = 'inline-flex';
+    if (btnJumpKing) btnJumpKing.style.display = isSpectatorMode ? 'none' : 'inline-flex';
 
     if (btnFooterCeza) btnFooterCeza.style.display = 'inline-flex';
     if (btnFooterKoz) btnFooterKoz.style.display = 'inline-flex';
   }
 
-  // 4 Oyuncu Canlı Skor Kartları (Liderlik)
+  // 4 Oyuncu Canlı Skor Kartları (Liderlik — KING kazananı varsa puan/ceza ne olursa olsun 1. sıradadır!)
   const board = document.getElementById('resultsLeaderboard');
   board.innerHTML = '';
-  const sortedPlayers = [...state.players].sort((a, b) => b.score - a.score);
+  const sortedPlayers = [...state.players].sort((a, b) => {
+    if (hasKingWinner()) {
+      if (a.id === state.kingWinnerIdx) return -1;
+      if (b.id === state.kingWinnerIdx) return 1;
+    }
+    return b.score - a.score;
+  });
   const ranks = {};
   sortedPlayers.forEach((p, i) => ranks[p.id] = i + 1);
 
   state.players.forEach(p => {
     const isTurn = p.id === callerIdx && !isGameOver;
+    const isKingChamp = hasKingWinner() && p.id === state.kingWinnerIdx;
     const rank = ranks[p.id];
     let medal = `${rank}.`;
-    if (rank === 1) medal = '🥇';
+    if (isKingChamp) medal = '👑🏆';
+    else if (rank === 1) medal = '🥇';
     else if (rank === 2) medal = '🥈';
     else if (rank === 3) medal = '🥉';
 
     const card = document.createElement('div');
-    card.className = `leader-card rank-${rank} ${isTurn ? 'active-turn' : ''}`;
+    card.className = `leader-card rank-${rank} ${isTurn ? 'active-turn' : ''} ${isKingChamp ? 'king-winner-card' : ''}`;
     card.innerHTML = `
       <div class="lc-top">
         <span class="lc-rank">${medal}</span>
         <span class="lc-name">${escapeHtml(p.name)}</span>
-        ${isTurn ? '<span class="lc-turn-badge">Sıradaki</span>' : ''}
+        ${isKingChamp ? `<span class="lc-king-win-badge">🏆 KING (${state.kingWinnerTricks || 11} EL) KAZANDI</span>` : (isTurn ? '<span class="lc-turn-badge">Sıradaki</span>' : '')}
       </div>
       <div class="lc-rights-row">
         ${renderPlayerRightsSymbols(p)}
       </div>
-      <div class="lc-score ${p.score > 0 ? 'pos' : p.score < 0 ? 'neg' : ''}">
+      <div class="lc-score ${isKingChamp || p.score > 0 ? 'pos' : p.score < 0 ? 'neg' : ''}">
         ${p.score > 0 ? '+' : ''}${p.score}
       </div>
       <div class="lc-stats">
@@ -1778,7 +1824,7 @@ function renderHistoryTable() {
       tr.innerHTML = `
         <td><b>#${rnd.handNo}</b></td>
         <td>${escapeHtml(rnd.callerName)}</td>
-        <td>${def.icon} ${def.shortTitle}</td>
+        <td>${rnd.isKingWin ? `🏆 <b>KING! (${rnd.kingTricks || 11} El)</b>` : `${def.icon} ${def.shortTitle}`}</td>
         ${pointsCols}
       `;
       tbody.appendChild(tr);
@@ -1812,18 +1858,24 @@ function saveKozHand() {
 
   const distribution = [...state.kozInputs];
   const points = calculateHandPoints('koz', callerIdx, distribution);
+  const callerTricks = distribution[callerIdx] || 0;
+  const isKingWin = callerTricks >= 11;
 
   const roundData = {
     handNo: currentHand,
     callerIdx: callerIdx,
     callerName: state.players[callerIdx].name,
     gameKey: 'koz',
-    gameTitle: `Koz (${(activeKozSuit => {
-      const defs = { karo: '♦ Karo', kupa: '♥️ Kupa', maca: '♠ Maça', sinek: '♣ Sinek' };
-      return defs[activeKozSuit] || '♦ Karo';
-    })(state.selectedKozSuit)})`,
+    gameTitle: isKingWin
+      ? `🏆 KING! (${callerTricks} El)`
+      : `Koz (${(activeKozSuit => {
+          const defs = { karo: '♦ Karo', kupa: '♥️ Kupa', maca: '♠ Maça', sinek: '♣ Sinek' };
+          return defs[activeKozSuit] || '♦ Karo';
+        })(state.selectedKozSuit)})`,
     kozSuit: state.selectedKozSuit || 'karo',
     isKoz: true,
+    isKingWin: isKingWin,
+    kingTricks: isKingWin ? callerTricks : undefined,
     distribution: distribution,
     points: points,
     timestamp: new Date().toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' })
@@ -1838,13 +1890,128 @@ function saveKozHand() {
   inputHistories.koz = [];
   saveStateToStorage();
   pushStateToServer();
-  triggerHaptic(40);
+  triggerHaptic(50);
   renderAll();
 
-  showToast(`${currentHand}. el (Koz) başarıyla kaydedildi!`, 'emerald');
+  if (isKingWin) {
+    showToast(`🏆 KING! ${state.players[callerIdx].name} ${callerTricks} el alarak ceza ve koz durumu ne olursa olsun OYUNU KAZANDI!`, 'emerald');
+  } else {
+    showToast(`${currentHand}. el (Koz) başarıyla kaydedildi!`, 'emerald');
+  }
 
   // Otomatik olarak Toplu Sonuçlar sayfasına kaydır
   goToScreen(3, true);
+}
+
+// ==========================================================================
+// 👑 KING (11+ EL DOĞRUDAN ZAFER) İLAN FONKSİYONLARI
+// ==========================================================================
+let selectedKingModalSuit = 'karo';
+let selectedKingModalTricks = 11;
+
+function openKingDeclareModal() {
+  if (isSpectatorMode) return;
+  const currentHand = getCurrentHandNumber();
+  if (currentHand > 20 || hasKingWinner()) {
+    showToast('Oyun zaten tamamlandı!', 'amber');
+    return;
+  }
+
+  triggerHaptic(25);
+  const callerIdx = getCurrentCallerIndex();
+  const caller = state.players[callerIdx] || state.players[0];
+  selectedKingModalSuit = state.selectedKozSuit || 'karo';
+  selectedKingModalTricks = 11;
+
+  const banner = document.getElementById('kingModalCallerBanner');
+  if (banner) {
+    banner.innerHTML = `
+      <div class="kcb-modal-caller">
+        <span class="kcb-modal-label">👑 SIRADAKİ OYUNCU (KING DİYEN):</span>
+        <div class="kcb-modal-name-row">
+          <span class="kcb-modal-name">${escapeHtml(caller.name)}</span>
+          ${renderPlayerRightsSymbols(caller)}
+        </div>
+        <span class="kcb-modal-score">Mevcut Puanı: <b>${caller.score > 0 ? '+' : ''}${caller.score} P</b> (Ceza: ${caller.cezaCount}/3 • Koz: ${caller.kozCount}/2)</span>
+      </div>
+    `;
+  }
+
+  const promptEl = document.getElementById('lblKingTricksPrompt');
+  if (promptEl) {
+    promptEl.innerHTML = `2. <b>${escapeHtml(caller.name)}</b> Kaç El Aldı? (En Az 11 El = Doğrudan Oyunu Kazanır):`;
+  }
+
+  document.querySelectorAll('#kingModalSuitsRow .btn-king-suit').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.ksuit === selectedKingModalSuit);
+  });
+  document.querySelectorAll('#kingModalTricksGrid .btn-king-trick').forEach(btn => {
+    btn.classList.toggle('active', parseInt(btn.dataset.tricks, 10) === selectedKingModalTricks);
+  });
+
+  const modal = document.getElementById('modalKingDeclare');
+  if (modal) modal.classList.add('active');
+}
+
+function closeKingDeclareModal() {
+  const modal = document.getElementById('modalKingDeclare');
+  if (modal) modal.classList.remove('active');
+}
+
+function confirmKingWin() {
+  if (isSpectatorMode) return;
+  const currentHand = getCurrentHandNumber();
+  if (currentHand > 20 || hasKingWinner()) return;
+
+  const callerIdx = getCurrentCallerIndex();
+  const caller = state.players[callerIdx] || state.players[0];
+  const tricks = Math.min(13, Math.max(11, selectedKingModalTricks || 11));
+  const remTricks = 13 - tricks;
+
+  // 13 eli tamamlayacak şekilde dağılım oluştur (söyleyen 11/12/13 el alır)
+  const distribution = [0, 0, 0, 0];
+  distribution[callerIdx] = tricks;
+  if (remTricks > 0) {
+    const nextIdx = (callerIdx + 1) % 4;
+    distribution[nextIdx] = remTricks;
+  }
+
+  const points = calculateHandPoints('koz', callerIdx, distribution);
+  const suitDefs = { karo: '♦ Karo', kupa: '♥️ Kupa', maca: '♠ Maça', sinek: '♣ Sinek' };
+  const suitLabel = suitDefs[selectedKingModalSuit] || '♦ Karo';
+
+  const roundData = {
+    handNo: currentHand,
+    callerIdx: callerIdx,
+    callerName: caller.name,
+    gameKey: 'koz',
+    gameTitle: `🏆 KING! (${suitLabel} - ${tricks} El)`,
+    kozSuit: selectedKingModalSuit,
+    isKoz: true,
+    isKingWin: true,
+    kingTricks: tricks,
+    distribution: distribution,
+    points: points,
+    timestamp: new Date().toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' })
+  };
+
+  state.rounds.push(roundData);
+  recalculateAllScores();
+  state.kozInputs = [0, 0, 0, 0];
+  state.cezaInputs = [0, 0, 0, 0];
+  state.kozConfirmed = [false, false, false, false];
+  state.cezaConfirmed = [false, false, false, false];
+  inputHistories.koz = [];
+  inputHistories.ceza = [];
+
+  saveStateToStorage();
+  pushStateToServer();
+  triggerHaptic(60);
+  closeKingDeclareModal();
+  renderAll();
+  goToScreen(3, true);
+
+  showToast(`🏆 KING ZAFERİ! ${caller.name} ${tricks} el alarak ceza ve koz durumu ne olursa olsun OYUNU KAZANDI!`, 'emerald');
 }
 
 function saveCezaHand() {
@@ -2029,7 +2196,13 @@ function renderTargetScreen(currentHand, callerIdx, isGameOver) {
   // 1. Kalan Oyunlar Şeridi (Hero Banner)
   const heroBanner = document.getElementById('targetRemainingHero');
   if (heroBanner) {
-    if (totalRemainingHands <= 0) {
+    if (hasKingWinner()) {
+      heroBanner.innerHTML = `
+        <div class="rhb-item">
+          <span>🏆 <b>KING ZAFERİ İLE BİTTİ:</b> 👑 <b>${escapeHtml(state.kingWinnerName)}</b> King deyip <b>${state.kingWinnerTricks || 11} el</b> alarak ceza ve koz durumu ne olursa olsun oyunu doğrudan kazandı!</span>
+        </div>
+      `;
+    } else if (totalRemainingHands <= 0) {
       heroBanner.innerHTML = `
         <div class="rhb-item">
           <span>🏁 <b>Oyun Tamamlandı:</b> Tüm 20 el oynandı, çete bağlandı.</span>
@@ -2068,21 +2241,31 @@ function renderTargetScreen(currentHand, callerIdx, isGameOver) {
   const cardsGrid = document.getElementById('targetKozaCikmaCards');
   if (!cardsGrid) return;
 
-  if (totalRemainingHands <= 0) {
-    // Oyun Tamamen Bittiğinde
-    const sorted = [...state.players].sort((a, b) => b.score - a.score);
+  if (totalRemainingHands <= 0 || hasKingWinner()) {
+    // Oyun Tamamen Bittiğinde (20 El Bitti veya KING İlan Edildi)
+    const sorted = [...state.players].sort((a, b) => {
+      if (hasKingWinner()) {
+        if (a.id === state.kingWinnerIdx) return -1;
+        if (b.id === state.kingWinnerIdx) return 1;
+      }
+      return b.score - a.score;
+    });
     cardsGrid.innerHTML = `
-      <div style="background: rgba(15, 23, 42, 0.9); border: 2px solid rgba(52, 211, 153, 0.4); border-radius: 16px; padding: 18px;">
-        <h3 style="color: #34d399; margin-bottom: 12px; font-size: 16px;">🏆 20 El Sonucu — Nihai Masa Durumu</h3>
+      <div style="background: rgba(15, 23, 42, 0.9); border: 2px solid rgba(250, 204, 21, 0.55); border-radius: 16px; padding: 18px;">
+        <h3 style="color: #fde047; margin-bottom: 12px; font-size: 16px;">
+          ${hasKingWinner() ? `👑 KING ŞAMPİYONU: ${escapeHtml(state.kingWinnerName)} (${state.kingWinnerTricks || 11} El Aldı — Doğrudan Kazandı!)` : '🏆 20 El Sonucu — Nihai Masa Durumu'}
+        </h3>
         <div style="display: flex; flex-direction: column; gap: 8px;">
-          ${sorted.map(p => `
-            <div style="display: flex; justify-content: space-between; align-items: center; background: rgba(255,255,255,0.04); padding: 10px 14px; border-radius: 10px;">
-              <span style="font-weight: 800; font-size: 15px; color: #fff;">👤 ${escapeHtml(p.name)}</span>
-              <span style="font-weight: 800; font-size: 15px; color: ${p.score > 0 ? '#34d399' : (p.score === 0 ? '#fde047' : '#f87171')};">
-                ${p.score > 0 ? '+' : ''}${p.score} P (${p.score > 0 ? 'Koza Çıktı' : (p.score === 0 ? 'Oyun Biten' : 'Ceza Yiyen')})
+          ${sorted.map(p => {
+            const isKingChamp = hasKingWinner() && p.id === state.kingWinnerIdx;
+            return `
+            <div style="display: flex; justify-content: space-between; align-items: center; background: ${isKingChamp ? 'rgba(234, 179, 8, 0.16)' : 'rgba(255,255,255,0.04)'}; border: ${isKingChamp ? '1px solid rgba(250, 204, 21, 0.6)' : 'none'}; padding: 10px 14px; border-radius: 10px;">
+              <span style="font-weight: 800; font-size: 15px; color: #fff;">${isKingChamp ? '👑🏆' : '👤'} ${escapeHtml(p.name)} ${renderPlayerRightsSymbols(p, 'prb-sm')}</span>
+              <span style="font-weight: 800; font-size: 15px; color: ${isKingChamp ? '#fde047' : (p.score > 0 ? '#34d399' : (p.score === 0 ? '#fde047' : '#f87171'))};">
+                ${isKingChamp ? `🏆 KING KAZANANI (${state.kingWinnerTricks || 11} El) • ` : ''}${p.score > 0 ? '+' : ''}${p.score} P
               </span>
             </div>
-          `).join('')}
+          `;}).join('')}
         </div>
       </div>
     `;
@@ -2436,6 +2619,34 @@ function initEventListeners() {
   // Koz ve Ceza Kaydet Butonları
   document.getElementById('btnSaveKoz').addEventListener('click', saveKozHand);
   document.getElementById('btnSaveCeza').addEventListener('click', saveCezaHand);
+
+  // 👑 KING (11+ El Doğrudan Zafer) Butonları & Modal Olayları
+  document.getElementById('btnOpenKingFromCeza')?.addEventListener('click', openKingDeclareModal);
+  document.getElementById('btnOpenKingFromKoz')?.addEventListener('click', openKingDeclareModal);
+  document.getElementById('btnJumpToKing')?.addEventListener('click', openKingDeclareModal);
+  document.getElementById('btnCloseKingModal')?.addEventListener('click', closeKingDeclareModal);
+  document.getElementById('btnCancelKingModal')?.addEventListener('click', closeKingDeclareModal);
+  document.getElementById('btnConfirmKingWin')?.addEventListener('click', confirmKingWin);
+
+  document.querySelectorAll('#kingModalSuitsRow .btn-king-suit').forEach(btn => {
+    btn.addEventListener('click', () => {
+      triggerHaptic(15);
+      selectedKingModalSuit = btn.dataset.ksuit || 'karo';
+      document.querySelectorAll('#kingModalSuitsRow .btn-king-suit').forEach(b => {
+        b.classList.toggle('active', b === btn);
+      });
+    });
+  });
+
+  document.querySelectorAll('#kingModalTricksGrid .btn-king-trick').forEach(btn => {
+    btn.addEventListener('click', () => {
+      triggerHaptic(15);
+      selectedKingModalTricks = parseInt(btn.dataset.tricks, 10) || 11;
+      document.querySelectorAll('#kingModalTricksGrid .btn-king-trick').forEach(b => {
+        b.classList.toggle('active', b === btn);
+      });
+    });
+  });
 
   // Geri Al & Yeni Oyun
   document.getElementById('btnUndo').addEventListener('click', undoLastHand);
