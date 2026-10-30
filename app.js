@@ -513,6 +513,19 @@ document.addEventListener('DOMContentLoaded', async () => {
   syncIntervalId = setInterval(() => {
     fetchServerState(false);
   }, 1200);
+
+  // Telefon ekranı kilitlenip açıldığında veya sekmeye dönüldüğünde anında senkronize et
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') {
+      isSyncing = false;
+      fetchServerState(false);
+    }
+  });
+
+  window.addEventListener('focus', () => {
+    isSyncing = false;
+    fetchServerState(false);
+  });
 });
 
 // ==========================================================================
@@ -630,8 +643,14 @@ async function fetchNetworkInfo() {
 
 async function fetchServerState(initial = false) {
   if (isSyncing) return;
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 4000);
   try {
-    const res = await fetch('/api/state', { cache: 'no-store' });
+    const res = await fetch('/api/state?t=' + Date.now(), {
+      cache: 'no-store',
+      signal: controller.signal
+    });
+    clearTimeout(timeoutId);
     if (res.ok) {
       const data = await res.json();
       updateSyncBadge(true);
@@ -669,6 +688,7 @@ async function fetchServerState(initial = false) {
       updateSyncBadge(false);
     }
   } catch (e) {
+    clearTimeout(timeoutId);
     updateSyncBadge(false);
   }
 }
@@ -676,13 +696,17 @@ async function fetchServerState(initial = false) {
 async function pushStateToServer() {
   ensureStateArrays(state);
   saveStateToStorage();
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 5000);
   try {
     isSyncing = true;
     const res = await fetch('/api/state', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ state: state, version: serverVersion })
+      body: JSON.stringify({ state: state, version: serverVersion }),
+      signal: controller.signal
     });
+    clearTimeout(timeoutId);
     if (res.ok) {
       const data = await res.json();
       if (data.version) serverVersion = data.version;
@@ -691,6 +715,7 @@ async function pushStateToServer() {
       updateSyncBadge(false);
     }
   } catch (e) {
+    clearTimeout(timeoutId);
     updateSyncBadge(false);
   } finally {
     isSyncing = false;
@@ -700,13 +725,17 @@ async function pushStateToServer() {
 async function sendPlayerInputToServer(payload) {
   ensureStateArrays(state);
   saveStateToStorage();
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 4000);
   try {
     isSyncing = true;
     const res = await fetch('/api/player-input', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload)
+      body: JSON.stringify(payload),
+      signal: controller.signal
     });
+    clearTimeout(timeoutId);
     if (res.ok) {
       const data = await res.json();
       if (data.version) serverVersion = data.version;
@@ -721,6 +750,7 @@ async function sendPlayerInputToServer(payload) {
       return;
     }
   } catch (e) {
+    clearTimeout(timeoutId);
     // Fallback
   } finally {
     isSyncing = false;
