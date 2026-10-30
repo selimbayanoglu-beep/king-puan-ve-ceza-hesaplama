@@ -457,11 +457,24 @@ let lastLocalSetupEditAt = 0;
 let hasUserEditedSetupInputs = false;
 let setupSyncTimer = null;
 
+// İsim ve Soyisimlerin Baş Harflerini Otomatik Büyütme (Türkçe karakter duyarlı: i->İ, ı->I)
+function capitalizeWords(str) {
+  if (!str) return '';
+  return str.split(' ').map(word => {
+    if (!word) return '';
+    let first = word.charAt(0);
+    if (first === 'i') first = 'İ';
+    else if (first === 'ı') first = 'I';
+    else first = first.toLocaleUpperCase('tr-TR');
+    return first + word.slice(1);
+  }).join(' ');
+}
+
 function syncSetupInputsToState() {
   ['inputPlayer1', 'inputPlayer2', 'inputPlayer3', 'inputPlayer4'].forEach((id, idx) => {
     const el = document.getElementById(id);
     if (el && state.players && state.players[idx]) {
-      const trimmed = el.value.trim();
+      const trimmed = capitalizeWords(el.value.trim());
       const defaultName = `Oyuncu ${idx + 1}`;
       if (trimmed && trimmed !== defaultName) {
         state.players[idx].name = trimmed;
@@ -935,7 +948,7 @@ function renderSetupScreen() {
     const el = document.getElementById(id);
     if (!el || document.activeElement === el) return;
     const defaultName = `Oyuncu ${idx + 1}`;
-    const currentTyped = el.value.trim();
+    const currentTyped = capitalizeWords(el.value.trim());
     // Eğer kullanıcı kutuya özel bir isim yazdıysa, kullanıcının yazdığını koru!
     if (currentTyped && currentTyped !== defaultName && state.players[idx].name === defaultName) {
       state.players[idx].name = currentTyped;
@@ -2733,8 +2746,8 @@ function initEventListeners() {
     el.addEventListener('input', () => {
       hasUserEditedSetupInputs = true;
       lastLocalSetupEditAt = Date.now();
-      const val = el.value.trim();
-      state.players[idx].name = val || `Oyuncu ${idx + 1}`;
+      const val = capitalizeWords(el.value);
+      state.players[idx].name = val.trim() || `Oyuncu ${idx + 1}`;
       saveStateToStorage();
 
       // Krupiye seçim butonlarındaki isimleri input odağını bozmadan canlı güncelle
@@ -2749,6 +2762,17 @@ function initEventListeners() {
         pushStateToServer();
       }, 600);
     });
+
+    el.addEventListener('blur', () => {
+      const formatted = capitalizeWords(el.value.trim());
+      el.value = formatted;
+      if (formatted) {
+        state.players[idx].name = formatted;
+        saveStateToStorage();
+        pushStateToServer();
+        renderAll();
+      }
+    });
   });
 
   // Kurulum / Oyuncu Düzenleme Sayfası: "Oyunu Başlat / Değişiklikleri Kaydet"
@@ -2757,10 +2781,10 @@ function initEventListeners() {
 
     const oldNames = state.players.map(p => p.name);
     const newNames = [
-      document.getElementById('inputPlayer1').value.trim() || 'Oyuncu 1',
-      document.getElementById('inputPlayer2').value.trim() || 'Oyuncu 2',
-      document.getElementById('inputPlayer3').value.trim() || 'Oyuncu 3',
-      document.getElementById('inputPlayer4').value.trim() || 'Oyuncu 4'
+      capitalizeWords(document.getElementById('inputPlayer1').value.trim()) || 'Oyuncu 1',
+      capitalizeWords(document.getElementById('inputPlayer2').value.trim()) || 'Oyuncu 2',
+      capitalizeWords(document.getElementById('inputPlayer3').value.trim()) || 'Oyuncu 3',
+      capitalizeWords(document.getElementById('inputPlayer4').value.trim()) || 'Oyuncu 4'
     ];
 
     let changedPlayers = [];
