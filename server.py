@@ -578,7 +578,7 @@ class KingHTTPHandler(http.server.SimpleHTTPRequestHandler):
                     with urllib.request.urlopen(req, timeout=15) as resp:
                         data = resp.read()
                     if data:
-                        target_path = os.path.join(BASE_DIR, fname)
+                        target_path = DIR_PATH / fname
                         with open(target_path, "wb") as f:
                             f.write(data)
                         updated_files.append(fname)
