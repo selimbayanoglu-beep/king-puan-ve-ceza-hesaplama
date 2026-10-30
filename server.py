@@ -684,6 +684,14 @@ class KingHTTPHandler(http.server.SimpleHTTPRequestHandler):
             self.send_header("Content-Length", str(len(body)))
             self.end_headers()
             self.wfile.write(body)
+
+            # Dosyalar güncellendikten sonra Python sürecini otomatik yenile
+            if not errors and payload.get("restart", True):
+                def _do_restart():
+                    time.sleep(0.5)
+                    os._exit(0)
+                import threading
+                threading.Thread(target=_do_restart).start()
             return
 
         self.send_response(404)
