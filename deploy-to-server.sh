@@ -3,7 +3,7 @@ set -euo pipefail
 
 SERVER_IP="159.195.255.168"
 SERVER_USER="root"
-REMOTE_DIR="/var/www/king"
+REMOTE_DIR="/DATA/AppData/king-puan-ve-ceza-hesaplama"
 SOURCE_DIR="/Users/selim/Documents/king-puan-ve-ceza-hesaplama"
 
 cd "$SOURCE_DIR"
@@ -41,8 +41,9 @@ ssh -i "$HOME/.ssh/id_ed25519" -o ConnectTimeout=20 -o StrictHostKeyChecking=acc
 
   mkdir -p '${REMOTE_DIR}'
   tar -xzf - -C '${REMOTE_DIR}'
+  docker restart king-puan 2>/dev/null || true
   echo ''
-  echo '✅ Sunucu dosyaları (/var/www/king) başarıyla güncellendi!'
+  echo '✅ Sunucu dosyaları (${REMOTE_DIR}) başarıyla güncellendi!'
 "
 
 echo ""
