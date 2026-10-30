@@ -94,18 +94,22 @@
               <div class="input-player-row">
                 <span class="player-pill p1">1</span>
                 <input type="text" id="inputPlayer1" class="text-input" value="" maxlength="20" placeholder="1. Oyuncu Adını Yazın" autocapitalize="words">
+                <button type="button" class="btn-pick-player" data-player-idx="0" title="Kayıtlı Oyuncu Seç">👥 Seç</button>
               </div>
               <div class="input-player-row">
                 <span class="player-pill p2">2</span>
                 <input type="text" id="inputPlayer2" class="text-input" value="" maxlength="20" placeholder="2. Oyuncu Adını Yazın" autocapitalize="words">
+                <button type="button" class="btn-pick-player" data-player-idx="1" title="Kayıtlı Oyuncu Seç">👥 Seç</button>
               </div>
               <div class="input-player-row">
                 <span class="player-pill p3">3</span>
                 <input type="text" id="inputPlayer3" class="text-input" value="" maxlength="20" placeholder="3. Oyuncu Adını Yazın" autocapitalize="words">
+                <button type="button" class="btn-pick-player" data-player-idx="2" title="Kayıtlı Oyuncu Seç">👥 Seç</button>
               </div>
               <div class="input-player-row">
                 <span class="player-pill p4">4</span>
                 <input type="text" id="inputPlayer4" class="text-input" value="" maxlength="20" placeholder="4. Oyuncu Adını Yazın" autocapitalize="words">
+                <button type="button" class="btn-pick-player" data-player-idx="3" title="Kayıtlı Oyuncu Seç">👥 Seç</button>
               </div>
             </div>
           </div>
@@ -698,6 +702,39 @@
 
   <!-- MODAL: Yeni Oyun Başlatma & Sıfırlama Onayı (İkinci Onaylı) -->
   
+  <!-- MODAL: Kayıtlı Oyuncular Veri Tabanı Seçim Modalı -->
+  <div class="modal-backdrop" id="modalPlayerDatabase">
+    <div class="modal-box modal-md" style="max-width: 500px; width: 95%;">
+      <div class="modal-header">
+        <div class="modal-title-wrap">
+          <span class="modal-icon">👥</span>
+          <div>
+            <h3 style="margin: 0; font-size: 17px; color: #fff;" id="modalPlayerDbTitle">Oyuncu Seç</h3>
+            <span style="font-size: 12px; color: #94a3b8;">Kayıtlı oyuncu listesinden tek dokunuşla masaya ata</span>
+          </div>
+        </div>
+        <button type="button" class="btn-modal-close" id="btnClosePlayerDb">✕</button>
+      </div>
+      <div class="modal-body" style="padding: 16px;">
+        <!-- Hızlı Arama & Filtre -->
+        <div style="margin-bottom: 12px;">
+          <input type="text" id="inputSearchPlayerDb" class="text-input" placeholder="🔍 Oyuncu ara..." style="background: rgba(15,23,42,0.8); border: 1px solid var(--border-subtle); border-radius: 8px; padding: 10px 14px; width: 100%; box-sizing: border-box; font-size: 14px; color: #fff;">
+        </div>
+
+        <!-- Yeni Oyuncu Ekleme Çubuğu -->
+        <div style="display: flex; gap: 8px; margin-bottom: 14px;">
+          <input type="text" id="inputNewDbPlayerName" class="text-input" placeholder="Yeni oyuncu ekle..." autocapitalize="words" style="background: rgba(15,23,42,0.8); border: 1px solid var(--border-subtle); border-radius: 8px; padding: 8px 12px; flex: 1; font-size: 13.5px; color: #fff;">
+          <button type="button" class="btn btn-primary btn-sm" id="btnAddNewDbPlayer" style="white-space: nowrap; padding: 8px 14px;">+ Ekle</button>
+        </div>
+
+        <!-- Oyuncu Listesi -->
+        <div id="playerDbListContainer" style="display: flex; flex-direction: column; gap: 8px; max-height: 48vh; overflow-y: auto; padding-right: 4px;">
+          <!-- JS ile render edilir -->
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- Geçmiş Oyunlar & Arşiv Modalı -->
   <div class="modal-backdrop" id="modalArchives">
     <div class="modal-box modal-lg" style="max-width: 680px; width: 95%;">

@@ -27,6 +27,7 @@ DEFAULT_PORT = int(os.environ.get("PORT", 8888))
 DIR_PATH = Path(__file__).resolve().parent
 STATE_FILE = DIR_PATH / "session_state.json"
 ARCHIVE_FILE = DIR_PATH / "games_archive.json"
+PLAYERS_DB_FILE = DIR_PATH / "players_db.json"
 
 
 # Varsayılan Oyun Durumu
@@ -409,6 +410,52 @@ class KingHTTPHandler(http.server.SimpleHTTPRequestHandler):
             self.wfile.write(csv_data)
             return
 
+        # API: Kayıtlı Oyuncular Veritabanı
+        if self.path == "/api/players":
+            players_list = []
+            if PLAYERS_DB_FILE.exists():
+                try:
+                    with open(PLAYERS_DB_FILE, "r", encoding="utf-8") as f:
+                        players_list = json.load(f)
+                except Exception:
+                    players_list = []
+            # Eğer dosya boşsa arşivdeki isimlerden varsayılan liste oluştur
+            if not players_list:
+                known = set()
+                # Mevcut masadaki isimler
+                for p in SESSION.state.get("players", []):
+                    nm = p.get("name", "").strip()
+                    if nm and not nm.startswith("Oyuncu "):
+                        known.add(nm)
+                # Arşivdeki isimler
+                if ARCHIVE_FILE.exists():
+                    try:
+                        with open(ARCHIVE_FILE, "r", encoding="utf-8") as f:
+                            for a in json.load(f):
+                                for p in a.get("players", []):
+                                    nm = p.get("name", "").strip()
+                                    if nm and not nm.startswith("Oyuncu "):
+                                        known.add(nm)
+                    except Exception:
+                        pass
+                # Temel varsayılanlar
+                known.update(["Selim", "Alp", "Berkay", "Mesut", "Barış"])
+                players_list = sorted(list(known))
+                try:
+                    with open(PLAYERS_DB_FILE, "w", encoding="utf-8") as f:
+                        json.dump(players_list, f, ensure_ascii=False, indent=2)
+                except Exception:
+                    pass
+
+            data = {"ok": True, "players": players_list}
+            body = json.dumps(data, ensure_ascii=False).encode("utf-8")
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json; charset=utf-8")
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+            return
+
         # API: Canlı Oyun Durumu
         if self.path == "/api/state" or self.path.startswith("/api/state?"):
             data = {
@@ -538,6 +585,43 @@ class KingHTTPHandler(http.server.SimpleHTTPRequestHandler):
             res = {"ok": success, "version": SESSION.version, "state": SESSION.state}
             body = json.dumps(res, ensure_ascii=False).encode("utf-8")
             self.send_response(200 if success else 400)
+            self.send_header("Content-Type", "application/json; charset=utf-8")
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+            return
+
+        if self.path == "/api/players":
+            action = payload.get("action", "add")
+            name = payload.get("name", "").strip()
+
+            players_list = []
+            if PLAYERS_DB_FILE.exists():
+                try:
+                    with open(PLAYERS_DB_FILE, "r", encoding="utf-8") as f:
+                        players_list = json.load(f)
+                except Exception:
+                    players_list = []
+
+            if action == "add" and name:
+                # İsim baş harflerini düzelt
+                words = [w[0].upper() + w[1:] if w else "" for w in name.split(" ")]
+                clean_name = " ".join([w for w in words if w])
+                if clean_name not in players_list:
+                    players_list.append(clean_name)
+                    players_list.sort()
+            elif action == "delete" and name:
+                players_list = [p for p in players_list if p != name]
+
+            try:
+                with open(PLAYERS_DB_FILE, "w", encoding="utf-8") as f:
+                    json.dump(players_list, f, ensure_ascii=False, indent=2)
+            except Exception:
+                pass
+
+            res = {"ok": True, "players": players_list}
+            body = json.dumps(res, ensure_ascii=False).encode("utf-8")
+            self.send_response(200)
             self.send_header("Content-Type", "application/json; charset=utf-8")
             self.send_header("Content-Length", str(len(body)))
             self.end_headers()

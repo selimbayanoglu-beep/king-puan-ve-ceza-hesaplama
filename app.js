@@ -205,6 +205,169 @@ function renderLivePlayerBar(currentHand, callerIdx, isGameOver) {
 
 
 // --------------------------------------------------------------------------
+// OYUNCU VERİ TABANI & LİSTEDEN SEÇİM YÖNETİMİ
+// --------------------------------------------------------------------------
+let targetPlayerSelectIdx = 0;
+let cachedPlayerDatabase = [];
+
+async function openPlayerDatabaseModal(playerIdx) {
+  triggerHaptic(15);
+  targetPlayerSelectIdx = playerIdx;
+  const modal = document.getElementById('modalPlayerDatabase');
+  const title = document.getElementById('modalPlayerDbTitle');
+  if (title) title.textContent = `${playerIdx + 1}. Oyuncuyu Seç`;
+  if (modal) modal.classList.add('active');
+
+  const searchInput = document.getElementById('inputSearchPlayerDb');
+  if (searchInput) {
+    searchInput.value = '';
+    setTimeout(() => searchInput.focus(), 150);
+  }
+
+  await loadPlayerDatabaseList();
+}
+
+function closePlayerDatabaseModal() {
+  const modal = document.getElementById('modalPlayerDatabase');
+  if (modal) modal.classList.remove('active');
+}
+
+async function loadPlayerDatabaseList() {
+  const container = document.getElementById('playerDbListContainer');
+  if (!container) return;
+
+  container.innerHTML = '<div style="color: #94a3b8; text-align: center; padding: 15px;">Oyuncular yükleniyor...</div>';
+
+  try {
+    const res = await fetch('/api/players');
+    if (res.ok) {
+      const data = await res.json();
+      cachedPlayerDatabase = Array.isArray(data.players) ? data.players : [];
+    }
+  } catch (e) {
+    // Local fallback
+  }
+
+  // Eğer sunucu listesi boşsa local state ve arşivden topla
+  if (!cachedPlayerDatabase || cachedPlayerDatabase.length === 0) {
+    const defaults = ['Selim', 'Alp', 'Berkay', 'Mesut', 'Barış'];
+    cachedPlayerDatabase = defaults;
+  }
+
+  renderPlayerDbItems();
+}
+
+function renderPlayerDbItems() {
+  const container = document.getElementById('playerDbListContainer');
+  const searchInput = document.getElementById('inputSearchPlayerDb');
+  if (!container) return;
+
+  const query = (searchInput?.value || '').trim().toLocaleLowerCase('tr-TR');
+  const filtered = cachedPlayerDatabase.filter(name => {
+    return !query || name.toLocaleLowerCase('tr-TR').includes(query);
+  });
+
+  if (filtered.length === 0) {
+    container.innerHTML = `
+      <div style="background: rgba(255,255,255,0.03); border: 1px dashed rgba(255,255,255,0.15); border-radius: 10px; padding: 18px; text-align: center; color: #94a3b8; font-size: 13px;">
+        🔍 Eşleşen oyuncu bulunamadı.<br>
+        <span style="font-size: 11.5px; color: #64748b;">Yukarıdaki kutudan hemen ekleyebilirsiniz.</span>
+      </div>
+    `;
+    return;
+  }
+
+  let html = '';
+  filtered.forEach(name => {
+    html += `
+      <div class="player-db-item" onclick="selectPlayerFromDb('${escapeHtml(name)}')">
+        <div class="player-db-name">
+          <span style="font-size: 16px;">👤</span>
+          <span>${escapeHtml(name)}</span>
+        </div>
+        <div class="player-db-actions">
+          <button type="button" class="btn btn-primary btn-sm" style="padding: 4px 10px; font-size: 12px;">Seç ✓</button>
+          <button type="button" class="btn-delete-db-player" onclick="event.stopPropagation(); deletePlayerFromDb('${escapeHtml(name)}')" title="Listeden Sil">🗑️</button>
+        </div>
+      </div>
+    `;
+  });
+
+  container.innerHTML = html;
+}
+
+function selectPlayerFromDb(selectedName) {
+  triggerHaptic(20);
+  const inputEl = document.getElementById(`inputPlayer${targetPlayerSelectIdx + 1}`);
+  if (inputEl) {
+    inputEl.value = selectedName;
+  }
+  if (state.players && state.players[targetPlayerSelectIdx]) {
+    state.players[targetPlayerSelectIdx].name = selectedName;
+    saveStateToStorage();
+    pushStateToServer();
+  }
+  renderAll();
+  closePlayerDatabaseModal();
+  showToast(`✓ ${targetPlayerSelectIdx + 1}. Oyuncu "${selectedName}" olarak seçildi`, 'emerald');
+}
+
+async function addNewPlayerToDb() {
+  const newNameInput = document.getElementById('inputNewDbPlayerName');
+  if (!newNameInput) return;
+  const rawName = newNameInput.value.trim();
+  if (!rawName) {
+    showToast('Lütfen bir isim yazın!', 'rose');
+    return;
+  }
+  const cleanName = capitalizeWords(rawName);
+  triggerHaptic(15);
+
+  try {
+    const res = await fetch('/api/players', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'add', name: cleanName })
+    });
+    if (res.ok) {
+      const data = await res.json();
+      if (data.players) cachedPlayerDatabase = data.players;
+    }
+  } catch (e) {
+    if (!cachedPlayerDatabase.includes(cleanName)) {
+      cachedPlayerDatabase.push(cleanName);
+      cachedPlayerDatabase.sort();
+    }
+  }
+
+  newNameInput.value = '';
+  renderPlayerDbItems();
+  showToast(`✓ "${cleanName}" oyuncu listesine eklendi!`, 'emerald');
+}
+
+async function deletePlayerFromDb(nameToDelete) {
+  if (!confirm(`"${nameToDelete}" oyuncu listesinden silinsin mi?`)) return;
+  triggerHaptic(15);
+
+  try {
+    const res = await fetch('/api/players', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'delete', name: nameToDelete })
+    });
+    if (res.ok) {
+      const data = await res.json();
+      if (data.players) cachedPlayerDatabase = data.players;
+    }
+  } catch (e) {
+    cachedPlayerDatabase = cachedPlayerDatabase.filter(p => p !== nameToDelete);
+  }
+
+  renderPlayerDbItems();
+  showToast(`"${nameToDelete}" listeden silindi.`, 'amber');
+}
+
+// --------------------------------------------------------------------------
 // GEÇMİŞ OYUNLAR ARŞİVİ & TOPLU ÇIKTI YÖNETİMİ
 // --------------------------------------------------------------------------
 async function openArchivesModal() {
@@ -2659,6 +2822,28 @@ function updateSimulatorView(player) {
 // ==========================================================================
 function initEventListeners() {
   initSpectatorMode();
+  // Oyuncu Veri Tabanı Modalı Olayları
+  document.querySelectorAll('.btn-pick-player').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const pIdx = parseInt(btn.dataset.playerIdx, 10) || 0;
+      openPlayerDatabaseModal(pIdx);
+    });
+  });
+  document.getElementById('btnClosePlayerDb')?.addEventListener('click', closePlayerDatabaseModal);
+  document.getElementById('modalPlayerDatabase')?.addEventListener('click', (e) => {
+    if (e.target === document.getElementById('modalPlayerDatabase')) closePlayerDatabaseModal();
+  });
+  document.getElementById('btnAddNewDbPlayer')?.addEventListener('click', addNewPlayerToDb);
+  document.getElementById('inputNewDbPlayerName')?.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      addNewPlayerToDb();
+    }
+  });
+  document.getElementById('inputSearchPlayerDb')?.addEventListener('input', () => {
+    renderPlayerDbItems();
+  });
+
   // Koz ve Ceza Kaydet Butonları
   document.getElementById('btnSaveKoz').addEventListener('click', saveKozHand);
   document.getElementById('btnSaveCeza').addEventListener('click', saveCezaHand);
