@@ -652,13 +652,21 @@ class KingHTTPHandler(http.server.SimpleHTTPRequestHandler):
                 "manifest.json",
                 "qrcode.js",
             ]
-            repo_base = "https://raw.githubusercontent.com/selimbayanoglu-beep/king-puan-ve-ceza-hesaplama/main/"
+            commit_ref = payload.get("ref", "main")
+            repo_base = f"https://raw.githubusercontent.com/selimbayanoglu-beep/king-puan-ve-ceza-hesaplama/{commit_ref}/"
             updated_files = []
             errors = []
             for fname in files_to_sync:
                 try:
-                    url = f"{repo_base}{fname}?t={int(time.time())}"
-                    req = urllib.request.Request(url, headers={"Cache-Control": "no-cache"})
+                    url = f"{repo_base}{fname}?t={int(time.time() * 1000)}"
+                    req = urllib.request.Request(
+                        url,
+                        headers={
+                            "Cache-Control": "no-cache, no-store, must-revalidate",
+                            "Pragma": "no-cache",
+                            "User-Agent": "KingServerSync/2.0"
+                        }
+                    )
                     with urllib.request.urlopen(req, timeout=15) as resp:
                         data = resp.read()
                     if data:
@@ -669,7 +677,7 @@ class KingHTTPHandler(http.server.SimpleHTTPRequestHandler):
                 except Exception as exc:
                     errors.append(f"{fname}: {exc}")
 
-            res = {"ok": len(errors) == 0, "updated": updated_files, "errors": errors}
+            res = {"ok": len(errors) == 0, "updated": updated_files, "errors": errors, "ref": commit_ref}
             body = json.dumps(res, ensure_ascii=False).encode("utf-8")
             self.send_response(200 if not errors else 500)
             self.send_header("Content-Type", "application/json; charset=utf-8")
