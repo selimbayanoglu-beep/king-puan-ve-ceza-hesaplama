@@ -685,21 +685,19 @@ document.addEventListener('DOMContentLoaded', async () => {
   await fetchNetworkInfo();
   await fetchServerState(true);
 
-  // Periyodik canlı senkronizasyon (her 1.2 sn)
+  // Yüksek Hızlı Canlı Senkronizasyon (her 400 ms - anlık tepki)
   syncIntervalId = setInterval(() => {
     fetchServerState(false);
-  }, 1200);
+  }, 400);
 
   // Telefon ekranı kilitlenip açıldığında veya sekmeye dönüldüğünde anında senkronize et
   document.addEventListener('visibilitychange', () => {
     if (document.visibilityState === 'visible') {
-      isSyncing = false;
       fetchServerState(false);
     }
   });
 
   window.addEventListener('focus', () => {
-    isSyncing = false;
     fetchServerState(false);
   });
 });
@@ -817,10 +815,13 @@ async function fetchNetworkInfo() {
   return null;
 }
 
+let isFetchingState = false;
+
 async function fetchServerState(initial = false) {
-  if (isSyncing) return;
+  if (isFetchingState) return;
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 4000);
+  const timeoutId = setTimeout(() => controller.abort(), 2500);
+  isFetchingState = true;
   try {
     const res = await fetch('/api/state?t=' + Date.now(), {
       cache: 'no-store',
@@ -866,6 +867,8 @@ async function fetchServerState(initial = false) {
   } catch (e) {
     clearTimeout(timeoutId);
     updateSyncBadge(false);
+  } finally {
+    isFetchingState = false;
   }
 }
 
