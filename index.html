@@ -18,7 +18,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700;800;900&family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css?v=20261103_v12">
+  <link rel="stylesheet" href="style.css?v=20261103_v13">
 </head>
 <body>
   <div class="app-background-glow glow-1"></div>
@@ -180,13 +180,15 @@
 
         <div class="hand-meta-bar ceza-theme">
           <div class="hand-meta-top">
-            <div class="meta-badge">⚡ CEZA OYUNU</div>
+            <span class="meta-badge">⚡ CEZA OYUNU</span>
             <span class="meta-hand-no" id="lblCezaHandNo">1. El (1 / 20)</span>
-            <div class="meta-rights" id="lblCezaCallerRights">Ceza Hakkı: 0 / 3</div>
           </div>
           <div class="meta-caller-hero" id="lblCezaCaller">
-            <span class="caller-prefix">👑 SÖYLEYEN:</span>
-            <span class="caller-highlight">Oyuncu 1</span>
+            <div class="caller-title-row">
+              <span class="caller-prefix">👑 SÖYLEYEN:</span>
+              <span class="caller-highlight" id="lblCezaCallerName">Oyuncu 1</span>
+            </div>
+            <div class="meta-rights" id="lblCezaCallerRights">Ceza: 0/3 • Koz: 0/2</div>
           </div>
           <!-- 1. Elde Sinek 2'li (Krupiye) Hızlı Seçim Çubuğu -->
           <div class="first-hand-dealer-bar" id="firstHandDealerBar" style="display: none;">
@@ -194,7 +196,7 @@
           </div>
           <!-- KING İlanı Hızlı Düğmesi -->
           <div class="king-call-bar" id="cezaKingCallBar">
-            <span class="kcb-text">👑 <b>KING:</b> Söyleyen 11+ el alırsa ceza/koz ne olursa olsun oyunu kazanır</span>
+            <span class="kcb-text">👑 <b>KING:</b> 11+ el alan ceza/koz bakılmaksızın oyunu kazanır</span>
             <button type="button" class="btn-king-declare" id="btnOpenKingFromCeza">🏆 KING! (11+ El)</button>
           </div>
         </div>
@@ -296,20 +298,20 @@
 
         <div class="hand-meta-bar koz-theme">
           <div class="hand-meta-top">
-            <div class="meta-badge">👑 KOZ OYUNU</div>
+            <span class="meta-badge">👑 KOZ OYUNU</span>
             <span class="meta-hand-no" id="lblKozHandNo">1. El (1 / 20)</span>
-            <div class="meta-rights" id="lblKozCallerRights">Koz Hakkı: 0 / 2</div>
           </div>
           <div class="meta-caller-hero" id="lblKozCaller">
-            <span class="caller-prefix">👑 SÖYLEYEN:</span>
-            <div class="caller-highlight-row">
-              <span class="caller-highlight">Oyuncu 1</span>
+            <div class="caller-title-row">
+              <span class="caller-prefix">👑 SÖYLEYEN:</span>
+              <span class="caller-highlight" id="lblKozCallerName">Oyuncu 1</span>
               <span class="caller-koz-suit suit-karo" id="lblKozSuitHero">♦</span>
             </div>
+            <div class="meta-rights" id="lblKozCallerRights">Koz: 0/2 • Ceza: 0/3</div>
           </div>
           <!-- KING İlanı Hızlı Düğmesi -->
           <div class="king-call-bar" id="kozKingCallBar">
-            <span class="kcb-text">👑 <b>KING:</b> Söyleyen 11+ el alırsa ceza/koz ne olursa olsun oyunu kazanır</span>
+            <span class="kcb-text">👑 <b>KING:</b> 11+ el alan ceza/koz bakılmaksızın oyunu kazanır</span>
             <button type="button" class="btn-king-declare" id="btnOpenKingFromKoz">🏆 KING! (11+ El)</button>
           </div>
         </div>
@@ -908,6 +910,6 @@
   </div>
 
   <script src="qrcode.js"></script>
-  <script src="app.js?v=20261103_v12"></script>
+  <script src="app.js?v=20261103_v13"></script>
 </body>
 </html>

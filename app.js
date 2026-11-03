@@ -1359,11 +1359,13 @@ function renderKozScreen(currentHand, callerIdx, isGameOver) {
   const activeSuit = suitsDef[state.selectedKozSuit] || suitsDef.karo;
 
   callerEl.innerHTML = `
-    <span class="caller-prefix">👑 SÖYLEYEN:</span>
-    <div class="caller-highlight-row">
+    <div class="caller-title-row">
+      <span class="caller-prefix">👑 SÖYLEYEN:</span>
       <span class="caller-highlight">${escapeHtml(caller.name)}</span>
-      ${renderPlayerRightsSymbols(caller)}
       <span class="caller-koz-suit ${activeSuit.cssClass}" title="Koz: ${activeSuit.name}">${activeSuit.symbol}</span>
+    </div>
+    <div class="meta-rights" id="lblKozCallerRights">
+      Koz: <b>${caller.kozCount}/2</b> • Ceza: <b>${caller.cezaCount}/3</b> ${renderPlayerRightsSymbols(caller, 'prb-inline')}
     </div>
   `;
 
@@ -1386,8 +1388,6 @@ function renderKozScreen(currentHand, callerIdx, isGameOver) {
       sendPlayerInputToServer({ action: 'select_game', type: 'koz', gameKey: s });
     };
   });
-
-  rightsEl.innerHTML = `Koz: <b>${caller.kozCount}/2</b> • Ceza: <b>${caller.cezaCount}/3</b> ${renderPlayerRightsSymbols(caller, 'prb-sm')}`;
 
   // King Kuralı: İlk 4 el yalnızca ceza oynanır, koz 5. elden itibaren açılır!
   if (state.rounds.length < 4) {
@@ -1451,8 +1451,15 @@ function renderCezaScreen(currentHand, callerIdx, isGameOver) {
   if (cezaKingBar) cezaKingBar.style.display = isSpectatorMode ? 'none' : 'flex';
 
   handNoEl.textContent = `${currentHand}. El (${currentHand} / 20)`;
-  callerEl.innerHTML = `<span class="caller-prefix">👑 SÖYLEYEN:</span> <span class="caller-highlight">${escapeHtml(caller.name)}</span> ${renderPlayerRightsSymbols(caller)}`;
-  rightsEl.innerHTML = `Ceza: <b>${caller.cezaCount}/3</b> • Koz: <b>${caller.kozCount}/2</b> ${renderPlayerRightsSymbols(caller, 'prb-sm')}`;
+  callerEl.innerHTML = `
+    <div class="caller-title-row">
+      <span class="caller-prefix">👑 SÖYLEYEN:</span>
+      <span class="caller-highlight">${escapeHtml(caller.name)}</span>
+    </div>
+    <div class="meta-rights" id="lblCezaCallerRights">
+      Ceza: <b>${caller.cezaCount}/3</b> • Koz: <b>${caller.kozCount}/2</b> ${renderPlayerRightsSymbols(caller, 'prb-inline')}
+    </div>
+  `;
 
   // 1. Elde (henüz el kaydedilmemişken) Sinek 2'li kimde çıktıysa doğrudan buradan da seçilebilsin
   const firstHandDealerBar = document.getElementById('firstHandDealerBar');
