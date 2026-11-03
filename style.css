@@ -996,13 +996,13 @@ body {
   align-items: center;
   justify-content: center;
   gap: 10px;
-  cursor: not-allowed;
+  cursor: default;
   user-select: none;
   touch-action: manipulation;
   transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
-  background: rgba(255, 255, 255, 0.05);
-  border: 1.5px dashed rgba(255, 255, 255, 0.2);
-  color: #64748b;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1.5px solid rgba(255, 255, 255, 0.14);
+  color: #94a3b8;
   box-shadow: none;
 }
 

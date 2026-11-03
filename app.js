@@ -775,30 +775,27 @@ function initSliderNavigation() {
 // KAYDEDİLMEMİŞ PUAN GİRİŞİ KORUMASI & GÜVENLİ SAYFA GEÇİŞİ
 // --------------------------------------------------------------------------
 function checkUnsavedBeforeNavigate(targetIndex, onProceed) {
-  // Ceza ekranından (1) başka bir ekrana geçiliyorsa
+  // Yalnızca dağıtım TAMAMLANMIŞ (13/13 el girilmiş) ama kaydedilmeden çıkılıyorsa uyar ve kaydetme fırsatı ver
   if (currentScreenIndex === 1 && targetIndex !== 1) {
     const cezaSum = (state.cezaInputs || []).reduce((a, b) => a + (b || 0), 0);
-    if (cezaSum > 0) {
-      const activeKey = state.selectedCezaKey || 'el_almaz';
-      const def = GAME_DEFS[activeKey] || GAME_DEFS.el_almaz;
-      const totalUnits = def.totalUnits;
-      const isValid = (cezaSum === totalUnits);
-      openUnsavedWarningModal('ceza', isValid, cezaSum, totalUnits, onProceed);
+    const activeKey = state.selectedCezaKey || 'el_almaz';
+    const def = GAME_DEFS[activeKey] || GAME_DEFS.el_almaz;
+    if (cezaSum === def.totalUnits) {
+      openUnsavedWarningModal('ceza', true, cezaSum, def.totalUnits, onProceed);
       return false;
     }
   }
 
-  // Koz ekranından (2) başka bir ekrana geçiliyorsa
+  // Koz ekranından (2) tam el girilmişken çıkılıyorsa
   if (currentScreenIndex === 2 && targetIndex !== 2) {
     const kozSum = (state.kozInputs || []).reduce((a, b) => a + (b || 0), 0);
-    if (kozSum > 0) {
-      const totalUnits = 13;
-      const isValid = (kozSum === totalUnits);
-      openUnsavedWarningModal('koz', isValid, kozSum, totalUnits, onProceed);
+    if (kozSum === 13) {
+      openUnsavedWarningModal('koz', true, kozSum, 13, onProceed);
       return false;
     }
   }
 
+  // Dağıtım henüz tamamlanmamışsa veya boşsa hiçbir engelleme yapmadan akıcı geç
   if (onProceed) onProceed();
   return true;
 }
@@ -1883,7 +1880,8 @@ function validateDistribution(totalUnits, unitName, inputsArray, badgeId, msgId,
   if (!badge || !msg || !btnSave) return;
 
   const isKoz = (saveBtnId === 'btnSaveKoz');
-  const typeText = isKoz ? 'KOZ' : 'CEZA';
+  const typeText = isKoz ? 'Koz' : 'Ceza';
+  const typeTextUpper = isKoz ? 'KOZ' : 'CEZA';
 
   if (diff === 0) {
     badge.textContent = `Tamamlandı (${totalUnits}/${totalUnits})`;
@@ -1892,23 +1890,23 @@ function validateDistribution(totalUnits, unitName, inputsArray, badgeId, msgId,
     msg.className = 'validation-bar success';
     btnSave.disabled = isSpectatorMode;
     btnSave.classList.add('ready-to-save');
-    btnSave.innerHTML = `<span class="save-btn-icon">💾</span> <span class="save-btn-text">${typeText} ELİNİ KAYDET &amp; ÇETEYE İŞLE ✓</span>`;
+    btnSave.innerHTML = `<span class="save-btn-icon">💾</span> <span class="save-btn-text">${typeTextUpper} ELİNİ KAYDET &amp; ÇETEYE İŞLE ✓</span>`;
   } else if (diff > 0) {
     badge.textContent = `Kalan: ${diff} / ${totalUnits} ${unitName}`;
     badge.className = 'remaining-counter';
-    msg.textContent = `⚠️ Dağıtılması gereken ${diff} adet ${unitName} kaldı.`;
-    msg.className = 'validation-bar error';
+    msg.textContent = `Dağıtılması gereken ${diff} adet ${unitName} kaldı.`;
+    msg.className = 'validation-bar';
     btnSave.disabled = true;
     btnSave.classList.remove('ready-to-save');
-    btnSave.innerHTML = `<span class="save-btn-icon">🔒</span> <span class="save-btn-text">Kalan: ${diff} ${unitName} (${typeText} Dağılımını Tamamlayın)</span>`;
+    btnSave.innerHTML = `<span class="save-btn-icon">💾</span> <span class="save-btn-text">${typeText} Elini Kaydet (${diff} ${unitName} kaldı)</span>`;
   } else {
     badge.textContent = `Fazla: +${Math.abs(diff)}`;
     badge.className = 'remaining-counter';
-    msg.textContent = `❌ Toplam ${totalUnits} olmalı, ${Math.abs(diff)} adet fazla girildi!`;
+    msg.textContent = `Toplam ${totalUnits} olmalı, ${Math.abs(diff)} adet fazla girildi.`;
     msg.className = 'validation-bar error';
     btnSave.disabled = true;
     btnSave.classList.remove('ready-to-save');
-    btnSave.innerHTML = `<span class="save-btn-icon">❌</span> <span class="save-btn-text">+${Math.abs(diff)} Fazla Girildi (Düzeltin)</span>`;
+    btnSave.innerHTML = `<span class="save-btn-icon">⚠️</span> <span class="save-btn-text">Fazla Girildi (+${Math.abs(diff)} Düzeltin)</span>`;
   }
 }
 
