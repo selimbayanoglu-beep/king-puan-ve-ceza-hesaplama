@@ -18,7 +18,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700;800;900&family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css?v=20261030_v11">
+  <link rel="stylesheet" href="style.css?v=20261103_v12">
 </head>
 <body>
   <div class="app-background-glow glow-1"></div>
@@ -253,18 +253,21 @@
             Lütfen dağılımı eksiksiz tamamlayın.
           </div>
 
-          <button type="button" class="btn btn-danger btn-hero btn-save-hand" id="btnSaveCeza" disabled>
-            <span>✓</span> Ceza Elini Kaydet ve Sonuçlara Geç
+          <button type="button" class="btn btn-save-hand-hero" id="btnSaveCeza" disabled>
+            <span class="save-btn-icon">💾</span> <span class="save-btn-text">CEZA ELİNİ KAYDET &amp; ÇETEYE İŞLE ✓</span>
           </button>
 
-          <!-- Alt Navigasyon: Koza Git ve Çeteye Geri Dön -->
-          <div class="screen-footer-nav">
-            <button type="button" class="btn btn-koz btn-switch-screen" id="btnSwitchCezaToKoz">
-              <span>👑</span> Koza Git (Koz Oyna)
-            </button>
-            <button type="button" class="btn btn-secondary btn-switch-screen btn-back-screen" id="btnBackToResultsFromCeza">
-              <span>⬅️</span> Çeteye / Sonuçlara Geri Dön
-            </button>
+          <!-- Alt İkincil Navigasyon (Sade, Kaydet Butonundan Tamamen Ayrık) -->
+          <div class="screen-secondary-nav">
+            <div class="nav-divider"><span>veya diğer ekrana geç</span></div>
+            <div class="secondary-nav-buttons">
+              <button type="button" class="btn-subtle-nav" id="btnSwitchCezaToKoz">
+                <span>👑</span> Koza Geç
+              </button>
+              <button type="button" class="btn-subtle-nav" id="btnBackToResultsFromCeza">
+                <span>📊</span> Çeteye Dön
+              </button>
+            </div>
           </div>
         </div>
 
@@ -380,18 +383,21 @@
             Lütfen toplam 13 el olacak şekilde dağılımı yapın.
           </div>
 
-          <button type="button" class="btn btn-primary btn-hero btn-save-hand" id="btnSaveKoz" disabled>
-            <span>✓</span> Koz Elini Kaydet ve Sonuçlara Geç
+          <button type="button" class="btn btn-save-hand-hero" id="btnSaveKoz" disabled>
+            <span class="save-btn-icon">💾</span> <span class="save-btn-text">KOZ ELİNİ KAYDET &amp; ÇETEYE İŞLE ✓</span>
           </button>
 
-          <!-- Alt Navigasyon: Cezaya Git ve Çeteye Geri Dön -->
-          <div class="screen-footer-nav">
-            <button type="button" class="btn btn-ceza btn-switch-screen" id="btnSwitchKozToCeza">
-              <span>⚡</span> Cezaya Git (Ceza Oyna)
-            </button>
-            <button type="button" class="btn btn-secondary btn-switch-screen btn-back-screen" id="btnBackToResultsFromKoz">
-              <span>⬅️</span> Çeteye / Sonuçlara Geri Dön
-            </button>
+          <!-- Alt İkincil Navigasyon (Sade, Kaydet Butonundan Tamamen Ayrık) -->
+          <div class="screen-secondary-nav">
+            <div class="nav-divider"><span>veya diğer ekrana geç</span></div>
+            <div class="secondary-nav-buttons">
+              <button type="button" class="btn-subtle-nav" id="btnSwitchKozToCeza">
+                <span>⚡</span> Cezaya Geç
+              </button>
+              <button type="button" class="btn-subtle-nav" id="btnBackToResultsFromKoz">
+                <span>📊</span> Çeteye Dön
+              </button>
+            </div>
           </div>
         </div>
 
@@ -757,6 +763,44 @@
     </div>
   </div>
 
+  <!-- ⚠️ DİKKAT: KAYDEDİLMEMİŞ PUAN GİRİŞİ UYARISI MODALI -->
+  <div class="modal-backdrop" id="modalUnsavedWarning">
+    <div class="modal-box modal-md">
+      <div class="modal-header modal-header-amber" style="background: linear-gradient(135deg, rgba(245, 158, 11, 0.25) 0%, rgba(217, 119, 6, 0.2) 100%); border-bottom: 1px solid rgba(245, 158, 11, 0.35);">
+        <div class="modal-title-wrap">
+          <span class="modal-badge-icon" style="font-size: 22px;">⚠️</span>
+          <h3 style="color: #fde047;">Kaydedilmemiş Puan Girişi Var!</h3>
+        </div>
+        <button class="modal-close" id="btnCloseUnsavedModal">&times;</button>
+      </div>
+      <div class="modal-body" style="padding: 18px 20px;">
+        <div class="unsaved-warning-box">
+          <div class="uw-icon" style="font-size: 32px; flex-shrink: 0;">💾</div>
+          <div class="uw-text">
+            <h4 id="lblUnsavedModalTitle" style="color: #fef08a; font-size: 15px; font-weight: 800; margin: 0 0 6px 0;">Bu el için puan dağıttınız ama henüz kaydetmediniz!</h4>
+            <p id="lblUnsavedModalDesc" style="color: #cbd5e1; font-size: 13px; line-height: 1.5; margin: 0;">
+              Başka bir ekrana geçmeden önce girilen puanları çeteye kaydetmek istiyor musunuz?
+            </p>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer unsaved-modal-footer">
+        <button type="button" class="btn btn-emerald-save" id="btnUnsavedSaveAndLeave">
+          💾 Bu Eli Kaydet ve Çeteye İşle ✓
+        </button>
+        <div class="unsaved-secondary-actions">
+          <button type="button" class="btn btn-secondary-subtle" id="btnUnsavedDiscardAndLeave">
+            ✕ Kaydetmeden Çık (Sayıları Sil)
+          </button>
+          <button type="button" class="btn btn-ghost-stay" id="btnUnsavedStay">
+            ↩ Vazgeç / Ekranda Kal
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- YENİ OYUN BAŞLATMA (SIFIRLAMA) ONAY MODALI — ÇOK AŞAMALI GÜVENLİK KORUMASI -->
   <div class="modal-backdrop" id="modalResetConfirm">
     <div class="modal-box modal-md">
       <div class="modal-header modal-header-danger">
@@ -770,25 +814,35 @@
         <div class="reset-warning-box">
           <div class="rw-icon">🚨</div>
           <div class="rw-text">
-            <h4>DİKKAT: Tüm Yazılanlar Silinecektir!</h4>
-            <p>
-              Mevcut oyunda girilen <b>tüm eller</b>, 4 oyuncunun <b>bütün puanları</b> ve <b>çetele tablosu</b> kalıcı olarak silinecektir.
+            <h4>DİKKAT: Masadaki Oyun Sıfırlanacaktır!</h4>
+            <p id="lblResetGameStatus">
+              Mevcut oyunda girilen <b>tüm eller</b>, 4 oyuncunun <b>bütün puanları</b> ve <b>çetele tablosu</b> sıfırlanacaktır.
             </p>
-            <p class="rw-sub">Bu işlem kesinlikle geri alınamaz!</p>
+            <p class="rw-sub" style="color: #34d399; margin-top: 8px; font-weight: 700; display: flex; align-items: center; gap: 6px;">
+              <span>💾</span> Güvenlik: Masadaki oyun sıfırlanmadan önce otomatik olarak Arşiv'e yedeklenir.
+            </p>
           </div>
         </div>
 
-        <div class="second-confirm-wrap">
+        <!-- Aktif oyunda güvenlik kelimesi yazma zorunluluğu -->
+        <div class="reset-code-input-wrap" id="wrapResetCode" style="margin-top: 14px; background: rgba(0, 0, 0, 0.25); border: 1px solid rgba(244, 63, 94, 0.3); border-radius: 8px; padding: 12px;">
+          <label for="inputResetCode" style="display: block; font-size: 12.5px; font-weight: 700; color: #fecaca; margin-bottom: 6px;">
+            Onaylamak için kutuya <span style="background: rgba(244,63,94,0.3); color: #fff; padding: 2px 6px; border-radius: 4px; font-family: monospace; font-size: 13px;">SIFIRLA</span> yazın:
+          </label>
+          <input type="text" id="inputResetCode" class="form-control reset-code-input" placeholder="SIFIRLA" autocomplete="off" autocapitalize="characters" style="text-align: center; font-weight: 800; letter-spacing: 2px; text-transform: uppercase;">
+        </div>
+
+        <div class="second-confirm-wrap" style="margin-top: 12px;">
           <label class="second-confirm-label" for="chkSecondConfirm">
             <input type="checkbox" id="chkSecondConfirm">
-            <span>Tüm skorların ve çetelenin silineceğini biliyorum, yeni oyun başlatmayı onaylıyorum.</span>
+            <span>Tüm skorların sıfırlanacağını biliyorum ve yeni oyun başlatmayı onaylıyorum.</span>
           </label>
         </div>
       </div>
       <div class="modal-footer reset-modal-footer">
         <button type="button" class="btn btn-secondary" id="btnCancelReset">Vazgeç</button>
         <button type="button" class="btn btn-danger" id="btnConfirmResetFinal" disabled>
-          🗑️ Tümünü Sil ve Yeni Oyun Başlat
+          🗑️ Tümünü Sıfırla ve Yeni Oyun Başlat
         </button>
       </div>
     </div>
@@ -854,6 +908,6 @@
   </div>
 
   <script src="qrcode.js"></script>
-  <script src="app.js?v=20261030_v11"></script>
+  <script src="app.js?v=20261103_v12"></script>
 </body>
 </html>

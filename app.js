@@ -201,6 +201,13 @@ function renderLivePlayerBar(currentHand, callerIdx, isGameOver) {
     btnShareInline.addEventListener('click', shareLiveGameLink);
     pillsContainer.appendChild(btnShareInline);
   }
+
+  // Güvenlik: Masayı sıfırlama (Yeni Oyun) düğmesini yalnızca ana masa yöneticisi ('all') görebilir.
+  // Oyuncuların veya izleyicilerin telefonlarında bu buton gizlenir.
+  const btnNewGame = document.getElementById('btnNewGame');
+  if (btnNewGame) {
+    btnNewGame.style.display = (myPlayerRole === 'all') ? '' : 'none';
+  }
 }
 
 
@@ -764,7 +771,134 @@ function initSliderNavigation() {
   });
 }
 
-function goToScreen(index, smooth = true) {
+// --------------------------------------------------------------------------
+// KAYDEDİLMEMİŞ PUAN GİRİŞİ KORUMASI & GÜVENLİ SAYFA GEÇİŞİ
+// --------------------------------------------------------------------------
+function checkUnsavedBeforeNavigate(targetIndex, onProceed) {
+  // Ceza ekranından (1) başka bir ekrana geçiliyorsa
+  if (currentScreenIndex === 1 && targetIndex !== 1) {
+    const cezaSum = (state.cezaInputs || []).reduce((a, b) => a + (b || 0), 0);
+    if (cezaSum > 0) {
+      const activeKey = state.selectedCezaKey || 'el_almaz';
+      const def = GAME_DEFS[activeKey] || GAME_DEFS.el_almaz;
+      const totalUnits = def.totalUnits;
+      const isValid = (cezaSum === totalUnits);
+      openUnsavedWarningModal('ceza', isValid, cezaSum, totalUnits, onProceed);
+      return false;
+    }
+  }
+
+  // Koz ekranından (2) başka bir ekrana geçiliyorsa
+  if (currentScreenIndex === 2 && targetIndex !== 2) {
+    const kozSum = (state.kozInputs || []).reduce((a, b) => a + (b || 0), 0);
+    if (kozSum > 0) {
+      const totalUnits = 13;
+      const isValid = (kozSum === totalUnits);
+      openUnsavedWarningModal('koz', isValid, kozSum, totalUnits, onProceed);
+      return false;
+    }
+  }
+
+  if (onProceed) onProceed();
+  return true;
+}
+
+function openUnsavedWarningModal(type, isValid, currentSum, totalUnits, onProceed) {
+  const modal = document.getElementById('modalUnsavedWarning');
+  const lblTitle = document.getElementById('lblUnsavedModalTitle');
+  const lblDesc = document.getElementById('lblUnsavedModalDesc');
+  const btnSave = document.getElementById('btnUnsavedSaveAndLeave');
+  const btnDiscard = document.getElementById('btnUnsavedDiscardAndLeave');
+  const btnStay = document.getElementById('btnUnsavedStay');
+  const btnClose = document.getElementById('btnCloseUnsavedModal');
+
+  if (!modal) {
+    if (onProceed) onProceed();
+    return;
+  }
+
+  triggerHaptic(25);
+  const typeText = (type === 'koz') ? 'Koz' : 'Ceza';
+
+  if (isValid) {
+    if (lblTitle) lblTitle.textContent = `💾 ${typeText} Eli Dağıtıldı Ama Henüz Kaydedilmedi!`;
+    if (lblDesc) lblDesc.textContent = `Toplam ${totalUnits} ${type === 'koz' ? 'el' : 'adet'} eksiksiz dağıtılmış durumda. Sayfadan ayrılmadan önce bu eli çeteye işlemek ister misiniz?`;
+    if (btnSave) {
+      btnSave.style.display = 'flex';
+      btnSave.textContent = `💾 Bu ${typeText} Elini Kaydet ve Devam Et ✓`;
+    }
+  } else {
+    const diff = totalUnits - currentSum;
+    if (lblTitle) lblTitle.textContent = `⚠️ Tamamlanmamış ${typeText} Dağıtımı Var!`;
+    if (lblDesc) {
+      if (diff > 0) {
+        lblDesc.textContent = `Henüz ${diff} adet eksik dağıtım var (${currentSum}/${totalUnits}). Sayfadan çıkarsanız girilen sayılar silinecektir.`;
+      } else {
+        lblDesc.textContent = `Toplam ${totalUnits} olması gerekirken +${Math.abs(diff)} adet fazla girildi. Sayfadan çıkarsanız girilen sayılar silinecektir.`;
+      }
+    }
+    if (btnSave) {
+      btnSave.style.display = 'none';
+    }
+  }
+
+  const closeModal = () => {
+    modal.classList.remove('active');
+  };
+
+  if (btnSave) {
+    btnSave.onclick = () => {
+      triggerHaptic(30);
+      closeModal();
+      if (type === 'koz') {
+        saveKozHand();
+      } else {
+        saveCezaHand();
+      }
+      if (onProceed) onProceed();
+    };
+  }
+
+  if (btnDiscard) {
+    btnDiscard.onclick = () => {
+      triggerHaptic(20);
+      closeModal();
+      if (type === 'koz') {
+        state.kozInputs = [0, 0, 0, 0];
+        state.kozConfirmed = [false, false, false, false];
+      } else {
+        state.cezaInputs = [0, 0, 0, 0];
+        state.cezaConfirmed = [false, false, false, false];
+      }
+      renderAll();
+      if (onProceed) onProceed();
+    };
+  }
+
+  if (btnStay) {
+    btnStay.onclick = () => {
+      triggerHaptic(15);
+      closeModal();
+    };
+  }
+
+  if (btnClose) {
+    btnClose.onclick = () => {
+      closeModal();
+    };
+  }
+
+  modal.classList.add('active');
+}
+
+function goToScreen(index, smooth = true, force = false) {
+  if (!force) {
+    const canNavigate = checkUnsavedBeforeNavigate(index, () => {
+      goToScreen(index, smooth, true);
+    });
+    if (!canNavigate) return;
+  }
+
   const slider = document.getElementById('screensSlider');
   const tabs = document.querySelectorAll('.swipe-tab');
   const maxIndex = Math.max(0, (tabs.length || 5) - 1);
@@ -1741,24 +1875,33 @@ function validateDistribution(totalUnits, unitName, inputsArray, badgeId, msgId,
 
   if (!badge || !msg || !btnSave) return;
 
+  const isKoz = (saveBtnId === 'btnSaveKoz');
+  const typeText = isKoz ? 'KOZ' : 'CEZA';
+
   if (diff === 0) {
     badge.textContent = `Tamamlandı (${totalUnits}/${totalUnits})`;
     badge.className = 'remaining-counter valid';
     msg.textContent = `✓ Dağılım eksiksiz doğrulandı. Kaydedebilirsiniz.`;
     msg.className = 'validation-bar success';
     btnSave.disabled = isSpectatorMode;
+    btnSave.classList.add('ready-to-save');
+    btnSave.innerHTML = `<span class="save-btn-icon">💾</span> <span class="save-btn-text">${typeText} ELİNİ KAYDET &amp; ÇETEYE İŞLE ✓</span>`;
   } else if (diff > 0) {
     badge.textContent = `Kalan: ${diff} / ${totalUnits} ${unitName}`;
     badge.className = 'remaining-counter';
     msg.textContent = `⚠️ Dağıtılması gereken ${diff} adet ${unitName} kaldı.`;
     msg.className = 'validation-bar error';
     btnSave.disabled = true;
+    btnSave.classList.remove('ready-to-save');
+    btnSave.innerHTML = `<span class="save-btn-icon">🔒</span> <span class="save-btn-text">Kalan: ${diff} ${unitName} (${typeText} Dağılımını Tamamlayın)</span>`;
   } else {
     badge.textContent = `Fazla: +${Math.abs(diff)}`;
     badge.className = 'remaining-counter';
     msg.textContent = `❌ Toplam ${totalUnits} olmalı, ${Math.abs(diff)} adet fazla girildi!`;
     msg.className = 'validation-bar error';
     btnSave.disabled = true;
+    btnSave.classList.remove('ready-to-save');
+    btnSave.innerHTML = `<span class="save-btn-icon">❌</span> <span class="save-btn-text">+${Math.abs(diff)} Fazla Girildi (Düzeltin)</span>`;
   }
 }
 
@@ -2291,16 +2434,73 @@ function openResetConfirmModal() {
   const modalReset = document.getElementById('modalResetConfirm');
   const chkConfirm = document.getElementById('chkSecondConfirm');
   const btnConfirm = document.getElementById('btnConfirmResetFinal');
+  const inputCode = document.getElementById('inputResetCode');
+  const wrapCode = document.getElementById('wrapResetCode');
+  const lblStatus = document.getElementById('lblResetGameStatus');
+
+  const roundCount = (state.rounds && state.rounds.length) || 0;
+
+  if (lblStatus) {
+    if (roundCount > 0) {
+      lblStatus.innerHTML = `Mevcut oyunda girilen <b>${roundCount} el</b>, 4 oyuncunun <b>bütün puanları</b> ve <b>çetele tablosu</b> sıfırlanacaktır.`;
+    } else {
+      lblStatus.innerHTML = `Girilen oyuncu isimleri ve masa ayarları sıfırlanacaktır.`;
+    }
+  }
+
+  if (chkConfirm) chkConfirm.checked = false;
+  if (inputCode) inputCode.value = '';
+  if (btnConfirm) btnConfirm.disabled = true;
+
+  if (wrapCode) {
+    wrapCode.style.display = roundCount > 0 ? 'block' : 'none';
+  }
+
+  const updateResetBtnState = () => {
+    const isCodeOk = roundCount > 0 ? (inputCode?.value.trim().toUpperCase() === 'SIFIRLA') : true;
+    const isChkOk = Boolean(chkConfirm?.checked);
+    if (btnConfirm) {
+      btnConfirm.disabled = !(isCodeOk && isChkOk);
+    }
+  };
+
+  if (inputCode) {
+    inputCode.oninput = updateResetBtnState;
+  }
+  if (chkConfirm) {
+    chkConfirm.onchange = () => {
+      triggerHaptic(10);
+      updateResetBtnState();
+    };
+  }
 
   if (modalReset) {
-    if (chkConfirm) chkConfirm.checked = false;
-    if (btnConfirm) btnConfirm.disabled = true;
     modalReset.classList.add('active');
+    if (roundCount > 0 && inputCode) {
+      setTimeout(() => inputCode.focus(), 250);
+    }
   }
 }
 
-function executeResetGame() {
-  // HER ŞEYİ TERTEMİZ SIFIRLA (Eski isimler asla gelmesin)
+async function executeResetGame() {
+  // 1. GÜVENLİK: Masada oynanmış el varsa sıfırlamadan önce otomatik olarak Arşiv'e kaydet
+  if (state.rounds && state.rounds.length > 0) {
+    try {
+      const now = new Date();
+      const timeStr = now.toLocaleDateString('tr-TR') + ' ' + now.toLocaleTimeString('tr-TR');
+      await fetch('/api/archive-current', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          title: `Otomatik Yedek (Yeni Oyun Öncesi - ${state.rounds.length}/20 El - ${timeStr})`
+        })
+      });
+    } catch (e) {
+      console.warn('Otomatik arşiv hatası:', e);
+    }
+  }
+
+  // 2. HER ŞEYİ TERTEMİZ SIFIRLA (Eski isimler asla gelmesin)
   state = {
     players: [
       { id: 0, name: 'Oyuncu 1', score: 0, kozCount: 0, cezaCount: 0 },
@@ -2332,8 +2532,8 @@ function executeResetGame() {
   saveStateToStorage();
   pushStateToServer();
   renderAll();
-  goToScreen(0, true);
-  showToast('🔄 Masa ve oyuncu adları sıfırlandı. Yeni oyuncuları yazabilirsiniz.', 'emerald');
+  goToScreen(0, true, true);
+  showToast('🔄 Yeni oyun başlatıldı. Eski oyun Arşiv\'e güvenle yedeklendi.', 'emerald');
 }
 
 
@@ -2879,11 +3079,18 @@ function initEventListeners() {
     });
   });
 
-  // Geri Al & Yeni Oyun
+  // Geri Al & Yeni Oyun (Güvenlik Önlemli)
   document.getElementById('btnUndo').addEventListener('click', undoLastHand);
   const handleNewGameRequest = () => {
     triggerHaptic(20);
-    if (!state.rounds || state.rounds.length === 0) {
+    if (myPlayerRole !== 'all') {
+      showToast('⛔ Bu cihaz oyuncu/seyirci modundadır. Masayı sadece ana masa yöneticisi sıfırlayabilir.', 'rose');
+      return;
+    }
+    const hasCustomPlayers = state.players && state.players.some((p, i) => p.name && p.name !== `Oyuncu ${i + 1}`);
+    const hasRounds = state.rounds && state.rounds.length > 0;
+
+    if (!hasRounds && !hasCustomPlayers) {
       executeResetGame();
     } else {
       openResetConfirmModal();
@@ -2898,7 +3105,6 @@ function initEventListeners() {
   const btnCloseReset = document.getElementById('btnCloseResetModal');
   const btnCancelReset = document.getElementById('btnCancelReset');
   const btnConfirmReset = document.getElementById('btnConfirmResetFinal');
-  const chkConfirm = document.getElementById('chkSecondConfirm');
 
   const closeResetModal = () => {
     modalReset?.classList.remove('active');
@@ -2906,13 +3112,6 @@ function initEventListeners() {
 
   btnCloseReset?.addEventListener('click', closeResetModal);
   btnCancelReset?.addEventListener('click', closeResetModal);
-
-  chkConfirm?.addEventListener('change', () => {
-    triggerHaptic(10);
-    if (btnConfirmReset) {
-      btnConfirmReset.disabled = !chkConfirm.checked;
-    }
-  });
 
   btnConfirmReset?.addEventListener('click', () => {
     triggerHaptic(35);
