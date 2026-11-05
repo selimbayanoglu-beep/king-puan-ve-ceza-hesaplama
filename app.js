@@ -4,9 +4,22 @@
 // --------------------------------------------------------------------------
 let currentTableId = '1';
 let activeTableCount = 1;
-let tablesList = [{ id: '1', name: 'Masa 1' }];
+let tablesList = [
+  { id: '1', name: 'Masa 1' },
+  { id: '2', name: 'Masa 2' },
+  { id: '3', name: 'Masa 3' },
+  { id: '4', name: 'Masa 4' }
+];
 let activeSetupTableId = '1'; // Sayfa 0'da oyuncuları düzenlenen masa
 let salonRefreshTimer = null;
+
+function ensureTablesList() {
+  const count = Math.max(1, activeTableCount || 1);
+  while (tablesList.length < count) {
+    const nextId = String(tablesList.length + 1);
+    tablesList.push({ id: nextId, name: `Masa ${nextId}` });
+  }
+}
 
 function getRoleStorageKey(tableId = currentTableId) {
   return (String(tableId) === '1') ? 'king_my_player_role_v1' : `king_my_player_role_table_${tableId}`;
@@ -39,6 +52,14 @@ function initSpectatorMode() {
       if (savedTable) currentTableId = String(savedTable);
     } catch (e) {}
   }
+
+  try {
+    const savedCount = localStorage.getItem('king_salon_table_count');
+    if (savedCount) {
+      activeTableCount = Math.max(1, Math.min(8, parseInt(savedCount, 10)));
+      ensureTablesList();
+    }
+  } catch (e) {}
 
   activeSetupTableId = currentTableId;
 
@@ -358,6 +379,12 @@ async function switchTable(tableId) {
 async function setTableCount(newCount) {
   triggerHaptic(15);
   const count = Math.max(1, Math.min(8, parseInt(newCount, 10)));
+  activeTableCount = count;
+  try {
+    localStorage.setItem('king_salon_table_count', String(count));
+  } catch (e) {}
+  ensureTablesList();
+
   try {
     const res = await fetch('/api/tables', {
       method: 'POST',
@@ -368,12 +395,8 @@ async function setTableCount(newCount) {
       const data = await res.json();
       activeTableCount = data.activeCount || count;
       tablesList = data.tables || tablesList;
-    } else {
-      activeTableCount = count;
     }
-  } catch (e) {
-    activeTableCount = count;
-  }
+  } catch (e) {}
 
   // Eğer mevcut masa yeni masa sayısının dışındaysa Masa 1'e geç
   if (parseInt(currentTableId, 10) > activeTableCount) {
@@ -386,16 +409,20 @@ async function setTableCount(newCount) {
 }
 
 async function loadTablesList() {
+  ensureTablesList();
   try {
     const res = await fetch(`/api/tables?t=${Date.now()}`, { cache: 'no-store' });
     if (res.ok) {
       const data = await res.json();
-      activeTableCount = data.activeCount || 1;
+      activeTableCount = data.activeCount || activeTableCount;
       tablesList = data.tables || tablesList;
-      renderTableBar();
-      renderTableSetupUI();
+      try {
+        localStorage.setItem('king_salon_table_count', String(activeTableCount));
+      } catch (e) {}
     }
   } catch (e) {}
+  renderTableBar();
+  renderTableSetupUI();
 }
 
 async function openSalonOverview() {
@@ -424,90 +451,133 @@ async function renderSalonTables() {
   const bannerCount = document.getElementById('lblSalonActiveCount');
   if (!grid) return;
 
+  ensureTablesList();
+  let tablesData = [];
+
   try {
     const res = await fetch(`/api/tables?t=${Date.now()}`, { cache: 'no-store' });
-    if (!res.ok) return;
-    const data = await res.json();
-    const tables = data.tables || [];
-    activeTableCount = data.activeCount || tables.length || 1;
-
-    if (bannerCount) {
-      bannerCount.innerHTML = `Toplam Aktif Masa: <b>${activeTableCount} Masa (${activeTableCount * 4} Oyuncu)</b>`;
+    if (res.ok) {
+      const data = await res.json();
+      tablesData = data.tables || [];
+      activeTableCount = data.activeCount || tablesData.length || activeTableCount;
     }
+  } catch (e) {}
 
-    grid.innerHTML = '';
-    tables.forEach((t) => {
-      const isCurrent = String(t.id) === String(currentTableId);
-      const card = document.createElement('div');
-      card.className = `salon-table-card ${isCurrent ? 'active-table' : ''}`;
-
-      let gameStatusDesc = '';
-      if (t.kingWinnerName) {
-        gameStatusDesc = `🏆 👑 KING: ${escapeHtml(t.kingWinnerName)}`;
-      } else if (t.isGameOver) {
-        gameStatusDesc = '🏁 20/20 El Tamamlandı';
+  // Eğer API henüz aktif değilse yerel storage verilerinden tabloları oluştur
+  if (!tablesData || tablesData.length === 0) {
+    const activeTables = tablesList.slice(0, activeTableCount);
+    tablesData = activeTables.map(t => {
+      let tState = null;
+      if (String(t.id) === String(currentTableId)) {
+        tState = state;
       } else {
-        const isKoz = t.activeHandType === 'koz';
-        const suitName = ({ karo: '♦ Karo', kupa: '♥️ Kupa', maca: '♠ Maça', sinek: '♣ Sinek' })[t.selectedKozSuit] || '♦ Karo';
-        const cezaName = (GAME_DEFS[t.selectedCezaKey] && GAME_DEFS[t.selectedCezaKey].shortTitle) || 'Ceza';
-        gameStatusDesc = isKoz ? `👑 Koz: ${suitName}` : `⚡ Ceza: ${cezaName}`;
+        try {
+          const raw = localStorage.getItem(getGameStorageKey(t.id));
+          if (raw) tState = JSON.parse(raw);
+        } catch (e) {}
       }
 
-      // En yüksek puanlı oyuncuyu bul
-      const highestScore = (t.players && t.players.length > 0)
-        ? Math.max(...t.players.map(p => p.score || 0))
-        : 0;
+      const pList = (tState && Array.isArray(tState.players)) ? tState.players : [
+        { id: 0, name: 'Oyuncu 1', score: 0 },
+        { id: 1, name: 'Oyuncu 2', score: 0 },
+        { id: 2, name: 'Oyuncu 3', score: 0 },
+        { id: 3, name: 'Oyuncu 4', score: 0 }
+      ];
 
-      const scoresHtml = (t.players || []).map(p => {
-        const isLeader = p.score === highestScore && p.score !== 0;
-        return `
-          <div class="stc-score-item ${isLeader ? 'leader' : ''}">
-            <span class="stc-player-name">${escapeHtml(p.name)}</span>
-            <span class="stc-player-pts">${p.score > 0 ? '+' : ''}${p.score}</span>
-          </div>
-        `;
-      }).join('');
+      const rList = (tState && Array.isArray(tState.rounds)) ? tState.rounds : [];
+      const sortedP = pList.slice().sort((a, b) => (b.score || 0) - (a.score || 0));
 
-      card.innerHTML = `
-        <div class="stc-header">
-          <div class="stc-title-wrap">
-            <span class="stc-name">🪑 ${escapeHtml(t.name)}</span>
-            ${isCurrent ? '<span class="stc-active-badge">BURADASINIZ</span>' : ''}
-          </div>
-          <span class="stc-hand-badge">${t.roundsCount}/20 El</span>
-        </div>
-        <div class="stc-current-game">
-          <span>${gameStatusDesc}</span>
-          ${t.leader ? `<span style="font-size: 11px; color: #34d399;">Lider: <b>${escapeHtml(t.leader)}</b></span>` : ''}
-        </div>
-        <div class="stc-scores-grid">
-          ${scoresHtml}
-        </div>
-        <div class="stc-actions">
-          <button type="button" class="btn-stc-switch" data-table-id="${t.id}">
-            ${isCurrent ? '✓ Bu Masadasınız' : 'Bu Masaya Geç ➔'}
-          </button>
-          <button type="button" class="btn-stc-qr" data-qr-id="${t.id}" title="Bu Masanın QR Kodunu Göster">
-            📱 QR
-          </button>
+      return {
+        id: String(t.id),
+        name: t.name || `Masa ${t.id}`,
+        roundsCount: rList.length,
+        isGameOver: rList.length >= 20 || Boolean(tState && tState.kingWinnerName),
+        kingWinnerName: tState && tState.kingWinnerName,
+        activeHandType: (tState && tState.activeHandType) || 'ceza',
+        selectedCezaKey: (tState && tState.selectedCezaKey) || 'el_almaz',
+        selectedKozSuit: (tState && tState.selectedKozSuit) || 'karo',
+        leader: sortedP[0] ? sortedP[0].name : null,
+        players: pList
+      };
+    });
+  }
+
+    if (bannerCount) {
+    bannerCount.innerHTML = `Toplam Aktif Masa: <b>${activeTableCount} Masa (${activeTableCount * 4} Oyuncu)</b>`;
+  }
+
+  grid.innerHTML = '';
+  tablesData.forEach((t) => {
+    const isCurrent = String(t.id) === String(currentTableId);
+    const card = document.createElement('div');
+    card.className = `salon-table-card ${isCurrent ? 'active-table' : ''}`;
+
+    let gameStatusDesc = '';
+    if (t.kingWinnerName) {
+      gameStatusDesc = `🏆 👑 KING: ${escapeHtml(t.kingWinnerName)}`;
+    } else if (t.isGameOver) {
+      gameStatusDesc = '🏁 20/20 El Tamamlandı';
+    } else {
+      const isKoz = t.activeHandType === 'koz';
+      const suitName = ({ karo: '♦ Karo', kupa: '♥️ Kupa', maca: '♠ Maça', sinek: '♣ Sinek' })[t.selectedKozSuit] || '♦ Karo';
+      const cezaName = (GAME_DEFS[t.selectedCezaKey] && GAME_DEFS[t.selectedCezaKey].shortTitle) || 'Ceza';
+      gameStatusDesc = isKoz ? `👑 Koz: ${suitName}` : `⚡ Ceza: ${cezaName}`;
+    }
+
+    // En yüksek puanlı oyuncuyu bul
+    const highestScore = (t.players && t.players.length > 0)
+      ? Math.max(...t.players.map(p => p.score || 0))
+      : 0;
+
+    const scoresHtml = (t.players || []).map(p => {
+      const isLeader = p.score === highestScore && p.score !== 0;
+      return `
+        <div class="stc-score-item ${isLeader ? 'leader' : ''}">
+          <span class="stc-player-name">${escapeHtml(p.name)}</span>
+          <span class="stc-player-pts">${p.score > 0 ? '+' : ''}${p.score}</span>
         </div>
       `;
+    }).join('');
 
-      card.querySelector('.btn-stc-switch')?.addEventListener('click', async () => {
-        triggerHaptic(15);
-        await switchTable(t.id);
-        closeSalonOverview();
-      });
+    card.innerHTML = `
+      <div class="stc-header">
+        <div class="stc-title-wrap">
+          <span class="stc-name">🪑 ${escapeHtml(t.name)}</span>
+          ${isCurrent ? '<span class="stc-active-badge">BURADASINIZ</span>' : ''}
+        </div>
+        <span class="stc-hand-badge">${t.roundsCount}/20 El</span>
+      </div>
+      <div class="stc-current-game">
+        <span>${gameStatusDesc}</span>
+        ${t.leader ? `<span style="font-size: 11px; color: #34d399;">Lider: <b>${escapeHtml(t.leader)}</b></span>` : ''}
+      </div>
+      <div class="stc-scores-grid">
+        ${scoresHtml}
+      </div>
+      <div class="stc-actions">
+        <button type="button" class="btn-stc-switch" data-table-id="${t.id}">
+          ${isCurrent ? '✓ Bu Masadasınız' : 'Bu Masaya Geç ➔'}
+        </button>
+        <button type="button" class="btn-stc-qr" data-qr-id="${t.id}" title="Bu Masanın QR Kodunu Göster">
+          📱 QR
+        </button>
+      </div>
+    `;
 
-      card.querySelector('.btn-stc-qr')?.addEventListener('click', () => {
-        triggerHaptic(15);
-        closeSalonOverview();
-        openMobileConnectModal(t.id);
-      });
-
-      grid.appendChild(card);
+    card.querySelector('.btn-stc-switch')?.addEventListener('click', async () => {
+      triggerHaptic(15);
+      await switchTable(t.id);
+      closeSalonOverview();
     });
-  } catch (e) {}
+
+    card.querySelector('.btn-stc-qr')?.addEventListener('click', () => {
+      triggerHaptic(15);
+      closeSalonOverview();
+      openMobileConnectModal(t.id);
+    });
+
+    grid.appendChild(card);
+  });
 }
 
 
