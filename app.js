@@ -82,8 +82,16 @@ function getAllOccupiedPlayers(excludeTableId = null, excludePlayerIdx = null) {
       } catch (e) {}
     }
 
-    if (tState && Array.isArray(tState.players)) {
-      tState.players.forEach((p, idx) => {
+    let players = (tState && Array.isArray(tState.players)) ? tState.players : null;
+    if (!players || players.length === 0) {
+      const tObj = tablesList.find(t => String(t.id) === tid);
+      if (tObj && Array.isArray(tObj.players)) {
+        players = tObj.players;
+      }
+    }
+
+    if (players && Array.isArray(players)) {
+      players.forEach((p, idx) => {
         const pName = (p && p.name ? p.name.trim() : '');
         if (pName && !isDefaultPlayerName(pName)) {
           const tObj = tablesList.find(t => String(t.id) === tid) || { name: `Masa ${tid}` };
@@ -432,6 +440,12 @@ async function switchTable(tableId) {
   // Mevcut masayı kaydet
   saveStateToStorage();
 
+  // Önceki masanın geçici düzenleme bayraklarını ve hafızasını tamamen sıfırla
+  hasUserEditedSetupInputs = false;
+  lastLocalSetupEditAt = 0;
+  lastLocalEditTableId = null;
+  serverVersion = 0; // Her masanın versiyonu bağımsızdır; 0 yapılarak yeni masanın sunucu verisi kesinlikle alınır
+
   currentTableId = tid;
   activeSetupTableId = tid;
   try {
@@ -444,11 +458,14 @@ async function switchTable(tableId) {
   // O masaya ait yerel state'i yükle
   loadStateFromStorage();
 
+  // Input alanlarını bu masanın kendi oyuncularıyla doldur
+  updateSetupInputFields();
+
   renderTableBar();
   renderTableSetupUI();
   renderAll();
 
-  // Sunucudan o masanın canlı durumunu al
+  // Sunucudan o masanın canlı durumunu al (initial = true)
   await fetchServerState(true);
 
   const tName = (tablesList.find(t => String(t.id) === tid) || {}).name || `Masa ${tid}`;
@@ -719,19 +736,9 @@ function renderPlayerDbItems() {
   if (!container) return;
 
   const query = (searchInput?.value || '').trim().toLocaleLowerCase('tr-TR');
-  const filtered = cachedPlayerDatabase.filter(name => {
+  const rawFiltered = cachedPlayerDatabase.filter(name => {
     return !query || name.toLocaleLowerCase('tr-TR').includes(query);
   });
-
-  if (filtered.length === 0) {
-    container.innerHTML = `
-      <div style="background: rgba(255,255,255,0.03); border: 1px dashed rgba(255,255,255,0.15); border-radius: 10px; padding: 18px; text-align: center; color: #94a3b8; font-size: 13px;">
-        🔍 Eşleşen oyuncu bulunamadı.<br>
-        <span style="font-size: 11.5px; color: #64748b;">Yukarıdaki kutudan hemen ekleyebilirsiniz.</span>
-      </div>
-    `;
-    return;
-  }
 
   // Tüm masalarda oturan oyuncuları tespit et (çakışma ve aynı anda 2 masada oynamayı engelle)
   const occupied = getAllOccupiedPlayers(currentTableId, targetPlayerSelectIdx);
@@ -739,33 +746,44 @@ function renderPlayerDbItems() {
     idx !== targetPlayerSelectIdx ? (p.name || '').trim().toLocaleLowerCase('tr-TR') : ''
   );
 
-  let html = '';
-  filtered.forEach(name => {
+  // KULLANICI KURALI: Masalara oturmuş olan oyuncular diğer masalarda oyuncu seçerken
+  // LİSTEDE KESİNLİKLE GÖRÜNMEYECEK! Sadece boşta olan, seçilebilir oyuncular listelenir.
+  const availablePlayers = rawFiltered.filter(name => {
     const lower = name.trim().toLocaleLowerCase('tr-TR');
     const otherOccupied = occupied.get(lower);
     const isSameTable = curTableOccupied.includes(lower);
+    return !otherOccupied && !isSameTable;
+  });
 
-    let badgeHtml = '';
-    let isDisabled = false;
+  if (availablePlayers.length === 0) {
+    const hasAnyInDb = cachedPlayerDatabase.length > 0;
+    container.innerHTML = `
+      <div style="background: rgba(255,255,255,0.03); border: 1px dashed rgba(255,255,255,0.15); border-radius: 10px; padding: 18px; text-align: center; color: #94a3b8; font-size: 13px;">
+        ${hasAnyInDb 
+          ? '👥 Kayıtlı oyuncuların tümü masalara yerleştirildi (Boşta oyuncu kalmadı).<br><span style="font-size: 11.5px; color: #64748b;">Yeni bir oyuncu eklemek için yukarıdaki kutuyu kullanabilirsiniz.</span>'
+          : '🔍 Henüz kayıtlı oyuncu yok.<br><span style="font-size: 11.5px; color: #64748b;">Yukarıdaki kutudan hemen ekleyebilirsiniz.</span>'}
+      </div>
+    `;
+    return;
+  }
 
-    if (otherOccupied) {
-      isDisabled = true;
-      badgeHtml = `<span class="player-db-badge-occupied">🚫 ${escapeHtml(otherOccupied.tableName)}'de Oynuyor</span>`;
-    } else if (isSameTable) {
-      isDisabled = true;
-      badgeHtml = `<span class="player-db-badge-cur-table">⚠️ Bu Masada Seçili</span>`;
-    }
+  let html = `
+    <div style="font-size: 11px; color: #10b981; font-weight: 700; margin-bottom: 6px; padding: 2px 4px; display: flex; align-items: center; justify-content: space-between;">
+      <span>🟢 Seçilebilir Boşta Oyuncular (${availablePlayers.length})</span>
+      <span style="font-size: 10px; color: #64748b;">(Diğer masalardakiler gizlendi)</span>
+    </div>
+  `;
 
+  availablePlayers.forEach(name => {
     html += `
-      <div class="player-db-item ${isDisabled ? 'item-disabled' : ''}" onclick="selectPlayerFromDb('${escapeHtml(name)}')">
+      <div class="player-db-item" onclick="selectPlayerFromDb('${escapeHtml(name)}')">
         <div class="player-db-name">
           <span style="font-size: 16px;">👤</span>
           <span style="font-weight: 700;">${escapeHtml(name)}</span>
-          ${badgeHtml}
         </div>
         <div class="player-db-actions">
-          <button type="button" class="btn ${isDisabled ? 'btn-secondary btn-disabled' : 'btn-primary'} btn-sm" style="padding: 4px 10px; font-size: 12px;" ${isDisabled ? 'disabled' : ''}>
-            ${isDisabled ? 'Dolu' : 'Seç ✓'}
+          <button type="button" class="btn btn-primary btn-sm" style="padding: 4px 12px; font-size: 12px;">
+            Seç ✓
           </button>
           <button type="button" class="btn-delete-db-player" onclick="event.stopPropagation(); deletePlayerFromDb('${escapeHtml(name)}')" title="Listeden Sil">🗑️</button>
         </div>
@@ -803,8 +821,12 @@ function selectPlayerFromDb(selectedName) {
   }
   if (state.players && state.players[targetPlayerSelectIdx]) {
     state.players[targetPlayerSelectIdx].name = selectedName;
+    hasUserEditedSetupInputs = true;
+    lastLocalEditTableId = currentTableId;
+    lastLocalSetupEditAt = Date.now();
     saveStateToStorage();
     pushStateToServer();
+    try { loadTablesList(); } catch (e) {}
   }
   renderAll();
   closePlayerDatabaseModal();
@@ -1116,6 +1138,7 @@ let serverNetworkUrl = '';
 let syncIntervalId = null;
 let currentScreenIndex = 0;
 let lastLocalSetupEditAt = 0;
+let lastLocalEditTableId = null;
 let hasUserEditedSetupInputs = false;
 let setupSyncTimer = null;
 
@@ -1556,12 +1579,16 @@ async function fetchServerState(initial = false) {
 
       if (data.version && data.version > serverVersion) {
         const prevRoundsLen = state.rounds ? state.rounds.length : 0;
-        syncSetupInputsToState();
+        if (!initial) syncSetupInputsToState();
         const localNamesSnapshot = state.players ? state.players.map(p => p.name) : [];
         const localDealerSnapshot = state.initialDealer;
-        const isEditingSetup = hasUserEditedSetupInputs || ['inputPlayer1', 'inputPlayer2', 'inputPlayer3', 'inputPlayer4'].some(
-          id => document.activeElement && document.activeElement.id === id
-        ) || (Date.now() - lastLocalSetupEditAt < 30000);
+        const isEditingSetup = !initial && (lastLocalEditTableId === currentTableId) && (
+          hasUserEditedSetupInputs ||
+          ['inputPlayer1', 'inputPlayer2', 'inputPlayer3', 'inputPlayer4'].some(
+            id => document.activeElement && document.activeElement.id === id
+          ) ||
+          (Date.now() - lastLocalSetupEditAt < 15000)
+        );
 
         serverVersion = data.version;
         if (data.state && Array.isArray(data.state.players)) {
@@ -1570,11 +1597,13 @@ async function fetchServerState(initial = false) {
           if (isEditingSetup) {
             state.players.forEach((p, idx) => {
               const localName = localNamesSnapshot[idx];
-              if (localName && localName !== `Oyuncu ${idx + 1}`) {
+              if (localName && !isDefaultPlayerName(localName)) {
                 p.name = localName;
               }
             });
             state.initialDealer = localDealerSnapshot;
+          } else {
+            updateSetupInputFields();
           }
           recalculateAllScores();
           saveStateToStorage();
@@ -1912,6 +1941,7 @@ function renderSetupScreen() {
       // Önce input kutularında yazılmış olan güncel oyuncu isimlerini state'e kaydet (isimler asla silinmesin!)
       syncSetupInputsToState();
       hasUserEditedSetupInputs = true;
+      lastLocalEditTableId = currentTableId;
       lastLocalSetupEditAt = Date.now();
       state.initialDealer = idx;
       saveStateToStorage();
@@ -3784,6 +3814,7 @@ function initEventListeners() {
 
     el.addEventListener('input', () => {
       hasUserEditedSetupInputs = true;
+      lastLocalEditTableId = currentTableId;
       lastLocalSetupEditAt = Date.now();
       const defaultName = getDefaultPlayerName(currentTableId, idx);
       const val = capitalizeWords(el.value);

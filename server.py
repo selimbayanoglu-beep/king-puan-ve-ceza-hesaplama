@@ -30,25 +30,33 @@ ARCHIVE_FILE = DIR_PATH / "games_archive.json"
 PLAYERS_DB_FILE = DIR_PATH / "players_db.json"
 
 
-# Varsayılan Oyun Durumu
-DEFAULT_STATE: dict[str, Any] = {
-    "players": [
-        {"id": 0, "name": "Oyuncu 1", "score": 0, "kozCount": 0, "cezaCount": 0},
-        {"id": 1, "name": "Oyuncu 2", "score": 0, "kozCount": 0, "cezaCount": 0},
-        {"id": 2, "name": "Oyuncu 3", "score": 0, "kozCount": 0, "cezaCount": 0},
-        {"id": 3, "name": "Oyuncu 4", "score": 0, "kozCount": 0, "cezaCount": 0},
-    ],
-    "initialDealer": 0,
-    "scoringMode": "standard",
-    "rounds": [],
-    "activeHandType": "ceza",
-    "selectedCezaKey": "el_almaz",
-    "selectedKozSuit": "karo",
-    "kozInputs": [0, 0, 0, 0],
-    "cezaInputs": [0, 0, 0, 0],
-    "kozConfirmed": [False, False, False, False],
-    "cezaConfirmed": [False, False, False, False],
-}
+# Varsayılan Oyun Durumu Üretici (Masa Bazlı İsimler: Masa 1: Oyuncu 1..4, Masa 2: Oyuncu 5..8, vb.)
+def create_default_state(table_id: str = "1") -> dict[str, Any]:
+    try:
+        tid = int(table_id)
+    except Exception:
+        tid = 1
+    start_num = (tid - 1) * 4 + 1
+    return {
+        "players": [
+            {"id": 0, "name": f"Oyuncu {start_num}", "score": 0, "kozCount": 0, "cezaCount": 0},
+            {"id": 1, "name": f"Oyuncu {start_num + 1}", "score": 0, "kozCount": 0, "cezaCount": 0},
+            {"id": 2, "name": f"Oyuncu {start_num + 2}", "score": 0, "kozCount": 0, "cezaCount": 0},
+            {"id": 3, "name": f"Oyuncu {start_num + 3}", "score": 0, "kozCount": 0, "cezaCount": 0},
+        ],
+        "initialDealer": 0,
+        "scoringMode": "standard",
+        "rounds": [],
+        "activeHandType": "ceza",
+        "selectedCezaKey": "el_almaz",
+        "selectedKozSuit": "karo",
+        "kozInputs": [0, 0, 0, 0],
+        "cezaInputs": [0, 0, 0, 0],
+        "kozConfirmed": [False, False, False, False],
+        "cezaConfirmed": [False, False, False, False],
+    }
+
+DEFAULT_STATE: dict[str, Any] = create_default_state("1")
 
 TABLES_CONFIG_FILE = DIR_PATH / "tables_config.json"
 
@@ -62,7 +70,7 @@ class GameSession:
         self.table_name = str(table_name)
         self.version = 1
         self.updated_at = int(time.time() * 1000)
-        self.state = json.loads(json.dumps(DEFAULT_STATE))
+        self.state = create_default_state(self.table_id)
         self.load()
 
     def load(self) -> None:
@@ -160,14 +168,12 @@ class GameSession:
         if self.state and self.state.get("rounds"):
             self.archive_current_game()
 
-        # HER ŞEYİ TERTEMİZ SIFIRLA (Eski isimler asla gelmesin)
-        new_state = json.loads(json.dumps(DEFAULT_STATE))
+        # HER ŞEYİ TERTEMİZ SIFIRLA (O masanın varsayılan isimleri ile)
+        new_state = create_default_state(self.table_id)
         if names and len(names) == 4 and any(n.strip() for n in names):
             for i, name in enumerate(names):
-                new_state["players"][i]["name"] = name.strip() or f"Oyuncu {i+1}"
-        else:
-            for i in range(4):
-                new_state["players"][i]["name"] = f"Oyuncu {i+1}"
+                def_name = new_state["players"][i]["name"]
+                new_state["players"][i]["name"] = name.strip() or def_name
 
         self.state = new_state
         self.version += 1
@@ -863,6 +869,7 @@ class KingHTTPHandler(http.server.SimpleHTTPRequestHandler):
                 "icon.svg",
                 "manifest.json",
                 "qrcode.js",
+                "tables_config.json",
             ]
             commit_ref = payload.get("ref", "main")
             repo_base = f"https://raw.githubusercontent.com/selimbayanoglu-beep/king-puan-ve-ceza-hesaplama/{commit_ref}/"
