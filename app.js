@@ -1,8 +1,24 @@
 
 // --------------------------------------------------------------------------
+// ÇOKLU MASA (SALON) YÖNETİMİ & MASA STATE DEĞİŞKENLERİ
+// --------------------------------------------------------------------------
+let currentTableId = '1';
+let activeTableCount = 1;
+let tablesList = [{ id: '1', name: 'Masa 1' }];
+let activeSetupTableId = '1'; // Sayfa 0'da oyuncuları düzenlenen masa
+let salonRefreshTimer = null;
+
+function getRoleStorageKey(tableId = currentTableId) {
+  return (String(tableId) === '1') ? 'king_my_player_role_v1' : `king_my_player_role_table_${tableId}`;
+}
+
+function getGameStorageKey(tableId = currentTableId) {
+  return (String(tableId) === '1') ? 'king_score_game_v1' : `king_score_game_table_${tableId}`;
+}
+
+// --------------------------------------------------------------------------
 // CANLI YAYIN, OYUNCU TELEFON KİMLİĞİ & SEYİRCİ (İZLEYİCİ) MODU YÖNETİMİ
 // --------------------------------------------------------------------------
-const ROLE_STORAGE_KEY = 'king_my_player_role_v1';
 let isSpectatorMode = false;
 let myPlayerRole = 'all'; // 'all' | '0' | '1' | '2' | '3' | 'spectator'
 
@@ -10,6 +26,21 @@ function initSpectatorMode() {
   const urlParams = new URLSearchParams(window.location.search);
   const modParam = urlParams.get('mod');
   const oyuncuParam = urlParams.get('oyuncu');
+  const tableParam = urlParams.get('masa') || urlParams.get('table');
+
+  if (tableParam) {
+    currentTableId = String(tableParam);
+    try {
+      localStorage.setItem('king_active_table_id', currentTableId);
+    } catch (e) {}
+  } else {
+    try {
+      const savedTable = localStorage.getItem('king_active_table_id');
+      if (savedTable) currentTableId = String(savedTable);
+    } catch (e) {}
+  }
+
+  activeSetupTableId = currentTableId;
 
   if (modParam === 'izle' || urlParams.get('spectator') === '1') {
     setMyPlayerRole('spectator', false);
@@ -17,11 +48,16 @@ function initSpectatorMode() {
     setMyPlayerRole(String(parseInt(oyuncuParam, 10) - 1), false);
   } else {
     try {
-      const savedRole = localStorage.getItem(ROLE_STORAGE_KEY);
+      const roleKey = getRoleStorageKey(currentTableId);
+      const savedRole = localStorage.getItem(roleKey);
       if (savedRole && ['all', '0', '1', '2', '3', 'spectator'].includes(savedRole)) {
         setMyPlayerRole(savedRole, false);
+      } else {
+        setMyPlayerRole('all', false);
       }
-    } catch (e) {}
+    } catch (e) {
+      setMyPlayerRole('all', false);
+    }
   }
 
   document.getElementById('btnShareLiveGame')?.addEventListener('click', shareLiveGameLink);
@@ -31,7 +67,8 @@ function initSpectatorMode() {
 function setMyPlayerRole(role, showToastMsg = true) {
   myPlayerRole = role;
   try {
-    localStorage.setItem(ROLE_STORAGE_KEY, role);
+    const roleKey = getRoleStorageKey(currentTableId);
+    localStorage.setItem(roleKey, role);
   } catch (e) {}
 
   if (role === 'spectator') {
@@ -65,23 +102,26 @@ function setMyPlayerRole(role, showToastMsg = true) {
 
 function shareLiveGameLink() {
   triggerHaptic(15);
-  const liveUrl = `${window.location.origin}`;
+  const liveUrl = (currentTableId && String(currentTableId) !== '1')
+    ? `${window.location.origin}/?masa=${currentTableId}`
+    : `${window.location.origin}`;
+  const tName = (tablesList.find(t => String(t.id) === String(currentTableId)) || {}).name || `Masa ${currentTableId}`;
   if (navigator.share) {
     navigator.share({
-      title: 'King Canlı Çetele & Puan Girişi',
-      text: 'King masasına bağlanın: Canlı izleyin veya kendi koz/ceza puanınızı telefonunuzdan girin!',
+      title: `King Canlı Çetele — ${tName}`,
+      text: `${tName} King masasına bağlanın: Canlı izleyin veya kendi koz/ceza puanınızı telefonunuzdan girin!`,
       url: liveUrl
     }).catch(() => {});
     return;
   }
   if (navigator.clipboard && navigator.clipboard.writeText) {
     navigator.clipboard.writeText(liveUrl).then(() => {
-      showToast('🔗 Canlı masa linki kopyalandı! Oyunculara ve izleyicilere gönderebilirsiniz.', 'emerald');
+      showToast(`🔗 ${tName} bağlantı linki kopyalandı! Oyunculara gönderebilirsiniz.`, 'emerald');
     }).catch(() => {
-      prompt('Canlı masa linkini kopyalayın:', liveUrl);
+      prompt('Masa linkini kopyalayın:', liveUrl);
     });
   } else {
-    prompt('Canlı masa linkini kopyalayın:', liveUrl);
+    prompt('Masa linkini kopyalayın:', liveUrl);
   }
 }
 
@@ -208,6 +248,266 @@ function renderLivePlayerBar(currentHand, callerIdx, isGameOver) {
   if (btnNewGame) {
     btnNewGame.style.display = (myPlayerRole === 'all') ? '' : 'none';
   }
+}
+
+// --------------------------------------------------------------------------
+// ÇOKLU MASA & SALON YÖNETİMİ
+// --------------------------------------------------------------------------
+function renderTableBar() {
+  const container = document.getElementById('tablePillsContainer');
+  if (!container) return;
+  container.innerHTML = '';
+
+  const activeTables = tablesList.slice(0, Math.max(1, activeTableCount));
+  activeTables.forEach((t) => {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    const isActive = String(t.id) === String(currentTableId);
+    btn.className = `table-pill ${isActive ? 'active' : ''}`;
+    btn.innerHTML = `<span class="tp-dot"></span> 🪑 ${escapeHtml(t.name || ('Masa ' + t.id))}`;
+    btn.addEventListener('click', () => {
+      triggerHaptic(15);
+      switchTable(t.id);
+    });
+    container.appendChild(btn);
+  });
+}
+
+function renderTableSetupUI() {
+  // Masa sayısı seçim butonları
+  const countButtons = document.querySelectorAll('#tableCountSelector .btn-count-opt');
+  countButtons.forEach(btn => {
+    const cnt = parseInt(btn.getAttribute('data-count'), 10);
+    btn.classList.toggle('active', cnt === activeTableCount);
+  });
+
+  const badge = document.getElementById('multiTableBadge');
+  if (badge) {
+    badge.textContent = `${activeTableCount} Masa (${activeTableCount * 4} Kişi)`;
+  }
+
+  // Masalar arası kurulum sekmeleri
+  const tabsRow = document.getElementById('tableSetupTabsRow');
+  const tabsContainer = document.getElementById('tableSetupTabsContainer');
+  if (tabsRow && tabsContainer) {
+    if (activeTableCount > 1) {
+      tabsRow.style.display = 'flex';
+      tabsContainer.innerHTML = '';
+      const activeTables = tablesList.slice(0, activeTableCount);
+      activeTables.forEach(t => {
+        const tabBtn = document.createElement('button');
+        tabBtn.type = 'button';
+        const isActive = String(t.id) === String(activeSetupTableId);
+        tabBtn.className = `btn-setup-tab ${isActive ? 'active' : ''}`;
+        tabBtn.innerHTML = `🪑 ${escapeHtml(t.name || ('Masa ' + t.id))}`;
+        tabBtn.addEventListener('click', () => {
+          triggerHaptic(15);
+          switchSetupTable(t.id);
+        });
+        tabsContainer.appendChild(tabBtn);
+      });
+    } else {
+      tabsRow.style.display = 'none';
+    }
+  }
+
+  const titleEl = document.getElementById('lblPlayerNamesTitle');
+  if (titleEl) {
+    const curName = (tablesList.find(t => String(t.id) === String(activeSetupTableId)) || {}).name || `Masa ${activeSetupTableId}`;
+    titleEl.textContent = `Oyuncu İsimleri (${curName}):`;
+  }
+}
+
+async function switchSetupTable(tableId) {
+  if (String(tableId) === String(activeSetupTableId)) return;
+  // Mevcut formdaki isimleri kaydet
+  syncSetupInputsToState();
+  await switchTable(tableId);
+}
+
+async function switchTable(tableId) {
+  const tid = String(tableId);
+  if (tid === String(currentTableId)) return;
+
+  // Mevcut masayı kaydet
+  saveStateToStorage();
+
+  currentTableId = tid;
+  activeSetupTableId = tid;
+  try {
+    localStorage.setItem('king_active_table_id', currentTableId);
+  } catch (e) {}
+
+  // O masaya ait rolü yükle
+  initSpectatorMode();
+
+  // O masaya ait yerel state'i yükle
+  loadStateFromStorage();
+
+  renderTableBar();
+  renderTableSetupUI();
+  renderAll();
+
+  // Sunucudan o masanın canlı durumunu al
+  await fetchServerState(true);
+
+  const tName = (tablesList.find(t => String(t.id) === tid) || {}).name || `Masa ${tid}`;
+  showToast(`🪑 ${tName} seçildi.`, 'emerald');
+}
+
+async function setTableCount(newCount) {
+  triggerHaptic(15);
+  const count = Math.max(1, Math.min(8, parseInt(newCount, 10)));
+  try {
+    const res = await fetch('/api/tables', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'set_count', count: count })
+    });
+    if (res.ok) {
+      const data = await res.json();
+      activeTableCount = data.activeCount || count;
+      tablesList = data.tables || tablesList;
+    } else {
+      activeTableCount = count;
+    }
+  } catch (e) {
+    activeTableCount = count;
+  }
+
+  // Eğer mevcut masa yeni masa sayısının dışındaysa Masa 1'e geç
+  if (parseInt(currentTableId, 10) > activeTableCount) {
+    await switchTable('1');
+  }
+
+  renderTableBar();
+  renderTableSetupUI();
+  showToast(`🏢 Salon ayarlandı: ${activeTableCount} Masa (${activeTableCount * 4} Oyuncu)`, 'cyan');
+}
+
+async function loadTablesList() {
+  try {
+    const res = await fetch(`/api/tables?t=${Date.now()}`, { cache: 'no-store' });
+    if (res.ok) {
+      const data = await res.json();
+      activeTableCount = data.activeCount || 1;
+      tablesList = data.tables || tablesList;
+      renderTableBar();
+      renderTableSetupUI();
+    }
+  } catch (e) {}
+}
+
+async function openSalonOverview() {
+  triggerHaptic(20);
+  const modal = document.getElementById('modalSalonOverview');
+  if (!modal) return;
+  modal.classList.add('active');
+
+  await renderSalonTables();
+
+  if (salonRefreshTimer) clearInterval(salonRefreshTimer);
+  salonRefreshTimer = setInterval(renderSalonTables, 3500);
+}
+
+function closeSalonOverview() {
+  const modal = document.getElementById('modalSalonOverview');
+  if (modal) modal.classList.remove('active');
+  if (salonRefreshTimer) {
+    clearInterval(salonRefreshTimer);
+    salonRefreshTimer = null;
+  }
+}
+
+async function renderSalonTables() {
+  const grid = document.getElementById('salonTablesGrid');
+  const bannerCount = document.getElementById('lblSalonActiveCount');
+  if (!grid) return;
+
+  try {
+    const res = await fetch(`/api/tables?t=${Date.now()}`, { cache: 'no-store' });
+    if (!res.ok) return;
+    const data = await res.json();
+    const tables = data.tables || [];
+    activeTableCount = data.activeCount || tables.length || 1;
+
+    if (bannerCount) {
+      bannerCount.innerHTML = `Toplam Aktif Masa: <b>${activeTableCount} Masa (${activeTableCount * 4} Oyuncu)</b>`;
+    }
+
+    grid.innerHTML = '';
+    tables.forEach((t) => {
+      const isCurrent = String(t.id) === String(currentTableId);
+      const card = document.createElement('div');
+      card.className = `salon-table-card ${isCurrent ? 'active-table' : ''}`;
+
+      let gameStatusDesc = '';
+      if (t.kingWinnerName) {
+        gameStatusDesc = `🏆 👑 KING: ${escapeHtml(t.kingWinnerName)}`;
+      } else if (t.isGameOver) {
+        gameStatusDesc = '🏁 20/20 El Tamamlandı';
+      } else {
+        const isKoz = t.activeHandType === 'koz';
+        const suitName = ({ karo: '♦ Karo', kupa: '♥️ Kupa', maca: '♠ Maça', sinek: '♣ Sinek' })[t.selectedKozSuit] || '♦ Karo';
+        const cezaName = (GAME_DEFS[t.selectedCezaKey] && GAME_DEFS[t.selectedCezaKey].shortTitle) || 'Ceza';
+        gameStatusDesc = isKoz ? `👑 Koz: ${suitName}` : `⚡ Ceza: ${cezaName}`;
+      }
+
+      // En yüksek puanlı oyuncuyu bul
+      const highestScore = (t.players && t.players.length > 0)
+        ? Math.max(...t.players.map(p => p.score || 0))
+        : 0;
+
+      const scoresHtml = (t.players || []).map(p => {
+        const isLeader = p.score === highestScore && p.score !== 0;
+        return `
+          <div class="stc-score-item ${isLeader ? 'leader' : ''}">
+            <span class="stc-player-name">${escapeHtml(p.name)}</span>
+            <span class="stc-player-pts">${p.score > 0 ? '+' : ''}${p.score}</span>
+          </div>
+        `;
+      }).join('');
+
+      card.innerHTML = `
+        <div class="stc-header">
+          <div class="stc-title-wrap">
+            <span class="stc-name">🪑 ${escapeHtml(t.name)}</span>
+            ${isCurrent ? '<span class="stc-active-badge">BURADASINIZ</span>' : ''}
+          </div>
+          <span class="stc-hand-badge">${t.roundsCount}/20 El</span>
+        </div>
+        <div class="stc-current-game">
+          <span>${gameStatusDesc}</span>
+          ${t.leader ? `<span style="font-size: 11px; color: #34d399;">Lider: <b>${escapeHtml(t.leader)}</b></span>` : ''}
+        </div>
+        <div class="stc-scores-grid">
+          ${scoresHtml}
+        </div>
+        <div class="stc-actions">
+          <button type="button" class="btn-stc-switch" data-table-id="${t.id}">
+            ${isCurrent ? '✓ Bu Masadasınız' : 'Bu Masaya Geç ➔'}
+          </button>
+          <button type="button" class="btn-stc-qr" data-qr-id="${t.id}" title="Bu Masanın QR Kodunu Göster">
+            📱 QR
+          </button>
+        </div>
+      `;
+
+      card.querySelector('.btn-stc-switch')?.addEventListener('click', async () => {
+        triggerHaptic(15);
+        await switchTable(t.id);
+        closeSalonOverview();
+      });
+
+      card.querySelector('.btn-stc-qr')?.addEventListener('click', () => {
+        triggerHaptic(15);
+        closeSalonOverview();
+        openMobileConnectModal(t.id);
+      });
+
+      grid.appendChild(card);
+    });
+  } catch (e) {}
 }
 
 
@@ -676,13 +976,19 @@ function triggerHaptic(duration = 20) {
 // UYGULAMA BAŞLATMA
 // ==========================================================================
 document.addEventListener('DOMContentLoaded', async () => {
+  initSpectatorMode();
   loadStateFromStorage();
   initSliderNavigation();
   initEventListeners();
   renderAll();
+  renderTableBar();
+  renderTableSetupUI();
+
+  // Çoklu masaları sunucudan yükle
+  await loadTablesList();
 
   // Eğer oyun zaten başlamışsa doğrudan Koz veya Sonuçlar sayfasına kaydır
-  if (state.rounds.length > 0) {
+  if (state.rounds && state.rounds.length > 0) {
     goToScreen(3, false); // Sonuçlar
   } else {
     goToScreen(0, false); // Kurulum
@@ -929,17 +1235,20 @@ function updateSwipeTabs(index) {
 }
 
 // ==========================================================================
-// SUNUCU & STORAGE SENKRONİZASYONU
+// SUNUCU & STORAGE SENKRONİZASYONU (ÇOKLU MASA DESTEKLİ)
 // ==========================================================================
-async function fetchNetworkInfo() {
+async function fetchNetworkInfo(targetTid = currentTableId) {
   try {
-    const res = await fetch('/api/network-info', { cache: 'no-store' });
+    const res = await fetch(`/api/network-info?table=${targetTid}&t=${Date.now()}`, { cache: 'no-store' });
     if (res.ok) {
       const data = await res.json();
       // Docker, ters vekil veya port yönlendirme arkasında sunucunun yerel
       // adresi dışarıdan erişilemez olabilir. Telefon bağlantısı için
       // tarayıcının gerçekten açtığı adres her zaman doğru kaynaktır.
-      serverNetworkUrl = window.location.origin || data.url || serverNetworkUrl;
+      const origin = window.location.origin;
+      serverNetworkUrl = (targetTid && String(targetTid) !== '1')
+        ? `${origin}/?masa=${targetTid}`
+        : (origin || data.url || serverNetworkUrl);
       return data;
     }
   } catch (e) {}
@@ -954,7 +1263,7 @@ async function fetchServerState(initial = false) {
   const timeoutId = setTimeout(() => controller.abort(), 2500);
   isFetchingState = true;
   try {
-    const res = await fetch('/api/state?t=' + Date.now(), {
+    const res = await fetch(`/api/state?table=${currentTableId}&t=${Date.now()}`, {
       cache: 'no-store',
       signal: controller.signal
     });
@@ -1010,10 +1319,10 @@ async function pushStateToServer() {
   const timeoutId = setTimeout(() => controller.abort(), 5000);
   try {
     isSyncing = true;
-    const res = await fetch('/api/state', {
+    const res = await fetch(`/api/state?table=${currentTableId}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ state: state, version: serverVersion }),
+      body: JSON.stringify({ state: state, version: serverVersion, tableId: currentTableId }),
       signal: controller.signal
     });
     clearTimeout(timeoutId);
@@ -1039,10 +1348,11 @@ async function sendPlayerInputToServer(payload) {
   const timeoutId = setTimeout(() => controller.abort(), 4000);
   try {
     isSyncing = true;
+    const mergedPayload = Object.assign({}, payload, { tableId: currentTableId });
     const res = await fetch('/api/player-input', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
+      body: JSON.stringify(mergedPayload),
       signal: controller.signal
     });
     clearTimeout(timeoutId);
@@ -1093,13 +1403,15 @@ function updateSyncBadge(online) {
 
 function saveStateToStorage() {
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    const key = getGameStorageKey(currentTableId);
+    localStorage.setItem(key, JSON.stringify(state));
   } catch (e) {}
 }
 
 function loadStateFromStorage() {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
+    const key = getGameStorageKey(currentTableId);
+    const raw = localStorage.getItem(key);
     if (raw) {
       const parsed = JSON.parse(raw);
       if (parsed && Array.isArray(parsed.players) && parsed.players.length === 4) {
@@ -3030,6 +3342,27 @@ function updateSimulatorView(player) {
 // ==========================================================================
 function initEventListeners() {
   initSpectatorMode();
+
+  // Çoklu Masa & Salon Modalı Dinleyicileri
+  document.getElementById('btnOpenSalonOverview')?.addEventListener('click', openSalonOverview);
+  document.getElementById('btnCloseSalonOverview')?.addEventListener('click', closeSalonOverview);
+  document.getElementById('btnOkSalonOverview')?.addEventListener('click', closeSalonOverview);
+  document.getElementById('btnRefreshSalon')?.addEventListener('click', () => {
+    triggerHaptic(15);
+    renderSalonTables();
+  });
+  document.getElementById('modalSalonOverview')?.addEventListener('click', (e) => {
+    if (e.target === document.getElementById('modalSalonOverview')) closeSalonOverview();
+  });
+
+  // Masa Sayısı Butonları (1 Masa, 2 Masa, 3 Masa, 4 Masa)
+  document.querySelectorAll('#tableCountSelector .btn-count-opt').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const cnt = btn.getAttribute('data-count');
+      if (cnt) setTableCount(cnt);
+    });
+  });
+
   // Oyuncu Veri Tabanı Modalı Olayları
   document.querySelectorAll('.btn-pick-player').forEach(btn => {
     btn.addEventListener('click', () => {
@@ -3440,30 +3773,62 @@ function initEventListeners() {
   });
 }
 
-function openMobileConnectModal() {
+function openMobileConnectModal(targetTableId = currentTableId) {
+  let selectedTid = String(targetTableId || currentTableId || '1');
   const modal = document.getElementById('modalMobileConnect');
   const qrContainer = document.getElementById('qrCodeContainer');
   const urlText = document.getElementById('networkUrlText');
+  const qrPillsContainer = document.getElementById('qrTablePills');
   if (!modal) return;
 
-  let targetUrl = serverNetworkUrl || window.location.href;
-  if (serverNetworkUrl && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')) {
-    targetUrl = serverNetworkUrl;
-  }
+  const updateQrForTable = (tid) => {
+    selectedTid = String(tid);
 
-  if (urlText) urlText.textContent = targetUrl;
-
-  if (qrContainer && typeof qrcode !== 'undefined') {
-    try {
-      const qr = qrcode(0, 'M');
-      qr.addData(targetUrl);
-      qr.make();
-      qrContainer.innerHTML = qr.createSvgTag({ cellSize: 5, margin: 2 });
-    } catch (e) {
-      qrContainer.innerHTML = `<div style="padding: 16px; font-weight: bold; color: #0f172a;">${escapeHtml(targetUrl)}</div>`;
+    // QR Haplarını güncelle
+    if (qrPillsContainer) {
+      qrPillsContainer.querySelectorAll('.btn-qr-table-pill').forEach(btn => {
+        btn.classList.toggle('active', btn.getAttribute('data-table-id') === selectedTid);
+      });
     }
+
+    const origin = window.location.origin;
+    let targetUrl = (selectedTid !== '1')
+      ? `${origin}/?masa=${selectedTid}`
+      : `${origin}`;
+
+    if (urlText) urlText.textContent = targetUrl;
+
+    if (qrContainer && typeof qrcode !== 'undefined') {
+      try {
+        const qr = qrcode(0, 'M');
+        qr.addData(targetUrl);
+        qr.make();
+        qrContainer.innerHTML = qr.createSvgTag({ cellSize: 5, margin: 2 });
+      } catch (e) {
+        qrContainer.innerHTML = `<div style="padding: 16px; font-weight: bold; color: #0f172a;">${escapeHtml(targetUrl)}</div>`;
+      }
+    }
+  };
+
+  // QR Masa Seçim Hapları
+  if (qrPillsContainer) {
+    qrPillsContainer.innerHTML = '';
+    const activeTables = tablesList.slice(0, Math.max(1, activeTableCount));
+    activeTables.forEach(t => {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = `btn-qr-table-pill ${String(t.id) === selectedTid ? 'active' : ''}`;
+      btn.setAttribute('data-table-id', t.id);
+      btn.innerHTML = `🪑 ${escapeHtml(t.name || ('Masa ' + t.id))}`;
+      btn.addEventListener('click', () => {
+        triggerHaptic(15);
+        updateQrForTable(t.id);
+      });
+      qrPillsContainer.appendChild(btn);
+    });
   }
 
+  updateQrForTable(selectedTid);
   modal.classList.add('active');
 }
 

@@ -50,12 +50,16 @@ DEFAULT_STATE: dict[str, Any] = {
     "cezaConfirmed": [False, False, False, False],
 }
 
+TABLES_CONFIG_FILE = DIR_PATH / "tables_config.json"
+
 
 class GameSession:
     """Masadaki tüm cihazların paylaştığı tek gerçek veri kaynağı."""
 
-    def __init__(self, filepath: Path):
+    def __init__(self, filepath: Path, table_id: str = "1", table_name: str = "Masa 1"):
         self.filepath = filepath
+        self.table_id = str(table_id)
+        self.table_name = str(table_name)
         self.version = 1
         self.updated_at = int(time.time() * 1000)
         self.state = json.loads(json.dumps(DEFAULT_STATE))
@@ -128,7 +132,9 @@ class GameSession:
 
             record = {
                 "id": game_id,
-                "title": title or f"Oyun {len(archives) + 1} ({rounds_count}/20 El)",
+                "tableId": self.table_id,
+                "tableName": self.table_name,
+                "title": title or f"{self.table_name} — Oyun {len(archives) + 1} ({rounds_count}/20 El)",
                 "date": now_str,
                 "roundsCount": rounds_count,
                 "winner": winner,
@@ -202,8 +208,156 @@ class GameSession:
 
 
 
-SESSION = GameSession(STATE_FILE)
+class TableManager:
+    """Birden fazla King masasını eşzamanlı olarak yöneten merkezi yönetici."""
+
+    def __init__(self):
+        self.config_file = TABLES_CONFIG_FILE
+        self.active_count = 1
+        self.tables_info: list[dict[str, str]] = [
+            {"id": "1", "name": "Masa 1"},
+            {"id": "2", "name": "Masa 2"},
+            {"id": "3", "name": "Masa 3"},
+            {"id": "4", "name": "Masa 4"},
+        ]
+        self.sessions: dict[str, GameSession] = {}
+        self.load_config()
+        self.init_sessions()
+
+    def load_config(self) -> None:
+        if self.config_file.exists():
+            try:
+                with open(self.config_file, "r", encoding="utf-8") as f:
+                    data = json.load(f)
+                    self.active_count = max(1, min(8, int(data.get("activeCount", 1))))
+                    if isinstance(data.get("tables"), list) and data["tables"]:
+                        self.tables_info = data["tables"]
+            except Exception as e:
+                print(f"[UYARI] tables_config.json okunamadı: {e}")
+
+    def save_config(self) -> None:
+        try:
+            temp_file = self.config_file.with_suffix(".tmp")
+            payload = {
+                "activeCount": self.active_count,
+                "tables": self.tables_info,
+            }
+            with open(temp_file, "w", encoding="utf-8") as f:
+                json.dump(payload, f, ensure_ascii=False, indent=2)
+            temp_file.replace(self.config_file)
+        except Exception as e:
+            print(f"[HATA] tables_config.json kaydedilemedi: {e}")
+
+    def get_table_name(self, table_id: str) -> str:
+        for t in self.tables_info:
+            if str(t.get("id")) == str(table_id):
+                return t.get("name", f"Masa {table_id}")
+        return f"Masa {table_id}"
+
+    def get_state_file_for_table(self, table_id: str) -> Path:
+        if str(table_id) == "1":
+            return STATE_FILE  # Geriye dönük %100 uyumluluk
+        return DIR_PATH / f"session_state_table_{table_id}.json"
+
+    def get_session(self, table_id: str | int | None = None) -> GameSession:
+        tid = str(table_id or "1").strip()
+        if not tid or tid == "0":
+            tid = "1"
+        if tid not in self.sessions:
+            filepath = self.get_state_file_for_table(tid)
+            tname = self.get_table_name(tid)
+            self.sessions[tid] = GameSession(filepath, table_id=tid, table_name=tname)
+        return self.sessions[tid]
+
+    def init_sessions(self) -> None:
+        for t in self.tables_info[:max(1, self.active_count)]:
+            self.get_session(t["id"])
+
+    def set_table_count(self, count: int) -> int:
+        count = max(1, min(8, int(count)))
+        self.active_count = count
+        while len(self.tables_info) < count:
+            next_id = str(len(self.tables_info) + 1)
+            self.tables_info.append({"id": next_id, "name": f"Masa {next_id}"})
+        self.save_config()
+        for t in self.tables_info[:count]:
+            self.get_session(t["id"])
+        return self.active_count
+
+    def update_table_name(self, table_id: str, new_name: str) -> bool:
+        tid = str(table_id).strip()
+        new_name = new_name.strip()
+        if not tid or not new_name:
+            return False
+        found = False
+        for t in self.tables_info:
+            if str(t.get("id")) == tid:
+                t["name"] = new_name
+                found = True
+                break
+        if not found:
+            self.tables_info.append({"id": tid, "name": new_name})
+        sess = self.get_session(tid)
+        sess.table_name = new_name
+        self.save_config()
+        return True
+
+    def list_tables_summary(self) -> list[dict[str, Any]]:
+        res = []
+        for t in self.tables_info[:max(1, self.active_count)]:
+            tid = str(t.get("id", "1"))
+            sess = self.get_session(tid)
+            st = sess.state or {}
+            rounds = st.get("rounds", [])
+            players = st.get("players", [])
+
+            sorted_players = sorted(players, key=lambda p: p.get("score", 0), reverse=True)
+            leader_name = sorted_players[0].get("name") if sorted_players else None
+
+            res.append({
+                "id": tid,
+                "name": t.get("name", f"Masa {tid}"),
+                "version": sess.version,
+                "updatedAt": sess.updated_at,
+                "roundsCount": len(rounds),
+                "isGameOver": len(rounds) >= 20 or bool(st.get("kingWinnerName")),
+                "kingWinnerName": st.get("kingWinnerName"),
+                "activeHandType": st.get("activeHandType", "ceza"),
+                "selectedCezaKey": st.get("selectedCezaKey", "el_almaz"),
+                "selectedKozSuit": st.get("selectedKozSuit", "karo"),
+                "leader": leader_name,
+                "players": [{"id": p.get("id"), "name": p.get("name"), "score": p.get("score", 0)} for p in players],
+            })
+        return res
+
+
+TABLE_MANAGER = TableManager()
+SESSION = TABLE_MANAGER.get_session("1")
 SERVER_PORT = DEFAULT_PORT
+
+
+def extract_table_id(handler: http.server.SimpleHTTPRequestHandler, payload: dict | None = None) -> str:
+    """İstekten (query, header, body) hedef masa id'sini tespit eder."""
+    # 1. URL Query parametresi (?table=2 veya ?masa=2)
+    if "?" in handler.path:
+        query = handler.path.split("?", 1)[1]
+        for part in query.split("&"):
+            if "=" in part:
+                k, v = part.split("=", 1)
+                if k.lower() in ("table", "masa", "tableid"):
+                    val = v.strip()
+                    if val:
+                        return val
+    # 2. HTTP Header
+    hdr = handler.headers.get("X-Table-Id")
+    if hdr and hdr.strip():
+        return hdr.strip()
+    # 3. JSON Payload
+    if payload and isinstance(payload, dict):
+        for k in ("tableId", "table", "masa"):
+            if k in payload and str(payload[k]).strip():
+                return str(payload[k]).strip()
+    return "1"
 
 
 def get_local_ip() -> str:
@@ -264,16 +418,37 @@ class KingHTTPHandler(http.server.SimpleHTTPRequestHandler):
         self.end_headers()
 
     def do_GET(self) -> None:
-        # API: Ağ Bilgileri (IP, Port, URL)
-        if self.path == "/api/network-info":
+        # API: Masalar Listesi ve Salon Özeti
+        if self.path == "/api/tables" or self.path.startswith("/api/tables?"):
+            data = {
+                "ok": True,
+                "activeCount": TABLE_MANAGER.active_count,
+                "tables": TABLE_MANAGER.list_tables_summary(),
+            }
+            body = json.dumps(data, ensure_ascii=False).encode("utf-8")
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json; charset=utf-8")
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+            return
+
+        # API: Ağ Bilgileri (IP, Port, URL, Masa URL'si)
+        if self.path == "/api/network-info" or self.path.startswith("/api/network-info?"):
+            table_id = extract_table_id(self)
+            sess = TABLE_MANAGER.get_session(table_id)
             local_ip = get_local_ip()
+            table_url = f"http://{local_ip}:{SERVER_PORT}/?masa={table_id}" if str(table_id) != "1" else f"http://{local_ip}:{SERVER_PORT}"
             data = {
                 "localIp": local_ip,
                 "port": SERVER_PORT,
-                "url": f"http://{local_ip}:{SERVER_PORT}",
-                "version": SESSION.version,
+                "tableId": table_id,
+                "tableName": sess.table_name,
+                "url": table_url,
+                "baseUrl": f"http://{local_ip}:{SERVER_PORT}",
+                "version": sess.version,
             }
-            body = json.dumps(data).encode("utf-8")
+            body = json.dumps(data, ensure_ascii=False).encode("utf-8")
             self.send_response(200)
             self.send_header("Content-Type", "application/json; charset=utf-8")
             self.send_header("Content-Length", str(len(body)))
@@ -366,11 +541,13 @@ class KingHTTPHandler(http.server.SimpleHTTPRequestHandler):
                 except Exception:
                     pass
             if not target_game:
+                table_id = extract_table_id(self)
+                sess = TABLE_MANAGER.get_session(table_id)
                 target_game = {
-                    "title": "Aktif Oyun",
+                    "title": f"Aktif Oyun ({sess.table_name})",
                     "date": datetime.now().strftime("%d.%m.%Y %H:%M:%S"),
-                    "players": SESSION.state.get("players", []),
-                    "rounds": SESSION.state.get("rounds", []),
+                    "players": sess.state.get("players", []),
+                    "rounds": sess.state.get("rounds", []),
                 }
 
             # CSV Oluştur
@@ -456,13 +633,17 @@ class KingHTTPHandler(http.server.SimpleHTTPRequestHandler):
             self.wfile.write(body)
             return
 
-        # API: Canlı Oyun Durumu
+        # API: Canlı Oyun Durumu (Masa Bazlı)
         if self.path == "/api/state" or self.path.startswith("/api/state?"):
+            table_id = extract_table_id(self)
+            sess = TABLE_MANAGER.get_session(table_id)
             data = {
                 "ok": True,
-                "version": SESSION.version,
-                "updatedAt": SESSION.updated_at,
-                "state": SESSION.state,
+                "tableId": table_id,
+                "tableName": sess.table_name,
+                "version": sess.version,
+                "updatedAt": sess.updated_at,
+                "state": sess.state,
             }
             body = json.dumps(data, ensure_ascii=False).encode("utf-8")
             self.send_response(200)
@@ -483,11 +664,34 @@ class KingHTTPHandler(http.server.SimpleHTTPRequestHandler):
         except Exception:
             payload = {}
 
+        if self.path == "/api/tables":
+            action = payload.get("action")
+            if action == "set_count":
+                count = int(payload.get("count", 1))
+                TABLE_MANAGER.set_table_count(count)
+            elif action == "update_name":
+                TABLE_MANAGER.update_table_name(payload.get("tableId"), payload.get("name", ""))
+
+            res = {
+                "ok": True,
+                "activeCount": TABLE_MANAGER.active_count,
+                "tables": TABLE_MANAGER.list_tables_summary(),
+            }
+            body = json.dumps(res, ensure_ascii=False).encode("utf-8")
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json; charset=utf-8")
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+            return
+
         if self.path == "/api/state":
+            table_id = extract_table_id(self, payload)
+            sess = TABLE_MANAGER.get_session(table_id)
             new_state = payload.get("state")
             if isinstance(new_state, dict) and "players" in new_state:
-                new_ver = SESSION.update_state(new_state)
-                res = {"ok": True, "version": new_ver, "updatedAt": SESSION.updated_at, "state": SESSION.state}
+                new_ver = sess.update_state(new_state)
+                res = {"ok": True, "tableId": table_id, "version": new_ver, "updatedAt": sess.updated_at, "state": sess.state}
                 body = json.dumps(res, ensure_ascii=False).encode("utf-8")
                 self.send_response(200)
                 self.send_header("Content-Type", "application/json; charset=utf-8")
@@ -501,7 +705,9 @@ class KingHTTPHandler(http.server.SimpleHTTPRequestHandler):
                 return
 
         if self.path == "/api/player-input":
-            cur = SESSION.state
+            table_id = extract_table_id(self, payload)
+            sess = TABLE_MANAGER.get_session(table_id)
+            cur = sess.state
             if not isinstance(cur.get("kozInputs"), list) or len(cur["kozInputs"]) != 4:
                 cur["kozInputs"] = [0, 0, 0, 0]
             if not isinstance(cur.get("cezaInputs"), list) or len(cur["cezaInputs"]) != 4:
@@ -552,8 +758,8 @@ class KingHTTPHandler(http.server.SimpleHTTPRequestHandler):
                         cur["cezaInputs"] = clean_arr
                         cur["cezaConfirmed"] = conf_arr
 
-            new_ver = SESSION.update_state(cur)
-            res = {"ok": True, "version": new_ver, "updatedAt": SESSION.updated_at, "state": SESSION.state}
+            new_ver = sess.update_state(cur)
+            res = {"ok": True, "tableId": table_id, "version": new_ver, "updatedAt": sess.updated_at, "state": sess.state}
             body = json.dumps(res, ensure_ascii=False).encode("utf-8")
             self.send_response(200)
             self.send_header("Content-Type", "application/json; charset=utf-8")
@@ -563,9 +769,11 @@ class KingHTTPHandler(http.server.SimpleHTTPRequestHandler):
             return
 
         if self.path == "/api/archive-current":
+            table_id = extract_table_id(self, payload)
+            sess = TABLE_MANAGER.get_session(table_id)
             title = payload.get("title")
-            success = SESSION.archive_current_game(title)
-            res = {"ok": success, "message": "Oyun arşivlendi" if success else "Arşivlenecek el bulunamadı"}
+            success = sess.archive_current_game(title)
+            res = {"ok": success, "tableId": table_id, "message": "Oyun arşivlendi" if success else "Arşivlenecek el bulunamadı"}
             body = json.dumps(res, ensure_ascii=False).encode("utf-8")
             self.send_response(200)
             self.send_header("Content-Type", "application/json; charset=utf-8")
@@ -575,14 +783,16 @@ class KingHTTPHandler(http.server.SimpleHTTPRequestHandler):
             return
 
         if self.path == "/api/restore-archive":
+            table_id = extract_table_id(self, payload)
+            sess = TABLE_MANAGER.get_session(table_id)
             archive_id = payload.get("id")
             if archive_id is not None:
                 try:
                     archive_id = int(archive_id)
                 except ValueError:
                     archive_id = None
-            success = SESSION.restore_archive(archive_id) if archive_id else False
-            res = {"ok": success, "version": SESSION.version, "state": SESSION.state}
+            success = sess.restore_archive(archive_id) if archive_id else False
+            res = {"ok": success, "tableId": table_id, "version": sess.version, "state": sess.state}
             body = json.dumps(res, ensure_ascii=False).encode("utf-8")
             self.send_response(200 if success else 400)
             self.send_header("Content-Type", "application/json; charset=utf-8")
@@ -629,9 +839,11 @@ class KingHTTPHandler(http.server.SimpleHTTPRequestHandler):
             return
 
         if self.path == "/api/reset":
+            table_id = extract_table_id(self, payload)
+            sess = TABLE_MANAGER.get_session(table_id)
             names = payload.get("playerNames")
-            new_ver = SESSION.reset_state(names)
-            res = {"ok": True, "version": new_ver, "state": SESSION.state}
+            new_ver = sess.reset_state(names)
+            res = {"ok": True, "tableId": table_id, "version": new_ver, "state": sess.state}
             body = json.dumps(res).encode("utf-8")
             self.send_response(200)
             self.send_header("Content-Type", "application/json; charset=utf-8")

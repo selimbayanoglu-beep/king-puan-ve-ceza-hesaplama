@@ -18,7 +18,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700;800;900&family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css?v=20261103_v14">
+  <link rel="stylesheet" href="style.css?v=20261105_v15">
 </head>
 <body>
   <div class="app-background-glow glow-1"></div>
@@ -39,6 +39,19 @@
       <button class="btn-new-game-top" id="btnNewGame" title="Yeni Oyun Başlat">🔄 <span>Yeni Oyun</span></button>
     </div>
   </header>
+
+  <!-- ÇOKLU MASA SEÇİM & GEÇİŞ ÇUBUĞU (Masa 1, Masa 2, Masa 3 ... & Salon Görünümü) -->
+  <div class="table-selector-bar" id="tableSelectorBar">
+    <div class="table-bar-inner">
+      <span class="table-bar-label">🪑 Masa:</span>
+      <div class="table-pills" id="tablePillsContainer">
+        <!-- JS ile render edilir: [Masa 1] [Masa 2] [Masa 3] -->
+      </div>
+      <button type="button" class="btn-salon-toggle" id="btnOpenSalonOverview" title="Salon Durumu / Tüm Masalar Canlı">
+        🏢 <span>Salon</span>
+      </button>
+    </div>
+  </div>
 
   <!-- Kaydırılabilir Sekmeler (Swipe Tab Bar — Sade Tek Satır) -->
   <nav class="swipe-nav" id="swipeNav">
@@ -88,8 +101,30 @@
     <section class="app-screen screen-setup" id="screen0">
       <div class="screen-card">
         <div class="setup-form">
+
+          <!-- Masa Sayısı ve Masa Seçimi Kartı -->
+          <div class="form-group multi-table-setup-card">
+            <div class="multi-table-header">
+              <span class="multi-table-title">🏢 Salon ve Masa Sayısı:</span>
+              <span class="multi-table-badge" id="multiTableBadge">1 Masa (4 Kişi)</span>
+            </div>
+            <div class="table-count-selector" id="tableCountSelector">
+              <button type="button" class="btn-count-opt active" data-count="1">1 Masa<small>4 Kişi</small></button>
+              <button type="button" class="btn-count-opt" data-count="2">2 Masa<small>8 Kişi</small></button>
+              <button type="button" class="btn-count-opt" data-count="3">3 Masa<small>12 Kişi</small></button>
+              <button type="button" class="btn-count-opt" data-count="4">4 Masa<small>16 Kişi</small></button>
+            </div>
+            <!-- Masalar Arası Kurulum Sekmesi -->
+            <div class="table-setup-tabs-row" id="tableSetupTabsRow" style="display: none;">
+              <span class="setup-tabs-label">Düzenlenen Masa:</span>
+              <div class="table-setup-tabs" id="tableSetupTabsContainer">
+                <!-- JS ile Masa 1, Masa 2, Masa 3 sekmeleri render edilir -->
+              </div>
+            </div>
+          </div>
+
           <div class="form-group">
-            <label class="form-label">Oyuncu İsimleri:</label>
+            <label class="form-label" id="lblPlayerNamesTitle">Oyuncu İsimleri (Masa 1):</label>
             <div class="player-input-stack">
               <div class="input-player-row">
                 <span class="player-pill p1">1</span>
@@ -577,8 +612,16 @@
       </div>
       <div class="modal-body mobile-connect-body">
         <p class="connect-lead">
-          Masadaki tüm oyuncular kendi telefonlarından bu çeteye bağlanabilir ve el girişi yapabilir.
+          Masadaki tüm oyuncular kendi telefonlarından ilgili masaya bağlanabilir ve el girişi yapabilir.
         </p>
+
+        <!-- QR Bağlantı İçin Masa Seçici -->
+        <div class="qr-table-select-row" id="qrTableSelectRow">
+          <span class="qr-table-label">Bağlanılacak Masa:</span>
+          <div class="qr-table-pills" id="qrTablePills">
+            <!-- JS ile Masa 1, Masa 2, vb. butonları render edilir -->
+          </div>
+        </div>
 
         <div class="qr-container">
           <div class="qr-frame" id="qrCodeContainer">
@@ -909,7 +952,43 @@
     </div>
   </div>
 
+  <!-- 🏢 TURNUVA & TÜM MASALAR (SALON) CANLI GENEL BAKIŞ MODALI -->
+  <div class="modal-backdrop" id="modalSalonOverview">
+    <div class="modal-box modal-lg salon-overview-modal" style="max-width: 820px; width: 95%;">
+      <div class="modal-header salon-modal-header" style="background: linear-gradient(135deg, rgba(30, 41, 59, 0.95) 0%, rgba(15, 23, 42, 0.98) 100%); border-bottom: 1px solid rgba(245, 158, 11, 0.35);">
+        <div class="modal-title-wrap">
+          <span class="modal-badge-icon" style="font-size: 24px;">🏢</span>
+          <div>
+            <h3 style="margin: 0; color: #fde047; font-size: 18px;">Salon &amp; Tüm Masalar Canlı Durumu</h3>
+            <span style="font-size: 12px; color: #94a3b8;">Tüm masaların canlı skorlarını ve durumunu tek ekrandan izleyin</span>
+          </div>
+        </div>
+        <div style="display: flex; gap: 8px; align-items: center;">
+          <button type="button" class="btn btn-secondary btn-sm" id="btnRefreshSalon" title="Salon Durumunu Yenile">🔄 Yenile</button>
+          <button class="modal-close" id="btnCloseSalonOverview">&times;</button>
+        </div>
+      </div>
+      <div class="modal-body salon-modal-body" style="padding: 16px;">
+        <div class="salon-summary-banner" id="salonSummaryBanner" style="display: flex; justify-content: space-between; align-items: center; background: rgba(15,23,42,0.6); border: 1px solid rgba(255,255,255,0.08); border-radius: 10px; padding: 10px 16px; margin-bottom: 14px; flex-wrap: wrap; gap: 8px;">
+          <span style="font-size: 13.5px; color: #e2e8f0; font-weight: 600;" id="lblSalonActiveCount">Toplam Aktif Masa: <b>1 Masa (4 Oyuncu)</b></span>
+          <span style="font-size: 12px; color: #34d399; display: flex; align-items: center; gap: 6px;">
+            <span class="sync-dot online" style="width: 8px; height: 8px;"></span> Canlı Senkronize
+          </span>
+        </div>
+
+        <!-- Masalar Grid -->
+        <div class="salon-tables-grid" id="salonTablesGrid">
+          <!-- JS ile her masa için canlı kart render edilir -->
+        </div>
+      </div>
+      <div class="modal-footer" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+        <span style="font-size: 12px; color: #94a3b8;">İstediğiniz masaya dokunarak o masanın puan girişine geçebilirsiniz.</span>
+        <button type="button" class="btn btn-primary" id="btnOkSalonOverview">Kapat</button>
+      </div>
+    </div>
+  </div>
+
   <script src="qrcode.js"></script>
-  <script src="app.js?v=20261103_v14"></script>
+  <script src="app.js?v=20261105_v15"></script>
 </body>
 </html>

@@ -1,0 +1,21 @@
+{
+  "activeCount": 1,
+  "tables": [
+    {
+      "id": "1",
+      "name": "Masa 1"
+    },
+    {
+      "id": "2",
+      "name": "Masa 2"
+    },
+    {
+      "id": "3",
+      "name": "Masa 3"
+    },
+    {
+      "id": "4",
+      "name": "Masa 4"
+    }
+  ]
+}
