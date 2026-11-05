@@ -122,6 +122,20 @@ function getGameStorageKey(tableId = currentTableId) {
 let isSpectatorMode = false;
 let myPlayerRole = 'all'; // 'all' | '0' | '1' | '2' | '3' | 'spectator'
 
+function loadRoleForTable(tableId = currentTableId) {
+  try {
+    const roleKey = getRoleStorageKey(tableId);
+    const savedRole = localStorage.getItem(roleKey);
+    if (savedRole && ['all', '0', '1', '2', '3', 'spectator'].includes(savedRole)) {
+      setMyPlayerRole(savedRole, false);
+    } else {
+      setMyPlayerRole('all', false);
+    }
+  } catch (e) {
+    setMyPlayerRole('all', false);
+  }
+}
+
 function initSpectatorMode() {
   const urlParams = new URLSearchParams(window.location.search);
   const modParam = urlParams.get('mod');
@@ -155,17 +169,7 @@ function initSpectatorMode() {
   } else if (oyuncuParam && ['1', '2', '3', '4'].includes(oyuncuParam)) {
     setMyPlayerRole(String(parseInt(oyuncuParam, 10) - 1), false);
   } else {
-    try {
-      const roleKey = getRoleStorageKey(currentTableId);
-      const savedRole = localStorage.getItem(roleKey);
-      if (savedRole && ['all', '0', '1', '2', '3', 'spectator'].includes(savedRole)) {
-        setMyPlayerRole(savedRole, false);
-      } else {
-        setMyPlayerRole('all', false);
-      }
-    } catch (e) {
-      setMyPlayerRole('all', false);
-    }
+    loadRoleForTable(currentTableId);
   }
 
   document.getElementById('btnShareLiveGame')?.addEventListener('click', shareLiveGameLink);
@@ -405,7 +409,7 @@ function renderTableSetupUI() {
       activeTables.forEach(t => {
         const tabBtn = document.createElement('button');
         tabBtn.type = 'button';
-        const isActive = String(t.id) === String(activeSetupTableId);
+        const isActive = String(t.id) === String(currentTableId);
         tabBtn.className = `btn-setup-tab ${isActive ? 'active' : ''}`;
         tabBtn.innerHTML = `🪑 ${escapeHtml(t.name || ('Masa ' + t.id))}`;
         tabBtn.addEventListener('click', () => {
@@ -421,16 +425,17 @@ function renderTableSetupUI() {
 
   const titleEl = document.getElementById('lblPlayerNamesTitle');
   if (titleEl) {
-    const curName = (tablesList.find(t => String(t.id) === String(activeSetupTableId)) || {}).name || `Masa ${activeSetupTableId}`;
+    const curName = (tablesList.find(t => String(t.id) === String(currentTableId)) || {}).name || `Masa ${currentTableId}`;
     titleEl.textContent = `Oyuncu İsimleri (${curName}):`;
   }
 }
 
 async function switchSetupTable(tableId) {
-  if (String(tableId) === String(activeSetupTableId)) return;
+  const tid = String(tableId);
+  if (tid === String(currentTableId)) return;
   // Mevcut formdaki isimleri kaydet
   syncSetupInputsToState();
-  await switchTable(tableId);
+  await switchTable(tid);
 }
 
 async function switchTable(tableId) {
@@ -450,10 +455,18 @@ async function switchTable(tableId) {
   activeSetupTableId = tid;
   try {
     localStorage.setItem('king_active_table_id', currentTableId);
+    // URL'deki masa parametresini de senkronize et (sayfa yenilense de Masa 2'de kalsın)
+    const url = new URL(window.location);
+    if (tid !== '1') {
+      url.searchParams.set('masa', tid);
+    } else {
+      url.searchParams.delete('masa');
+    }
+    window.history.replaceState({}, '', url);
   } catch (e) {}
 
   // O masaya ait rolü yükle
-  initSpectatorMode();
+  loadRoleForTable(currentTableId);
 
   // O masaya ait yerel state'i yükle
   loadStateFromStorage();
@@ -1748,6 +1761,32 @@ function loadStateFromStorage() {
     if (raw) {
       const parsed = JSON.parse(raw);
       if (parsed && Array.isArray(parsed.players) && parsed.players.length === 4) {
+        // Kontrol: Eğer bu masa Masa 1 değilse ve içindeki isimler Masa 1 ile kopyalanmışsa (eski hatadan kalma):
+        if (String(currentTableId) !== '1') {
+          const t1Raw = localStorage.getItem(getGameStorageKey('1'));
+          if (t1Raw) {
+            try {
+              const t1Parsed = JSON.parse(t1Raw);
+              if (t1Parsed && Array.isArray(t1Parsed.players)) {
+                const t1Names = t1Parsed.players.map(p => (p && p.name ? p.name.trim().toLocaleLowerCase('tr-TR') : ''));
+                const curNames = parsed.players.map(p => (p && p.name ? p.name.trim().toLocaleLowerCase('tr-TR') : ''));
+                const dupCount = curNames.filter(nm => nm && !isDefaultPlayerName(nm) && t1Names.includes(nm)).length;
+                if (dupCount >= 2) {
+                  // Hatalı kopyalanmış veriyi temizle
+                  parsed.players = [
+                    { id: 0, name: getDefaultPlayerName(currentTableId, 0), score: 0, kozCount: 0, cezaCount: 0 },
+                    { id: 1, name: getDefaultPlayerName(currentTableId, 1), score: 0, kozCount: 0, cezaCount: 0 },
+                    { id: 2, name: getDefaultPlayerName(currentTableId, 2), score: 0, kozCount: 0, cezaCount: 0 },
+                    { id: 3, name: getDefaultPlayerName(currentTableId, 3), score: 0, kozCount: 0, cezaCount: 0 },
+                  ];
+                  parsed.rounds = [];
+                  localStorage.setItem(key, JSON.stringify(parsed));
+                }
+              }
+            } catch (e) {}
+          }
+        }
+
         state = parsed;
         ensureStateArrays(state);
         recalculateAllScores();
