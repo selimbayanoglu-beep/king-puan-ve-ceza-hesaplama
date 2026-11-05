@@ -21,6 +21,82 @@ function ensureTablesList() {
   }
 }
 
+// Masa bazlı varsayılan isimler (Masa 1: Oyuncu 1..4, Masa 2: Oyuncu 5..8, vb.)
+function getDefaultPlayerName(tableId, playerIdx) {
+  const tid = parseInt(tableId, 10) || 1;
+  const startNum = (tid - 1) * 4 + 1;
+  return `Oyuncu ${startNum + playerIdx}`;
+}
+
+function isDefaultPlayerName(name) {
+  return !name || /^Oyuncu\s+\d+$/i.test(String(name).trim());
+}
+
+function createDefaultTableState(tableId) {
+  const tid = parseInt(tableId, 10) || 1;
+  return {
+    id: String(tid),
+    name: `Masa ${tid}`,
+    players: [
+      { id: 0, name: getDefaultPlayerName(tid, 0), score: 0, kozCount: 0, cezaCount: 0 },
+      { id: 1, name: getDefaultPlayerName(tid, 1), score: 0, kozCount: 0, cezaCount: 0 },
+      { id: 2, name: getDefaultPlayerName(tid, 2), score: 0, kozCount: 0, cezaCount: 0 },
+      { id: 3, name: getDefaultPlayerName(tid, 3), score: 0, kozCount: 0, cezaCount: 0 },
+    ],
+    initialDealer: 0,
+    scoringMode: 'standard',
+    rounds: [],
+    activeHandType: 'ceza',
+    selectedCezaKey: 'el_almaz',
+    selectedKozSuit: 'karo',
+    kozInputs: [0, 0, 0, 0],
+    cezaInputs: [0, 0, 0, 0],
+    kozConfirmed: [false, false, false, false],
+    cezaConfirmed: [false, false, false, false],
+    kingWinnerIdx: null,
+    kingWinnerName: null,
+    kingWinnerTricks: null
+  };
+}
+
+// Tüm aktif masalarda oturmakta olan gerçek oyuncu isimlerini toplar (çakışma kontrolü)
+function getAllOccupiedPlayers(excludeTableId = null, excludePlayerIdx = null) {
+  const occupied = new Map();
+  const count = Math.max(1, activeTableCount || 1);
+
+  for (let i = 1; i <= count; i++) {
+    const tid = String(i);
+    let tState = null;
+    if (tid === String(currentTableId) && typeof state !== 'undefined' && state) {
+      tState = state;
+    } else {
+      try {
+        const raw = localStorage.getItem(getGameStorageKey(tid));
+        if (raw) tState = JSON.parse(raw);
+      } catch (e) {}
+    }
+
+    if (tState && Array.isArray(tState.players)) {
+      tState.players.forEach((p, idx) => {
+        const pName = (p && p.name ? p.name.trim() : '');
+        if (pName && !isDefaultPlayerName(pName)) {
+          if (excludeTableId && String(excludeTableId) === tid && excludePlayerIdx !== null && idx === excludePlayerIdx) {
+            return; // Düzenlenen koltuğun kendisini hariç tut
+          }
+          const tObj = tablesList.find(t => String(t.id) === tid) || { name: `Masa ${tid}` };
+          occupied.set(pName.toLocaleLowerCase('tr-TR'), {
+            rawName: pName,
+            tableId: tid,
+            tableName: tObj.name || `Masa ${tid}`,
+            playerIdx: idx
+          });
+        }
+      });
+    }
+  }
+  return occupied;
+}
+
 function getRoleStorageKey(tableId = currentTableId) {
   return (String(tableId) === '1') ? 'king_my_player_role_v1' : `king_my_player_role_table_${tableId}`;
 }
@@ -654,16 +730,40 @@ function renderPlayerDbItems() {
     return;
   }
 
+  // Tüm masalarda oturan oyuncuları tespit et (çakışma ve aynı anda 2 masada oynamayı engelle)
+  const occupied = getAllOccupiedPlayers(currentTableId, targetPlayerSelectIdx);
+  const curTableOccupied = (state.players || []).map((p, idx) =>
+    idx !== targetPlayerSelectIdx ? (p.name || '').trim().toLocaleLowerCase('tr-TR') : ''
+  );
+
   let html = '';
   filtered.forEach(name => {
+    const lower = name.trim().toLocaleLowerCase('tr-TR');
+    const otherOccupied = occupied.get(lower);
+    const isSameTable = curTableOccupied.includes(lower);
+
+    let badgeHtml = '';
+    let isDisabled = false;
+
+    if (otherOccupied) {
+      isDisabled = true;
+      badgeHtml = `<span class="player-db-badge-occupied">🚫 ${escapeHtml(otherOccupied.tableName)}'de Oynuyor</span>`;
+    } else if (isSameTable) {
+      isDisabled = true;
+      badgeHtml = `<span class="player-db-badge-cur-table">⚠️ Bu Masada Seçili</span>`;
+    }
+
     html += `
-      <div class="player-db-item" onclick="selectPlayerFromDb('${escapeHtml(name)}')">
+      <div class="player-db-item ${isDisabled ? 'item-disabled' : ''}" onclick="selectPlayerFromDb('${escapeHtml(name)}')">
         <div class="player-db-name">
           <span style="font-size: 16px;">👤</span>
-          <span>${escapeHtml(name)}</span>
+          <span style="font-weight: 700;">${escapeHtml(name)}</span>
+          ${badgeHtml}
         </div>
         <div class="player-db-actions">
-          <button type="button" class="btn btn-primary btn-sm" style="padding: 4px 10px; font-size: 12px;">Seç ✓</button>
+          <button type="button" class="btn ${isDisabled ? 'btn-secondary btn-disabled' : 'btn-primary'} btn-sm" style="padding: 4px 10px; font-size: 12px;" ${isDisabled ? 'disabled' : ''}>
+            ${isDisabled ? 'Dolu' : 'Seç ✓'}
+          </button>
           <button type="button" class="btn-delete-db-player" onclick="event.stopPropagation(); deletePlayerFromDb('${escapeHtml(name)}')" title="Listeden Sil">🗑️</button>
         </div>
       </div>
@@ -675,6 +775,25 @@ function renderPlayerDbItems() {
 
 function selectPlayerFromDb(selectedName) {
   triggerHaptic(20);
+  const lower = selectedName.trim().toLocaleLowerCase('tr-TR');
+
+  // Güvenlik: Bir kişi aynı anda birden fazla masada oturamaz!
+  const occupied = getAllOccupiedPlayers(currentTableId, targetPlayerSelectIdx);
+  const otherOccupied = occupied.get(lower);
+
+  if (otherOccupied) {
+    showToast(`⛔ "${selectedName}" zaten ${otherOccupied.tableName}'de oynuyor! Bir kişi aynı anda 2 masada bulunamaz.`, 'rose');
+    return;
+  }
+
+  const curTableOccupied = (state.players || []).some((p, idx) =>
+    idx !== targetPlayerSelectIdx && (p.name || '').trim().toLocaleLowerCase('tr-TR') === lower
+  );
+  if (curTableOccupied) {
+    showToast(`⚠️ "${selectedName}" bu masada zaten başka bir koltukta seçili!`, 'amber');
+    return;
+  }
+
   const inputEl = document.getElementById(`inputPlayer${targetPlayerSelectIdx + 1}`);
   if (inputEl) {
     inputEl.value = selectedName;
@@ -1013,14 +1132,96 @@ function capitalizeWords(str) {
 function syncSetupInputsToState() {
   ['inputPlayer1', 'inputPlayer2', 'inputPlayer3', 'inputPlayer4'].forEach((id, idx) => {
     const el = document.getElementById(id);
-    if (el && state.players && state.players[idx]) {
-      const trimmed = capitalizeWords(el.value.trim());
-      const defaultName = `Oyuncu ${idx + 1}`;
-      if (trimmed && trimmed !== defaultName) {
-        state.players[idx].name = trimmed;
+    if (!el || !state.players || !state.players[idx]) return;
+
+    const trimmed = capitalizeWords(el.value.trim());
+    const defaultName = getDefaultPlayerName(currentTableId, idx);
+
+    if (!trimmed) {
+      // Eğer kutu boş bırakılmışsa masanın kendi varsayılan ismi verilir
+      if (!state.players[idx].name || isDefaultPlayerName(state.players[idx].name)) {
+        state.players[idx].name = defaultName;
       }
+      return;
+    }
+
+    if (trimmed !== defaultName) {
+      const lower = trimmed.toLocaleLowerCase('tr-TR');
+      // Çapraz masa çakışma kontrolü
+      const occupied = getAllOccupiedPlayers(currentTableId, idx);
+      const otherOccupied = occupied.get(lower);
+
+      if (otherOccupied) {
+        showToast(`⛔ "${trimmed}" zaten ${otherOccupied.tableName}'de oynuyor! Bir kişi aynı anda 2 masada bulunamaz.`, 'rose');
+        el.value = isDefaultPlayerName(state.players[idx].name) ? '' : state.players[idx].name;
+        el.classList.add('input-error-flash');
+        setTimeout(() => el.classList.remove('input-error-flash'), 800);
+        return;
+      }
+
+      // Aynı masada çift yazılma kontrolü
+      const isDuplicateInCurrent = state.players.some((p, pIdx) =>
+        pIdx !== idx && (p.name || '').trim().toLocaleLowerCase('tr-TR') === lower
+      );
+      if (isDuplicateInCurrent) {
+        showToast(`⚠️ "${trimmed}" bu masada zaten başka bir koltuğa yazılmış!`, 'amber');
+        el.value = isDefaultPlayerName(state.players[idx].name) ? '' : state.players[idx].name;
+        el.classList.add('input-error-flash');
+        setTimeout(() => el.classList.remove('input-error-flash'), 800);
+        return;
+      }
+
+      state.players[idx].name = trimmed;
     }
   });
+}
+
+function validateAndSyncPlayerInput(idx) {
+  const el = document.getElementById(`inputPlayer${idx + 1}`);
+  if (!el || !state.players || !state.players[idx]) return;
+
+  const rawVal = el.value.trim();
+  const defaultName = getDefaultPlayerName(currentTableId, idx);
+
+  if (!rawVal) {
+    state.players[idx].name = defaultName;
+    saveStateToStorage();
+    pushStateToServer();
+    renderAll();
+    return;
+  }
+
+  const cleanName = capitalizeWords(rawVal);
+  const lower = cleanName.toLocaleLowerCase('tr-TR');
+
+  // Başka masada oynuyor mu kontrolü
+  const occupied = getAllOccupiedPlayers(currentTableId, idx);
+  const otherOccupied = occupied.get(lower);
+
+  if (otherOccupied) {
+    showToast(`⛔ "${cleanName}" zaten ${otherOccupied.tableName}'de oynuyor! Bir kişi aynı anda 2 masada bulunamaz.`, 'rose');
+    el.value = isDefaultPlayerName(state.players[idx].name) ? '' : state.players[idx].name;
+    el.classList.add('input-error-flash');
+    setTimeout(() => el.classList.remove('input-error-flash'), 800);
+    return;
+  }
+
+  // Bu masanın başka bir koltuğunda var mı?
+  const isDuplicateInCurrent = state.players.some((p, pIdx) =>
+    pIdx !== idx && (p.name || '').trim().toLocaleLowerCase('tr-TR') === lower
+  );
+  if (isDuplicateInCurrent) {
+    showToast(`⚠️ "${cleanName}" bu masada zaten başka bir koltuğa yazılmış!`, 'amber');
+    el.value = isDefaultPlayerName(state.players[idx].name) ? '' : state.players[idx].name;
+    el.classList.add('input-error-flash');
+    setTimeout(() => el.classList.remove('input-error-flash'), 800);
+    return;
+  }
+
+  state.players[idx].name = cleanName;
+  saveStateToStorage();
+  pushStateToServer();
+  renderAll();
 }
 
 function ensureStateArrays(st) {
@@ -1341,6 +1542,18 @@ async function fetchServerState(initial = false) {
     if (res.ok) {
       const data = await res.json();
       updateSyncBadge(true);
+
+      // Sunucudan gelen verinin bu masaya ait olup olmadığını doğrula (farklı masaların ezilmesini önle)
+      const isTargetTableData = data.tableId
+        ? (String(data.tableId) === String(currentTableId))
+        : (String(currentTableId) === '1');
+
+      if (!isTargetTableData) {
+        // Bu veri başka masaya ait (eski tek masalı sunucu yanıtı veya farklı masa).
+        // Mevcut masanın üzerine asla yazma!
+        return;
+      }
+
       if (data.version && data.version > serverVersion) {
         const prevRoundsLen = state.rounds ? state.rounds.length : 0;
         syncSetupInputsToState();
@@ -1478,6 +1691,22 @@ function saveStateToStorage() {
   } catch (e) {}
 }
 
+function updateSetupInputFields() {
+  const tid = currentTableId;
+  ['inputPlayer1', 'inputPlayer2', 'inputPlayer3', 'inputPlayer4'].forEach((id, idx) => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    const defaultName = getDefaultPlayerName(tid, idx);
+    el.placeholder = `${idx + 1}. Oyuncu Adı (${defaultName})`;
+    const currentName = (state.players && state.players[idx]) ? state.players[idx].name : '';
+    if (isDefaultPlayerName(currentName)) {
+      el.value = '';
+    } else {
+      el.value = currentName;
+    }
+  });
+}
+
 function loadStateFromStorage() {
   try {
     const key = getGameStorageKey(currentTableId);
@@ -1488,9 +1717,18 @@ function loadStateFromStorage() {
         state = parsed;
         ensureStateArrays(state);
         recalculateAllScores();
+        updateSetupInputFields();
+        return;
       }
     }
   } catch (e) {}
+
+  // O masaya ait yerel kayıt yoksa o masaya özel bağımsız varsayılan state oluştur
+  state = createDefaultTableState(currentTableId);
+  ensureStateArrays(state);
+  recalculateAllScores();
+  saveStateToStorage();
+  updateSetupInputFields();
 }
 
 // ==========================================================================
@@ -1625,17 +1863,18 @@ function renderSetupScreen() {
 
   ['inputPlayer1', 'inputPlayer2', 'inputPlayer3', 'inputPlayer4'].forEach((id, idx) => {
     const el = document.getElementById(id);
-    if (!el || document.activeElement === el) return;
-    const defaultName = `Oyuncu ${idx + 1}`;
-    const currentTyped = capitalizeWords(el.value.trim());
-    // Eğer kullanıcı kutuya özel bir isim yazdıysa, kullanıcının yazdığını koru!
-    if (currentTyped && currentTyped !== defaultName && state.players[idx].name === defaultName) {
-      state.players[idx].name = currentTyped;
-    } else if (state.players[idx].name === defaultName && !isGameInProgress) {
-      // Oyun başlamadıysa ve isim hâlâ varsayılan "Oyuncu 1" ise kutuyu boş bırak (placeholder görünsün)
-      el.value = '';
-    } else {
-      el.value = state.players[idx].name;
+    if (!el) return;
+    const defaultName = getDefaultPlayerName(currentTableId, idx);
+    el.placeholder = `${idx + 1}. Oyuncu Adını Yazın (${defaultName})`;
+
+    // Kullanıcı bu kutuda aktif olarak yazı yazmıyorsa mevcut masanın değerini göster
+    if (document.activeElement !== el) {
+      const pName = (state.players && state.players[idx]) ? state.players[idx].name : '';
+      if (isDefaultPlayerName(pName)) {
+        el.value = '';
+      } else {
+        el.value = pName;
+      }
     }
   });
 
@@ -3527,13 +3766,14 @@ function initEventListeners() {
     executeResetGame();
   });
 
-  // Oyuncu İsim Kutularında Yazarken Anında Kaydet (Krupiye seçildiğinde isimler asla silinmesin)
+  // Oyuncu İsim Kutularında Yazarken Anında Kaydet ve Çakışmayı Denetle
   ['inputPlayer1', 'inputPlayer2', 'inputPlayer3', 'inputPlayer4'].forEach((id, idx) => {
     const el = document.getElementById(id);
     if (!el) return;
 
     el.addEventListener('focus', () => {
-      if (el.value === `Oyuncu ${idx + 1}`) {
+      const defaultName = getDefaultPlayerName(currentTableId, idx);
+      if (el.value === defaultName) {
         el.select();
       }
     });
@@ -3541,8 +3781,9 @@ function initEventListeners() {
     el.addEventListener('input', () => {
       hasUserEditedSetupInputs = true;
       lastLocalSetupEditAt = Date.now();
+      const defaultName = getDefaultPlayerName(currentTableId, idx);
       const val = capitalizeWords(el.value);
-      state.players[idx].name = val.trim() || `Oyuncu ${idx + 1}`;
+      state.players[idx].name = val.trim() || defaultName;
       saveStateToStorage();
 
       // Krupiye seçim butonlarındaki isimleri input odağını bozmadan canlı güncelle
@@ -3554,19 +3795,12 @@ function initEventListeners() {
 
       clearTimeout(setupSyncTimer);
       setupSyncTimer = setTimeout(() => {
-        pushStateToServer();
-      }, 600);
+        validateAndSyncPlayerInput(idx);
+      }, 700);
     });
 
     el.addEventListener('blur', () => {
-      const formatted = capitalizeWords(el.value.trim());
-      el.value = formatted;
-      if (formatted) {
-        state.players[idx].name = formatted;
-        saveStateToStorage();
-        pushStateToServer();
-        renderAll();
-      }
+      validateAndSyncPlayerInput(idx);
     });
   });
 
@@ -3576,11 +3810,25 @@ function initEventListeners() {
 
     const oldNames = state.players.map(p => p.name);
     const newNames = [
-      capitalizeWords(document.getElementById('inputPlayer1').value.trim()) || 'Oyuncu 1',
-      capitalizeWords(document.getElementById('inputPlayer2').value.trim()) || 'Oyuncu 2',
-      capitalizeWords(document.getElementById('inputPlayer3').value.trim()) || 'Oyuncu 3',
-      capitalizeWords(document.getElementById('inputPlayer4').value.trim()) || 'Oyuncu 4'
+      capitalizeWords(document.getElementById('inputPlayer1').value.trim()) || getDefaultPlayerName(currentTableId, 0),
+      capitalizeWords(document.getElementById('inputPlayer2').value.trim()) || getDefaultPlayerName(currentTableId, 1),
+      capitalizeWords(document.getElementById('inputPlayer3').value.trim()) || getDefaultPlayerName(currentTableId, 2),
+      capitalizeWords(document.getElementById('inputPlayer4').value.trim()) || getDefaultPlayerName(currentTableId, 3)
     ];
+
+    // Başka masada oynayan oyuncu var mı kontrol et
+    const occupied = getAllOccupiedPlayers(currentTableId);
+    for (let i = 0; i < 4; i++) {
+      const nm = newNames[i];
+      if (!isDefaultPlayerName(nm)) {
+        const lower = nm.toLocaleLowerCase('tr-TR');
+        const otherOccupied = occupied.get(lower);
+        if (otherOccupied) {
+          showToast(`⛔ "${nm}" zaten ${otherOccupied.tableName}'de oynuyor! Bir kişi aynı anda birden fazla masada oturamaz.`, 'rose');
+          return;
+        }
+      }
+    }
 
     let changedPlayers = [];
     for (let i = 0; i < 4; i++) {
