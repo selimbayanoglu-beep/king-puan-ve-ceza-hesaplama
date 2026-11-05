@@ -1281,11 +1281,16 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Çoklu masaları sunucudan yükle
   await loadTablesList();
 
-  // Eğer oyun zaten başlamışsa doğrudan Koz veya Sonuçlar sayfasına kaydır
-  if (state.rounds && state.rounds.length > 0) {
-    goToScreen(3, false); // Sonuçlar
+  // Eğer oyun devam ediyorsa (1-19 el) ilgili oyun ekranına git,
+  // ama oyun bitmişse (20/20) veya henüz başlamamışsa her zaman temiz Kurulum/Oyuncular (Sayfa 0) açılır
+  const isFinished = (state.rounds && state.rounds.length >= 20) || hasKingWinner();
+  const isInProgress = state.rounds && state.rounds.length > 0 && !isFinished;
+
+  if (isInProgress) {
+    const targetScreen = (state.activeHandType === 'koz' && state.rounds.length >= 4) ? 2 : 1;
+    goToScreen(targetScreen, false);
   } else {
-    goToScreen(0, false); // Kurulum
+    goToScreen(0, false); // Boş / Kurulum (Oyuncular) sayfası
   }
 
   // Sunucu ve ağ kontrolü
