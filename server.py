@@ -424,8 +424,10 @@ class KingHTTPHandler(http.server.SimpleHTTPRequestHandler):
         self.end_headers()
 
     def do_GET(self) -> None:
+        clean_path = self.path.split("?")[0]
+
         # API: Masalar Listesi ve Salon Özeti
-        if self.path == "/api/tables" or self.path.startswith("/api/tables?"):
+        if clean_path == "/api/tables":
             data = {
                 "ok": True,
                 "activeCount": TABLE_MANAGER.active_count,
@@ -440,7 +442,7 @@ class KingHTTPHandler(http.server.SimpleHTTPRequestHandler):
             return
 
         # API: Ağ Bilgileri (IP, Port, URL, Masa URL'si)
-        if self.path == "/api/network-info" or self.path.startswith("/api/network-info?"):
+        if clean_path == "/api/network-info":
             table_id = extract_table_id(self)
             sess = TABLE_MANAGER.get_session(table_id)
             local_ip = get_local_ip()
@@ -640,7 +642,7 @@ class KingHTTPHandler(http.server.SimpleHTTPRequestHandler):
             return
 
         # API: Canlı Oyun Durumu (Masa Bazlı)
-        if self.path == "/api/state" or self.path.startswith("/api/state?"):
+        if clean_path == "/api/state":
             table_id = extract_table_id(self)
             sess = TABLE_MANAGER.get_session(table_id)
             data = {
@@ -662,6 +664,7 @@ class KingHTTPHandler(http.server.SimpleHTTPRequestHandler):
         super().do_GET()
 
     def do_POST(self) -> None:
+        clean_path = self.path.split("?")[0]
         length = int(self.headers.get("Content-Length", 0))
         raw_body = self.rfile.read(length) if length > 0 else b"{}"
 
@@ -670,7 +673,7 @@ class KingHTTPHandler(http.server.SimpleHTTPRequestHandler):
         except Exception:
             payload = {}
 
-        if self.path == "/api/tables":
+        if clean_path == "/api/tables":
             action = payload.get("action")
             if action == "set_count":
                 count = int(payload.get("count", 1))
@@ -691,7 +694,7 @@ class KingHTTPHandler(http.server.SimpleHTTPRequestHandler):
             self.wfile.write(body)
             return
 
-        if self.path == "/api/state":
+        if clean_path == "/api/state":
             table_id = extract_table_id(self, payload)
             sess = TABLE_MANAGER.get_session(table_id)
             new_state = payload.get("state")
@@ -710,7 +713,7 @@ class KingHTTPHandler(http.server.SimpleHTTPRequestHandler):
                 self.end_headers()
                 return
 
-        if self.path == "/api/player-input":
+        if clean_path == "/api/player-input":
             table_id = extract_table_id(self, payload)
             sess = TABLE_MANAGER.get_session(table_id)
             cur = sess.state
@@ -774,7 +777,7 @@ class KingHTTPHandler(http.server.SimpleHTTPRequestHandler):
             self.wfile.write(body)
             return
 
-        if self.path == "/api/archive-current":
+        if clean_path == "/api/archive-current":
             table_id = extract_table_id(self, payload)
             sess = TABLE_MANAGER.get_session(table_id)
             title = payload.get("title")
@@ -788,7 +791,7 @@ class KingHTTPHandler(http.server.SimpleHTTPRequestHandler):
             self.wfile.write(body)
             return
 
-        if self.path == "/api/restore-archive":
+        if clean_path == "/api/restore-archive":
             table_id = extract_table_id(self, payload)
             sess = TABLE_MANAGER.get_session(table_id)
             archive_id = payload.get("id")
@@ -807,7 +810,7 @@ class KingHTTPHandler(http.server.SimpleHTTPRequestHandler):
             self.wfile.write(body)
             return
 
-        if self.path == "/api/players":
+        if clean_path == "/api/players":
             action = payload.get("action", "add")
             name = payload.get("name", "").strip()
 
@@ -844,7 +847,7 @@ class KingHTTPHandler(http.server.SimpleHTTPRequestHandler):
             self.wfile.write(body)
             return
 
-        if self.path == "/api/reset":
+        if clean_path == "/api/reset":
             table_id = extract_table_id(self, payload)
             sess = TABLE_MANAGER.get_session(table_id)
             names = payload.get("playerNames")
@@ -858,7 +861,7 @@ class KingHTTPHandler(http.server.SimpleHTTPRequestHandler):
             self.wfile.write(body)
             return
 
-        if self.path == "/api/pull-github":
+        if clean_path == "/api/pull-github":
             import urllib.request
             files_to_sync = [
                 "index.html",

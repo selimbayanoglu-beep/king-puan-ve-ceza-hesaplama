@@ -60,14 +60,71 @@ function createDefaultTableState(tableId) {
 }
 
 // Tüm aktif masalarda oturmakta olan gerçek oyuncu isimlerini toplar (çakışma kontrolü)
+function getTakenPlayerNamesAcrossAllTables(currentTid = currentTableId, excludePlayerIdx = null) {
+  const taken = new Set();
+
+  for (let i = 1; i <= 4; i++) {
+    const tid = String(i);
+    let tPlayers = null;
+
+    if (tid === String(currentTid) && typeof state !== 'undefined' && state && Array.isArray(state.players)) {
+      tPlayers = state.players;
+    } else {
+      try {
+        const raw = localStorage.getItem(getGameStorageKey(tid));
+        if (raw) {
+          const parsed = JSON.parse(raw);
+          if (parsed && Array.isArray(parsed.players)) {
+            tPlayers = parsed.players;
+          }
+        }
+      } catch (e) {}
+    }
+
+    if (!tPlayers && typeof tablesList !== 'undefined' && Array.isArray(tablesList)) {
+      const tObj = tablesList.find(t => String(t.id) === tid);
+      if (tObj && Array.isArray(tObj.players)) {
+        tPlayers = tObj.players;
+      }
+    }
+
+    if (tPlayers && Array.isArray(tPlayers)) {
+      tPlayers.forEach((p, idx) => {
+        // Eğer o an düzenlenen masanın düzenlenen kendi koltuğuysa hariç tut (değiştirilebilsin)
+        if (tid === String(currentTid) && excludePlayerIdx !== null && idx === excludePlayerIdx) {
+          return;
+        }
+        const name = (p && p.name ? p.name.trim() : '');
+        if (name && !isDefaultPlayerName(name)) {
+          taken.add(name.toLocaleLowerCase('tr-TR'));
+        }
+      });
+    }
+  }
+
+  // Şu an formda yazılı olan isimler varsa onları da çakışma setine dahil et
+  if (typeof document !== 'undefined') {
+    ['inputPlayer1', 'inputPlayer2', 'inputPlayer3', 'inputPlayer4'].forEach((id, idx) => {
+      if (excludePlayerIdx !== null && idx === excludePlayerIdx) return;
+      const el = document.getElementById(id);
+      if (el && el.value) {
+        const v = el.value.trim();
+        if (v && !isDefaultPlayerName(v)) {
+          taken.add(v.toLocaleLowerCase('tr-TR'));
+        }
+      }
+    });
+  }
+
+  return taken;
+}
+
 function getAllOccupiedPlayers(excludeTableId = null, excludePlayerIdx = null) {
   const occupied = new Map();
-  const count = Math.max(1, activeTableCount || 1);
 
-  for (let i = 1; i <= count; i++) {
+  for (let i = 1; i <= 4; i++) {
     const tid = String(i);
 
-    // EĞER BU MASA HARİÇ TUTULACAKSA, BU MASAYI TAMAMEN ATLA (kendi masasının oyuncuları çakışma sayılmaz)
     if (excludeTableId && String(excludeTableId) === tid) {
       continue;
     }
@@ -84,7 +141,7 @@ function getAllOccupiedPlayers(excludeTableId = null, excludePlayerIdx = null) {
 
     let players = (tState && Array.isArray(tState.players)) ? tState.players : null;
     if (!players || players.length === 0) {
-      const tObj = tablesList.find(t => String(t.id) === tid);
+      const tObj = (tablesList && tablesList.find(t => String(t.id) === tid));
       if (tObj && Array.isArray(tObj.players)) {
         players = tObj.players;
       }
@@ -94,7 +151,7 @@ function getAllOccupiedPlayers(excludeTableId = null, excludePlayerIdx = null) {
       players.forEach((p, idx) => {
         const pName = (p && p.name ? p.name.trim() : '');
         if (pName && !isDefaultPlayerName(pName)) {
-          const tObj = tablesList.find(t => String(t.id) === tid) || { name: `Masa ${tid}` };
+          const tObj = (tablesList && tablesList.find(t => String(t.id) === tid)) || { name: `Masa ${tid}` };
           occupied.set(pName.toLocaleLowerCase('tr-TR'), {
             rawName: pName,
             tableId: tid,
@@ -411,7 +468,7 @@ function renderTableSetupUI() {
         tabBtn.type = 'button';
         const isActive = String(t.id) === String(currentTableId);
         tabBtn.className = `btn-setup-tab ${isActive ? 'active' : ''}`;
-        tabBtn.innerHTML = `🪑 ${escapeHtml(t.name || ('Masa ' + t.id))}`;
+        tabBtn.innerHTML = (isActive ? '📍 ' : '🪑 ') + escapeHtml(t.name || ('Masa ' + t.id)) + (isActive ? ' <span style="font-size:10px; background:rgba(255,255,255,0.25); padding:1px 6px; border-radius:10px; margin-left:4px;">Seçili</span>' : '');
         tabBtn.addEventListener('click', () => {
           triggerHaptic(15);
           switchSetupTable(t.id);
@@ -426,7 +483,7 @@ function renderTableSetupUI() {
   const titleEl = document.getElementById('lblPlayerNamesTitle');
   if (titleEl) {
     const curName = (tablesList.find(t => String(t.id) === String(currentTableId)) || {}).name || `Masa ${currentTableId}`;
-    titleEl.textContent = `Oyuncu İsimleri (${curName}):`;
+    titleEl.innerHTML = `Oyuncu İsimleri: <span style="display:inline-flex; align-items:center; background: linear-gradient(135deg, #2563eb, #1d4ed8); color: #fff; font-size: 13px; padding: 4px 12px; border-radius: 999px; margin-left: 8px; font-weight: 800; box-shadow: 0 0 12px rgba(37,99,235,0.6); border: 1px solid rgba(255,255,255,0.3);">${escapeHtml(curName)}</span>`;
   }
 }
 
@@ -753,19 +810,15 @@ function renderPlayerDbItems() {
     return !query || name.toLocaleLowerCase('tr-TR').includes(query);
   });
 
-  // Tüm masalarda oturan oyuncuları tespit et (çakışma ve aynı anda 2 masada oynamayı engelle)
-  const occupied = getAllOccupiedPlayers(currentTableId, targetPlayerSelectIdx);
-  const curTableOccupied = (state.players || []).map((p, idx) =>
-    idx !== targetPlayerSelectIdx ? (p.name || '').trim().toLocaleLowerCase('tr-TR') : ''
-  );
+  // KULLANICI KURALI: Tüm masalarda (Masa 1, 2, 3, 4) oturmakta olan veya bu masanın diğer koltuklarında
+  // oturan oyuncuların TAMAMI toplanır.
+  const takenNames = getTakenPlayerNamesAcrossAllTables(currentTableId, targetPlayerSelectIdx);
 
-  // KULLANICI KURALI: Masalara oturmuş olan oyuncular diğer masalarda oyuncu seçerken
-  // LİSTEDE KESİNLİKLE GÖRÜNMEYECEK! Sadece boşta olan, seçilebilir oyuncular listelenir.
+  // Oturmuş olan oyuncular listeden KESİNLİKLE VE ASLA GÖRÜNMEZ! Sadece boşta olanlar listelenir.
   const availablePlayers = rawFiltered.filter(name => {
+    if (!name || isDefaultPlayerName(name)) return false;
     const lower = name.trim().toLocaleLowerCase('tr-TR');
-    const otherOccupied = occupied.get(lower);
-    const isSameTable = curTableOccupied.includes(lower);
-    return !otherOccupied && !isSameTable;
+    return !takenNames.has(lower);
   });
 
   if (availablePlayers.length === 0) {
@@ -783,7 +836,7 @@ function renderPlayerDbItems() {
   let html = `
     <div style="font-size: 11px; color: #10b981; font-weight: 700; margin-bottom: 6px; padding: 2px 4px; display: flex; align-items: center; justify-content: space-between;">
       <span>🟢 Seçilebilir Boşta Oyuncular (${availablePlayers.length})</span>
-      <span style="font-size: 10px; color: #64748b;">(Diğer masalardakiler gizlendi)</span>
+      <span style="font-size: 10px; color: #64748b;">(Masalara atanmış oyuncular gizlendi)</span>
     </div>
   `;
 
@@ -812,19 +865,9 @@ function selectPlayerFromDb(selectedName) {
   const lower = selectedName.trim().toLocaleLowerCase('tr-TR');
 
   // Güvenlik: Bir kişi aynı anda birden fazla masada oturamaz!
-  const occupied = getAllOccupiedPlayers(currentTableId, targetPlayerSelectIdx);
-  const otherOccupied = occupied.get(lower);
-
-  if (otherOccupied) {
-    showToast(`⛔ "${selectedName}" zaten ${otherOccupied.tableName}'de oynuyor! Bir kişi aynı anda 2 masada bulunamaz.`, 'rose');
-    return;
-  }
-
-  const curTableOccupied = (state.players || []).some((p, idx) =>
-    idx !== targetPlayerSelectIdx && (p.name || '').trim().toLocaleLowerCase('tr-TR') === lower
-  );
-  if (curTableOccupied) {
-    showToast(`⚠️ "${selectedName}" bu masada zaten başka bir koltukta seçili!`, 'amber');
+  const takenNames = getTakenPlayerNamesAcrossAllTables(currentTableId, targetPlayerSelectIdx);
+  if (takenNames.has(lower)) {
+    showToast(`⛔ "${selectedName}" zaten başka bir koltukta veya masada oturuyor!`, 'rose');
     return;
   }
 
@@ -1768,18 +1811,26 @@ function loadStateFromStorage() {
             try {
               const t1Parsed = JSON.parse(t1Raw);
               if (t1Parsed && Array.isArray(t1Parsed.players)) {
-                const t1Names = t1Parsed.players.map(p => (p && p.name ? p.name.trim().toLocaleLowerCase('tr-TR') : ''));
-                const curNames = parsed.players.map(p => (p && p.name ? p.name.trim().toLocaleLowerCase('tr-TR') : ''));
-                const dupCount = curNames.filter(nm => nm && !isDefaultPlayerName(nm) && t1Names.includes(nm)).length;
-                if (dupCount >= 2) {
-                  // Hatalı kopyalanmış veriyi temizle
-                  parsed.players = [
-                    { id: 0, name: getDefaultPlayerName(currentTableId, 0), score: 0, kozCount: 0, cezaCount: 0 },
-                    { id: 1, name: getDefaultPlayerName(currentTableId, 1), score: 0, kozCount: 0, cezaCount: 0 },
-                    { id: 2, name: getDefaultPlayerName(currentTableId, 2), score: 0, kozCount: 0, cezaCount: 0 },
-                    { id: 3, name: getDefaultPlayerName(currentTableId, 3), score: 0, kozCount: 0, cezaCount: 0 },
-                  ];
-                  parsed.rounds = [];
+                const t1Names = t1Parsed.players
+                  .map(p => (p && p.name ? p.name.trim().toLocaleLowerCase('tr-TR') : ''))
+                  .filter(nm => nm && !isDefaultPlayerName(nm));
+
+                let hasChanges = false;
+                parsed.players.forEach((p, idx) => {
+                  const pName = (p && p.name ? p.name.trim().toLocaleLowerCase('tr-TR') : '');
+                  if (pName && t1Names.includes(pName)) {
+                    // Masa 1'de oturan bu oyuncuyu Masa 2'den temizle
+                    parsed.players[idx] = {
+                      id: idx,
+                      name: getDefaultPlayerName(currentTableId, idx),
+                      score: 0,
+                      kozCount: 0,
+                      cezaCount: 0
+                    };
+                    hasChanges = true;
+                  }
+                });
+                if (hasChanges) {
                   localStorage.setItem(key, JSON.stringify(parsed));
                 }
               }
