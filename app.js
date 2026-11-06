@@ -490,8 +490,12 @@ function renderTableSetupUI() {
 async function switchSetupTable(tableId) {
   const tid = String(tableId);
   if (tid === String(currentTableId)) return;
-  // Mevcut formdaki isimleri kaydet
+  // Mevcut formdaki isimleri kaydet ve kalıcı depola
   syncSetupInputsToState();
+  saveStateToStorage();
+  try {
+    pushStateToServer();
+  } catch (e) {}
   await switchTable(tid);
 }
 
@@ -501,15 +505,18 @@ async function switchTable(tableId) {
 
   // Mevcut masayı kaydet
   saveStateToStorage();
+  if (typeof tableServerVersions !== 'undefined') {
+    tableServerVersions[currentTableId] = serverVersion;
+  }
 
   // Önceki masanın geçici düzenleme bayraklarını ve hafızasını tamamen sıfırla
   hasUserEditedSetupInputs = false;
   lastLocalSetupEditAt = 0;
   lastLocalEditTableId = null;
-  serverVersion = 0; // Her masanın versiyonu bağımsızdır; 0 yapılarak yeni masanın sunucu verisi kesinlikle alınır
 
   currentTableId = tid;
   activeSetupTableId = tid;
+  serverVersion = (typeof tableServerVersions !== 'undefined' && tableServerVersions[tid]) ? tableServerVersions[tid] : 0;
   try {
     localStorage.setItem('king_active_table_id', currentTableId);
     // URL'deki masa parametresini de senkronize et (sayfa yenilense de Masa 2'de kalsın)
@@ -1188,6 +1195,7 @@ let state = {
 
 // Çoklu Cihaz Senkronizasyonu & Haptic
 let serverVersion = 0;
+let tableServerVersions = { '1': 0, '2': 0, '3': 0, '4': 0 };
 let isServerOnline = false;
 let isSyncing = false;
 let serverNetworkUrl = '';
@@ -1618,8 +1626,12 @@ async function fetchServerState(initial = false) {
   const timeoutId = setTimeout(() => controller.abort(), 2500);
   isFetchingState = true;
   try {
-    const res = await fetch(`/api/state?table=${currentTableId}&t=${Date.now()}`, {
+    const fetchUrl = (String(currentTableId) === '1')
+      ? `/api/state?t=${Date.now()}`
+      : `/api/state?table=${currentTableId}&t=${Date.now()}`;
+    const res = await fetch(fetchUrl, {
       cache: 'no-store',
+      headers: { 'X-Table-Id': String(currentTableId) },
       signal: controller.signal
     });
     clearTimeout(timeoutId);
@@ -1652,10 +1664,20 @@ async function fetchServerState(initial = false) {
         );
 
         serverVersion = data.version;
+        if (typeof tableServerVersions !== 'undefined') {
+          tableServerVersions[currentTableId] = data.version;
+        }
+
         if (data.state && Array.isArray(data.state.players)) {
+          // KORUMA: Eğer yerelde girilmiş gerçek oyuncu isimleri varsa ve sunucuda oyun henüz başlamamışsa (rounds.length == 0)
+          // ve sunucudaki isimler varsayılan ("Oyuncu 1..4") ise, yereldeki gerçek isimleri ASLA ezme!
+          const hasLocalRealPlayers = localNamesSnapshot.some(n => n && !isDefaultPlayerName(n));
+          const isServerDefaultOnly = data.state.players.every(p => !p || !p.name || isDefaultPlayerName(p.name));
+          const hasServerRounds = Array.isArray(data.state.rounds) && data.state.rounds.length > 0;
+
           state = data.state;
           ensureStateArrays(state);
-          if (isEditingSetup) {
+          if (isEditingSetup || (hasLocalRealPlayers && isServerDefaultOnly && !hasServerRounds)) {
             state.players.forEach((p, idx) => {
               const localName = localNamesSnapshot[idx];
               if (localName && !isDefaultPlayerName(localName)) {
@@ -1663,6 +1685,7 @@ async function fetchServerState(initial = false) {
               }
             });
             state.initialDealer = localDealerSnapshot;
+            pushStateToServer();
           } else {
             updateSetupInputFields();
           }
@@ -1692,16 +1715,25 @@ async function pushStateToServer() {
   const timeoutId = setTimeout(() => controller.abort(), 5000);
   try {
     isSyncing = true;
-    const res = await fetch(`/api/state?table=${currentTableId}`, {
+    const postUrl = (String(currentTableId) === '1') ? '/api/state' : `/api/state?table=${currentTableId}`;
+    const res = await fetch(postUrl, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Table-Id': String(currentTableId)
+      },
       body: JSON.stringify({ state: state, version: serverVersion, tableId: currentTableId }),
       signal: controller.signal
     });
     clearTimeout(timeoutId);
     if (res.ok) {
       const data = await res.json();
-      if (data.version) serverVersion = data.version;
+      if (data.version) {
+        serverVersion = data.version;
+        if (typeof tableServerVersions !== 'undefined') {
+          tableServerVersions[currentTableId] = data.version;
+        }
+      }
       updateSyncBadge(true);
     } else {
       updateSyncBadge(false);
@@ -1724,14 +1756,22 @@ async function sendPlayerInputToServer(payload) {
     const mergedPayload = Object.assign({}, payload, { tableId: currentTableId });
     const res = await fetch('/api/player-input', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Table-Id': String(currentTableId)
+      },
       body: JSON.stringify(mergedPayload),
       signal: controller.signal
     });
     clearTimeout(timeoutId);
     if (res.ok) {
       const data = await res.json();
-      if (data.version) serverVersion = data.version;
+      if (data.version) {
+        serverVersion = data.version;
+        if (typeof tableServerVersions !== 'undefined') {
+          tableServerVersions[currentTableId] = data.version;
+        }
+      }
       if (data.state && Array.isArray(data.state.players)) {
         state = data.state;
         ensureStateArrays(state);
