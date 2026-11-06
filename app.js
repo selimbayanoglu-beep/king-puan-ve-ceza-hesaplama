@@ -29,80 +29,102 @@ function getDefaultPlayerName(tableId, playerIdx) {
 }
 
 function isDefaultPlayerName(name) {
-  return !name || /^Oyuncu\s+\d+$/i.test(String(name).trim());
+  if (!name) return true;
+  const s = String(name).trim();
+  return /^Oyuncu\s+\d+$/i.test(s) || /^test\s*\d*$/i.test(s);
 }
 
-function createDefaultTableState(tableId) {
-  const tid = parseInt(tableId, 10) || 1;
-  return {
-    id: String(tid),
-    name: `Masa ${tid}`,
-    players: [
-      { id: 0, name: getDefaultPlayerName(tid, 0), score: 0, kozCount: 0, cezaCount: 0 },
-      { id: 1, name: getDefaultPlayerName(tid, 1), score: 0, kozCount: 0, cezaCount: 0 },
-      { id: 2, name: getDefaultPlayerName(tid, 2), score: 0, kozCount: 0, cezaCount: 0 },
-      { id: 3, name: getDefaultPlayerName(tid, 3), score: 0, kozCount: 0, cezaCount: 0 },
-    ],
-    initialDealer: 0,
-    scoringMode: 'standard',
-    rounds: [],
-    activeHandType: 'ceza',
-    selectedCezaKey: 'el_almaz',
-    selectedKozSuit: 'karo',
-    kozInputs: [0, 0, 0, 0],
-    cezaInputs: [0, 0, 0, 0],
-    kozConfirmed: [false, false, false, false],
-    cezaConfirmed: [false, false, false, false],
-    kingWinnerIdx: null,
-    kingWinnerName: null,
-    kingWinnerTricks: null
-  };
+function cleanDuplicatePlayersAcrossTables() {
+  // Masa 1 en öncelikli masadır. Masa 1'deki gerçek isimleri topla.
+  let t1Players = [];
+  try {
+    const raw1 = localStorage.getItem(getGameStorageKey('1'));
+    if (raw1) {
+      const p1 = JSON.parse(raw1);
+      if (p1 && Array.isArray(p1.players)) {
+        t1Players = p1.players
+          .map(p => (p && p.name ? p.name.trim() : ''))
+          .filter(n => n && !isDefaultPlayerName(n));
+      }
+    }
+  } catch (e) {}
+
+  if (String(currentTableId) === '1' && typeof state !== 'undefined' && state && Array.isArray(state.players)) {
+    const curNames = state.players
+      .map(p => (p && p.name ? p.name.trim() : ''))
+      .filter(n => n && !isDefaultPlayerName(n));
+    curNames.forEach(nm => {
+      if (!t1Players.includes(nm)) t1Players.push(nm);
+    });
+  }
+
+  const t1Lower = t1Players.map(n => n.toLocaleLowerCase('tr-TR'));
+
+  // Masalar 2, 3, 4'teki eski veya kirli çakışan kalıntıları temizle
+  for (let tid = 2; tid <= 4; tid++) {
+    const key = getGameStorageKey(String(tid));
+    try {
+      const raw = localStorage.getItem(key);
+      if (!raw) continue;
+      const parsed = JSON.parse(raw);
+      if (!parsed || !Array.isArray(parsed.players)) continue;
+
+      let changed = false;
+      parsed.players.forEach((p, idx) => {
+        const pName = (p && p.name ? p.name.trim().toLocaleLowerCase('tr-TR') : '');
+        if (pName && (t1Lower.includes(pName) || pName.startsWith('test'))) {
+          parsed.players[idx] = {
+            id: idx,
+            name: getDefaultPlayerName(String(tid), idx),
+            score: 0,
+            kozCount: 0,
+            cezaCount: 0
+          };
+          changed = true;
+        }
+      });
+
+      if (changed) {
+        localStorage.setItem(key, JSON.stringify(parsed));
+      }
+    } catch (e) {}
+  }
+
+  // Ayrıca mevcut state'te "test" içeren isim kalmışsa temizle
+  if (typeof state !== 'undefined' && state && Array.isArray(state.players)) {
+    let stateChanged = false;
+    state.players.forEach((p, idx) => {
+      if (p && p.name && (p.name.toLocaleLowerCase('tr-TR').startsWith('test') || /^test\d*$/i.test(p.name.trim()))) {
+        p.name = getDefaultPlayerName(currentTableId, idx);
+        stateChanged = true;
+      }
+    });
+    if (stateChanged) {
+      saveStateToStorage();
+      pushStateToServer();
+      updateSetupInputFields();
+    }
+  }
 }
 
 // Tüm aktif masalarda oturmakta olan gerçek oyuncu isimlerini toplar (çakışma kontrolü)
 function getTakenPlayerNamesAcrossAllTables(currentTid = currentTableId, excludePlayerIdx = null) {
   const taken = new Set();
+  const maxTables = Math.max(1, activeTableCount || 1);
+  const curTidNum = parseInt(currentTid, 10) || 1;
 
-  for (let i = 1; i <= 4; i++) {
-    const tid = String(i);
-    let tPlayers = null;
-
-    if (tid === String(currentTid) && typeof state !== 'undefined' && state && Array.isArray(state.players)) {
-      tPlayers = state.players;
-    } else {
-      try {
-        const raw = localStorage.getItem(getGameStorageKey(tid));
-        if (raw) {
-          const parsed = JSON.parse(raw);
-          if (parsed && Array.isArray(parsed.players)) {
-            tPlayers = parsed.players;
-          }
-        }
-      } catch (e) {}
-    }
-
-    if (!tPlayers && typeof tablesList !== 'undefined' && Array.isArray(tablesList)) {
-      const tObj = tablesList.find(t => String(t.id) === tid);
-      if (tObj && Array.isArray(tObj.players)) {
-        tPlayers = tObj.players;
+  // 1. Mevcut masanın diğer koltuklarında oturan oyuncuları ekle (aynı masada çift seçimi önle)
+  if (typeof state !== 'undefined' && state && Array.isArray(state.players)) {
+    state.players.forEach((p, idx) => {
+      if (excludePlayerIdx !== null && idx === excludePlayerIdx) return;
+      const name = (p && p.name ? p.name.trim() : '');
+      if (name && !isDefaultPlayerName(name)) {
+        taken.add(name.toLocaleLowerCase('tr-TR'));
       }
-    }
-
-    if (tPlayers && Array.isArray(tPlayers)) {
-      tPlayers.forEach((p, idx) => {
-        // Eğer o an düzenlenen masanın düzenlenen kendi koltuğuysa hariç tut (değiştirilebilsin)
-        if (tid === String(currentTid) && excludePlayerIdx !== null && idx === excludePlayerIdx) {
-          return;
-        }
-        const name = (p && p.name ? p.name.trim() : '');
-        if (name && !isDefaultPlayerName(name)) {
-          taken.add(name.toLocaleLowerCase('tr-TR'));
-        }
-      });
-    }
+    });
   }
 
-  // Şu an formda yazılı olan isimler varsa onları da çakışma setine dahil et
+  // Ayrıca form kutularında şu an yazılı olan isimleri de ekle
   if (typeof document !== 'undefined') {
     ['inputPlayer1', 'inputPlayer2', 'inputPlayer3', 'inputPlayer4'].forEach((id, idx) => {
       if (excludePlayerIdx !== null && idx === excludePlayerIdx) return;
@@ -116,13 +138,54 @@ function getTakenPlayerNamesAcrossAllTables(currentTid = currentTableId, exclude
     });
   }
 
+  // Eğer tek masa modundaysak veya şu an Masa 1 düzenleniyorsa:
+  // Masa 1 en öncelikli masadır; diğer pasif/ikinci masalar Masa 1'i KESİNLİKLE KISITLAYAMAZ!
+  if (maxTables <= 1 || curTidNum === 1) {
+    return taken;
+  }
+
+  // Masa 2, 3, 4 için: Kendisinden önceki masalarda (örn. Masa 1'de) oturan oyuncuları topla
+  for (let i = 1; i < curTidNum; i++) {
+    const tid = String(i);
+    let tPlayers = null;
+    try {
+      const raw = localStorage.getItem(getGameStorageKey(tid));
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (parsed && Array.isArray(parsed.players)) {
+          tPlayers = parsed.players;
+        }
+      }
+    } catch (e) {}
+
+    if (!tPlayers && typeof tablesList !== 'undefined' && Array.isArray(tablesList)) {
+      const tObj = tablesList.find(t => String(t.id) === tid);
+      if (tObj && Array.isArray(tObj.players)) {
+        tPlayers = tObj.players;
+      }
+    }
+
+    if (tPlayers && Array.isArray(tPlayers)) {
+      tPlayers.forEach(p => {
+        const name = (p && p.name ? p.name.trim() : '');
+        if (name && !isDefaultPlayerName(name)) {
+          taken.add(name.toLocaleLowerCase('tr-TR'));
+        }
+      });
+    }
+  }
+
   return taken;
 }
 
 function getAllOccupiedPlayers(excludeTableId = null, excludePlayerIdx = null) {
   const occupied = new Map();
+  const maxTables = Math.max(1, activeTableCount || 1);
+  if (maxTables <= 1) {
+    return occupied;
+  }
 
-  for (let i = 1; i <= 4; i++) {
+  for (let i = 1; i <= maxTables; i++) {
     const tid = String(i);
 
     if (excludeTableId && String(excludeTableId) === tid) {
@@ -878,6 +941,10 @@ function selectPlayerFromDb(selectedName) {
     return;
   }
 
+  if (String(currentTableId) === '1') {
+    cleanDuplicatePlayersAcrossTables();
+  }
+
   const inputEl = document.getElementById(`inputPlayer${targetPlayerSelectIdx + 1}`);
   if (inputEl) {
     inputEl.value = selectedName;
@@ -889,6 +956,9 @@ function selectPlayerFromDb(selectedName) {
     lastLocalSetupEditAt = Date.now();
     saveStateToStorage();
     pushStateToServer();
+    if (String(currentTableId) === '1') {
+      cleanDuplicatePlayersAcrossTables();
+    }
     try { loadTablesList(); } catch (e) {}
   }
   renderAll();
@@ -1335,7 +1405,9 @@ function triggerHaptic(duration = 20) {
 // ==========================================================================
 document.addEventListener('DOMContentLoaded', async () => {
   initSpectatorMode();
+  cleanDuplicatePlayersAcrossTables();
   loadStateFromStorage();
+  cleanDuplicatePlayersAcrossTables();
   initSliderNavigation();
   initEventListeners();
   renderAll();
@@ -3988,15 +4060,22 @@ function initEventListeners() {
     ];
 
     // Başka masada oynayan oyuncu var mı kontrol et (mevcut masa hariç)
-    const occupied = getAllOccupiedPlayers(currentTableId);
-    for (let i = 0; i < 4; i++) {
-      const nm = newNames[i];
-      if (!isDefaultPlayerName(nm)) {
-        const lower = nm.toLocaleLowerCase('tr-TR');
-        const otherOccupied = occupied.get(lower);
-        if (otherOccupied) {
-          showToast(`⛔ "${nm}" zaten ${otherOccupied.tableName}'de oynuyor! Bir kişi aynı anda birden fazla masada oturamaz.`, 'rose');
-          return;
+    if (activeTableCount > 1) {
+      if (String(currentTableId) === '1') {
+        // Masa 1 önceliklidir; Masa 2..4'te Masa 1 ile çakışan eski isim varsa temizle!
+        cleanDuplicatePlayersAcrossTables();
+      } else {
+        const occupied = getAllOccupiedPlayers(currentTableId);
+        for (let i = 0; i < 4; i++) {
+          const nm = newNames[i];
+          if (!isDefaultPlayerName(nm)) {
+            const lower = nm.toLocaleLowerCase('tr-TR');
+            const otherOccupied = occupied.get(lower);
+            if (otherOccupied) {
+              showToast(`⛔ "${nm}" zaten ${otherOccupied.tableName}'de oynuyor! Bir kişi aynı anda birden fazla masada oturamaz.`, 'rose');
+              return;
+            }
+          }
         }
       }
     }
