@@ -548,6 +548,30 @@ function renderTableSetupUI() {
     const curName = (tablesList.find(t => String(t.id) === String(currentTableId)) || {}).name || `Masa ${currentTableId}`;
     titleEl.innerHTML = `Oyuncu İsimleri: <span style="display:inline-flex; align-items:center; background: linear-gradient(135deg, #2563eb, #1d4ed8); color: #fff; font-size: 13px; padding: 4px 12px; border-radius: 999px; margin-left: 8px; font-weight: 800; box-shadow: 0 0 12px rgba(37,99,235,0.6); border: 1px solid rgba(255,255,255,0.3);">${escapeHtml(curName)}</span>`;
   }
+
+  const noticeEl = document.getElementById('tableSetupNotice');
+  if (noticeEl) {
+    if (activeTableCount > 1) {
+      noticeEl.style.display = 'block';
+      if (String(currentTableId) === '1') {
+        noticeEl.innerHTML = `
+          <div style="background: rgba(30, 41, 59, 0.85); border: 1.5px solid rgba(59, 130, 246, 0.45); border-radius: 8px; padding: 10px 14px; font-size: 13px; color: #cbd5e1; display: flex; align-items: center; justify-content: space-between; gap: 8px;">
+            <span>📍 Şu an <b>Masa 1</b> oyuncularını düzenliyorsunuz.</span>
+            <button type="button" class="btn btn-primary btn-sm" onclick="switchSetupTable('2')" style="font-weight: 700; padding: 6px 14px; font-size: 12px; white-space: nowrap;">🪑 Masa 2'ye Geç (Boş) ➔</button>
+          </div>
+        `;
+      } else {
+        noticeEl.innerHTML = `
+          <div style="background: rgba(16, 185, 129, 0.15); border: 1.5px solid rgba(16, 185, 129, 0.5); border-radius: 8px; padding: 10px 14px; font-size: 13px; color: #a7f3d0; display: flex; align-items: center; justify-content: space-between; gap: 8px;">
+            <span>🟢 <b>Masa ${currentTableId}</b> koltukları boş. Masa 1'deki oyuncular gizlendi.</span>
+            <button type="button" class="btn btn-sm" onclick="switchSetupTable('1')" style="background: rgba(255,255,255,0.15); color: #fff; font-weight: 700; padding: 6px 14px; font-size: 12px; border: 1px solid rgba(255,255,255,0.25); border-radius: 6px; cursor: pointer; white-space: nowrap;">↩ Masa 1'e Dön</button>
+          </div>
+        `;
+      }
+    } else {
+      noticeEl.style.display = 'none';
+    }
+  }
 }
 
 async function switchSetupTable(tableId) {
@@ -598,7 +622,39 @@ async function switchTable(tableId) {
   // O masaya ait yerel state'i yükle
   loadStateFromStorage();
 
-  // Input alanlarını bu masanın kendi oyuncularıyla doldur
+  // KULLANICI KURALI: Eğer geçilen masa Masa 1 değilse (örn. Masa 2) ve henüz oyun oynanmamışsa:
+  // Eğer bu masada kayıtlı oyuncular Masa 1 ile çakışıyorsa veya tümü varsayılansa,
+  // bu masanın koltukları %100 TERTEMİZ BOŞ ve YENİ SEÇİME HAZIR olmalıdır!
+  if (tid !== '1') {
+    cleanDuplicatePlayersAcrossTables();
+    if (!state.rounds || state.rounds.length === 0) {
+      // Masa 1'in isimlerini al
+      let t1Names = [];
+      try {
+        const raw1 = localStorage.getItem(getGameStorageKey('1'));
+        if (raw1) {
+          const p1 = JSON.parse(raw1);
+          if (p1 && Array.isArray(p1.players)) {
+            t1Names = p1.players.map(p => (p && p.name ? p.name.trim().toLocaleLowerCase('tr-TR') : ''));
+          }
+        }
+      } catch (e) {}
+
+      let wipedAny = false;
+      state.players.forEach((p, idx) => {
+        const pName = (p && p.name ? p.name.trim().toLocaleLowerCase('tr-TR') : '');
+        if (pName && (t1Names.includes(pName) || pName.startsWith('test'))) {
+          p.name = getDefaultPlayerName(tid, idx);
+          wipedAny = true;
+        }
+      });
+      if (wipedAny) {
+        saveStateToStorage();
+      }
+    }
+  }
+
+  // Input alanlarını bu masanın kendi oyuncularıyla doldur (varsayılan olanlar BOŞ kalır)
   updateSetupInputFields();
 
   renderTableBar();
@@ -634,14 +690,21 @@ async function setTableCount(newCount) {
     }
   } catch (e) {}
 
-  // Eğer mevcut masa yeni masa sayısının dışındaysa Masa 1'e geç
-  if (parseInt(currentTableId, 10) > activeTableCount) {
+  // KULLANICI KURALI: Kullanıcı "2 Masa" seçtiğinde doğrudan yeni açılan 2. masaya geçilir!
+  // 1. Masanın isimleri korunur, 2. Masa tamamen BOŞ ve yeni oyuncu seçimine hazır açılır.
+  if (count > 1 && String(currentTableId) !== String(count)) {
+    syncSetupInputsToState();
+    saveStateToStorage();
+    try { pushStateToServer(); } catch (e) {}
+    cleanDuplicatePlayersAcrossTables();
+    await switchTable(String(count));
+  } else if (count === 1 && String(currentTableId) !== '1') {
     await switchTable('1');
   }
 
   renderTableBar();
   renderTableSetupUI();
-  showToast(`🏢 Salon ayarlandı: ${activeTableCount} Masa (${activeTableCount * 4} Oyuncu)`, 'cyan');
+  showToast(`🏢 ${activeTableCount} Masa aktif edildi. Masa ${currentTableId} açıldı.`, 'cyan');
 }
 
 async function loadTablesList() {
