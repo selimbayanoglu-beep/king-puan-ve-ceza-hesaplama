@@ -3420,8 +3420,12 @@ async function executeResetGame() {
       const timeStr = now.toLocaleDateString('tr-TR') + ' ' + now.toLocaleTimeString('tr-TR');
       await fetch('/api/archive-current', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Table-Id': String(currentTableId)
+        },
         body: JSON.stringify({
+          tableId: currentTableId,
           title: `Otomatik Yedek (Yeni Oyun Öncesi - ${state.rounds.length}/20 El - ${timeStr})`
         })
       });
@@ -3430,40 +3434,57 @@ async function executeResetGame() {
     }
   }
 
-  // 2. HER ŞEYİ TERTEMİZ SIFIRLA (Eski isimler asla gelmesin)
-  state = {
-    players: [
-      { id: 0, name: 'Oyuncu 1', score: 0, kozCount: 0, cezaCount: 0 },
-      { id: 1, name: 'Oyuncu 2', score: 0, kozCount: 0, cezaCount: 0 },
-      { id: 2, name: 'Oyuncu 3', score: 0, kozCount: 0, cezaCount: 0 },
-      { id: 3, name: 'Oyuncu 4', score: 0, kozCount: 0, cezaCount: 0 },
-    ],
-    initialDealer: 0,
-    scoringMode: 'standard',
-    rounds: [],
-    activeHandType: 'ceza',
-    selectedCezaKey: 'el_almaz',
-    selectedKozSuit: 'karo',
-    kozInputs: [0, 0, 0, 0],
-    cezaInputs: [0, 0, 0, 0],
-    kozConfirmed: [false, false, false, false],
-    cezaConfirmed: [false, false, false, false]
-  };
+  // 2. HER ŞEYİ TERTEMİZ SIFIRLA (O masanın varsayılan boş durumu)
+  state = createDefaultTableState(currentTableId);
   inputHistories.ceza = [];
   inputHistories.koz = [];
   hasUserEditedSetupInputs = false;
+  lastLocalSetupEditAt = 0;
+  lastLocalEditTableId = null;
 
-  // Input kutularını da tamamen temizle (Yeni isimler girilsin)
+  // Input kutularını tamamen temizle (Kullanıcı yeni isimler girebilsin)
   ['inputPlayer1', 'inputPlayer2', 'inputPlayer3', 'inputPlayer4'].forEach((id) => {
     const el = document.getElementById(id);
     if (el) el.value = '';
   });
 
+  // 3. SUNUCUYU DA KESİNLİKLE VE ANINDA SIFIRLA (/api/reset)
+  try {
+    const resetUrl = (String(currentTableId) === '1') ? '/api/reset' : `/api/reset?table=${currentTableId}`;
+    const defNames = [
+      getDefaultPlayerName(currentTableId, 0),
+      getDefaultPlayerName(currentTableId, 1),
+      getDefaultPlayerName(currentTableId, 2),
+      getDefaultPlayerName(currentTableId, 3)
+    ];
+    const res = await fetch(resetUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Table-Id': String(currentTableId)
+      },
+      body: JSON.stringify({
+        tableId: currentTableId,
+        playerNames: defNames
+      })
+    });
+    if (res.ok) {
+      const data = await res.json();
+      if (data.version) {
+        serverVersion = data.version;
+        if (typeof tableServerVersions !== 'undefined') {
+          tableServerVersions[currentTableId] = data.version;
+        }
+      }
+    }
+  } catch (e) {}
+
   saveStateToStorage();
-  pushStateToServer();
+  cleanDuplicatePlayersAcrossTables();
+  updateSetupInputFields();
   renderAll();
   goToScreen(0, true, true);
-  showToast('🔄 Yeni oyun başlatıldı. Eski oyun Arşiv\'e güvenle yedeklendi.', 'emerald');
+  showToast('🔄 Masa sıfırlandı. Yeni oyuncuları seçebilirsiniz.', 'emerald');
 }
 
 
@@ -4038,10 +4059,10 @@ function initEventListeners() {
       showToast('⛔ Bu cihaz oyuncu/seyirci modundadır. Masayı sadece ana masa yöneticisi sıfırlayabilir.', 'rose');
       return;
     }
-    const hasCustomPlayers = state.players && state.players.some((p, i) => p.name && p.name !== `Oyuncu ${i + 1}`);
     const hasRounds = state.rounds && state.rounds.length > 0;
 
-    if (!hasRounds && !hasCustomPlayers) {
+    // Eğer henüz oyun başlamamışsa (0 el) doğrudan kutuları ve masayı sıfırla
+    if (!hasRounds) {
       executeResetGame();
     } else {
       openResetConfirmModal();
