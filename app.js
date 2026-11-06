@@ -1331,6 +1331,7 @@ let serverVersion = 0;
 let tableServerVersions = { '1': 0, '2': 0, '3': 0, '4': 0 };
 let isServerOnline = false;
 let isSyncing = false;
+let isResettingGame = false;
 let serverNetworkUrl = '';
 let syncIntervalId = null;
 let currentScreenIndex = 0;
@@ -1362,9 +1363,7 @@ function syncSetupInputsToState(silent = true) {
 
     if (!trimmed) {
       // Eğer kutu boş bırakılmışsa masanın kendi varsayılan ismi verilir
-      if (!state.players[idx].name || isDefaultPlayerName(state.players[idx].name)) {
-        state.players[idx].name = defaultName;
-      }
+      state.players[idx].name = defaultName;
       return;
     }
 
@@ -1756,7 +1755,7 @@ async function fetchNetworkInfo(targetTid = currentTableId) {
 let isFetchingState = false;
 
 async function fetchServerState(initial = false) {
-  if (isFetchingState) return;
+  if (isFetchingState || isResettingGame) return;
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), 2500);
   isFetchingState = true;
@@ -1804,19 +1803,14 @@ async function fetchServerState(initial = false) {
         }
 
         if (data.state && Array.isArray(data.state.players)) {
-          // KORUMA: Eğer yerelde girilmiş gerçek oyuncu isimleri varsa ve sunucuda oyun henüz başlamamışsa (rounds.length == 0)
-          // ve sunucudaki isimler varsayılan ("Oyuncu 1..4") ise, yereldeki gerçek isimleri ASLA ezme!
-          const hasLocalRealPlayers = localNamesSnapshot.some(n => n && !isDefaultPlayerName(n));
-          const isServerDefaultOnly = data.state.players.every(p => !p || !p.name || isDefaultPlayerName(p.name));
-          const hasServerRounds = Array.isArray(data.state.rounds) && data.state.rounds.length > 0;
-
           state = data.state;
           ensureStateArrays(state);
-          if (isEditingSetup || (hasLocalRealPlayers && isServerDefaultOnly && !hasServerRounds)) {
+          if (isEditingSetup) {
             state.players.forEach((p, idx) => {
-              const localName = localNamesSnapshot[idx];
-              if (localName && !isDefaultPlayerName(localName)) {
-                p.name = localName;
+              const el = document.getElementById(`inputPlayer${idx + 1}`);
+              const val = el ? capitalizeWords(el.value.trim()) : '';
+              if (val) {
+                p.name = val;
               }
             });
             state.initialDealer = localDealerSnapshot;
@@ -1844,6 +1838,7 @@ async function fetchServerState(initial = false) {
 }
 
 async function pushStateToServer() {
+  if (isResettingGame) return;
   ensureStateArrays(state);
   saveStateToStorage();
   const controller = new AbortController();
@@ -3413,6 +3408,11 @@ function openResetConfirmModal() {
 }
 
 async function executeResetGame() {
+  isResettingGame = true;
+  if (document.activeElement && document.activeElement.blur) {
+    document.activeElement.blur();
+  }
+
   // 1. GÜVENLİK: Masada oynanmış el varsa sıfırlamadan önce otomatik olarak Arşiv'e kaydet
   if (state.rounds && state.rounds.length > 0) {
     try {
@@ -3476,6 +3476,9 @@ async function executeResetGame() {
           tableServerVersions[currentTableId] = data.version;
         }
       }
+      if (data.state) {
+        state = data.state;
+      }
     }
   } catch (e) {}
 
@@ -3485,6 +3488,10 @@ async function executeResetGame() {
   renderAll();
   goToScreen(0, true, true);
   showToast('🔄 Masa sıfırlandı. Yeni oyuncuları seçebilirsiniz.', 'emerald');
+
+  setTimeout(() => {
+    isResettingGame = false;
+  }, 1200);
 }
 
 
