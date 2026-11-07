@@ -305,8 +305,12 @@ function initSpectatorMode() {
     const savedCount = localStorage.getItem('king_salon_table_count');
     if (savedCount) {
       activeTableCount = Math.max(1, Math.min(8, parseInt(savedCount, 10)));
-      ensureTablesList();
     }
+    const tidNum = parseInt(currentTableId, 10) || 1;
+    if (tidNum > activeTableCount) {
+      activeTableCount = tidNum;
+    }
+    ensureTablesList();
   } catch (e) {}
 
   activeSetupTableId = currentTableId;
@@ -728,6 +732,7 @@ async function setTableCount(newCount) {
   } else if (count === 1 && String(currentTableId) !== '1') {
     await switchTable('1');
   }
+  try { pushStateToServer(); } catch (e) {}
 
   renderTableBar();
   renderTableSetupUI();
@@ -1780,6 +1785,57 @@ async function fetchNetworkInfo(targetTid = currentTableId) {
 }
 
 let isFetchingState = false;
+let serverMultiTablesCache = {};
+let hasInitializedMultiTablesOnServer = false;
+
+function stripMultiMeta(s) {
+  if (!s || typeof s !== 'object') return s;
+  const copy = JSON.parse(JSON.stringify(s));
+  delete copy._multiTables;
+  delete copy._activeTableCount;
+  return copy;
+}
+
+function getTableStateFromCacheOrStorage(tid) {
+  const tStr = String(tid);
+  if (tStr === String(currentTableId) && state && Array.isArray(state.players)) {
+    return stripMultiMeta(state);
+  }
+  if (serverMultiTablesCache[tStr] && Array.isArray(serverMultiTablesCache[tStr].players)) {
+    return stripMultiMeta(serverMultiTablesCache[tStr]);
+  }
+  try {
+    const raw = localStorage.getItem(getGameStorageKey(tStr));
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (parsed && Array.isArray(parsed.players)) {
+        return stripMultiMeta(parsed);
+      }
+    }
+  } catch (e) {}
+  return createDefaultTableState(tStr);
+}
+
+function buildRootStateForServer() {
+  const curClean = stripMultiMeta(state);
+  serverMultiTablesCache[String(currentTableId)] = curClean;
+
+  const multiTables = {};
+  for (let i = 1; i <= 4; i++) {
+    const tidStr = String(i);
+    multiTables[tidStr] = (tidStr === String(currentTableId))
+      ? curClean
+      : getTableStateFromCacheOrStorage(tidStr);
+  }
+
+  const rootState = (String(currentTableId) === '1')
+    ? JSON.parse(JSON.stringify(curClean))
+    : JSON.parse(JSON.stringify(multiTables['1']));
+
+  rootState._multiTables = multiTables;
+  rootState._activeTableCount = activeTableCount;
+  return rootState;
+}
 
 async function fetchServerState(initial = false) {
   if (isFetchingState || isResettingGame) return;
@@ -1800,21 +1856,78 @@ async function fetchServerState(initial = false) {
       const data = await res.json();
       updateSyncBadge(true);
 
-      // Sunucudan gelen verinin bu masaya ait olup olmadığını doğrula (farklı masaların ezilmesini önle)
-      const isTargetTableData = data.tableId
-        ? (String(data.tableId) === String(currentTableId))
-        : (String(currentTableId) === '1');
+      let targetState = null;
 
-      if (!isTargetTableData) {
-        // Bu veri başka masaya ait (eski tek masalı sunucu yanıtı veya farklı masa).
-        // Mevcut masanın üzerine asla yazma!
-        return;
+      if (data.tableId) {
+        if (String(data.tableId) !== String(currentTableId)) {
+          return;
+        }
+        targetState = stripMultiMeta(data.state);
+      } else if (data.state && typeof data.state === 'object') {
+        // Salon masa sayısını senkronize et (mobil cihazlarda Masa 2 sekmesinin görünmesi için)
+        if (typeof data.state._activeTableCount === 'number' && data.state._activeTableCount >= 1) {
+          if (data.state._activeTableCount !== activeTableCount) {
+            activeTableCount = data.state._activeTableCount;
+            try {
+              localStorage.setItem('king_salon_table_count', String(activeTableCount));
+            } catch (e) {}
+            ensureTablesList();
+            renderTableBar();
+            renderTableSetupUI();
+          }
+        }
+
+        const cleanT1 = stripMultiMeta(data.state);
+        serverMultiTablesCache['1'] = cleanT1;
+        if (String(currentTableId) !== '1') {
+          try {
+            localStorage.setItem(getGameStorageKey('1'), JSON.stringify(cleanT1));
+          } catch (e) {}
+        }
+
+        if (data.state._multiTables && typeof data.state._multiTables === 'object') {
+          ['2', '3', '4'].forEach(tid => {
+            const mt = data.state._multiTables[tid];
+            if (mt && Array.isArray(mt.players)) {
+              const cleanT = stripMultiMeta(mt);
+              serverMultiTablesCache[tid] = cleanT;
+              if (String(currentTableId) !== tid) {
+                try {
+                  localStorage.setItem(getGameStorageKey(tid), JSON.stringify(cleanT));
+                } catch (e) {}
+              }
+            }
+          });
+        } else if (!hasInitializedMultiTablesOnServer) {
+          // Sunucuda henüz _multiTables yoksa ve bu cihazda Masa 2..4 verisi varsa sunucuya yayınla
+          hasInitializedMultiTablesOnServer = true;
+          const hasLocalOtherTables = ['2', '3', '4'].some(tid => {
+            try {
+              const raw = localStorage.getItem(getGameStorageKey(tid));
+              if (!raw) return false;
+              const p = JSON.parse(raw);
+              return p && Array.isArray(p.players) && p.players.some(pl => pl && pl.name && !isDefaultPlayerName(pl.name));
+            } catch (e) {
+              return false;
+            }
+          });
+          if (hasLocalOtherTables || activeTableCount > 1) {
+            setTimeout(() => pushStateToServer(), 50);
+          }
+        }
+
+        if (String(currentTableId) === '1') {
+          targetState = cleanT1;
+        } else if (data.state._multiTables && data.state._multiTables[String(currentTableId)]) {
+          targetState = stripMultiMeta(data.state._multiTables[String(currentTableId)]);
+        } else {
+          return;
+        }
       }
 
-      if (data.version && data.version > serverVersion) {
+      if (data.version && (initial || data.version > serverVersion)) {
         const prevRoundsLen = state.rounds ? state.rounds.length : 0;
         if (!initial) syncSetupInputsToState();
-        const localNamesSnapshot = state.players ? state.players.map(p => p.name) : [];
         const localDealerSnapshot = state.initialDealer;
         const isEditingSetup = !initial && (lastLocalEditTableId === currentTableId) && (
           hasUserEditedSetupInputs ||
@@ -1829,8 +1942,8 @@ async function fetchServerState(initial = false) {
           tableServerVersions[currentTableId] = data.version;
         }
 
-        if (data.state && Array.isArray(data.state.players)) {
-          state = data.state;
+        if (targetState && Array.isArray(targetState.players)) {
+          state = targetState;
           ensureStateArrays(state);
           if (isEditingSetup) {
             state.players.forEach((p, idx) => {
@@ -1868,18 +1981,28 @@ async function pushStateToServer() {
   if (isResettingGame) return;
   ensureStateArrays(state);
   saveStateToStorage();
+  const rootState = buildRootStateForServer();
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), 5000);
   try {
     isSyncing = true;
-    const postUrl = (String(currentTableId) === '1') ? '/api/state' : `/api/state?table=${currentTableId}`;
-    const res = await fetch(postUrl, {
+    if (String(currentTableId) !== '1') {
+      fetch(`/api/state?table=${currentTableId}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Table-Id': String(currentTableId)
+        },
+        body: JSON.stringify({ state: stripMultiMeta(state), version: serverVersion, tableId: currentTableId })
+      }).catch(() => {});
+    }
+    const res = await fetch('/api/state', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'X-Table-Id': String(currentTableId)
+        'X-Table-Id': '1'
       },
-      body: JSON.stringify({ state: state, version: serverVersion, tableId: currentTableId }),
+      body: JSON.stringify({ state: rootState, version: serverVersion, tableId: '1' }),
       signal: controller.signal
     });
     clearTimeout(timeoutId);
@@ -1906,6 +2029,10 @@ async function pushStateToServer() {
 async function sendPlayerInputToServer(payload) {
   ensureStateArrays(state);
   saveStateToStorage();
+  if (String(currentTableId) !== '1') {
+    await pushStateToServer();
+    return;
+  }
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), 4000);
   try {
@@ -1930,7 +2057,7 @@ async function sendPlayerInputToServer(payload) {
         }
       }
       if (data.state && Array.isArray(data.state.players)) {
-        state = data.state;
+        state = stripMultiMeta(data.state);
         ensureStateArrays(state);
         recalculateAllScores();
         saveStateToStorage();
@@ -3466,8 +3593,9 @@ async function executeResetGame() {
     }
   }
 
-  // 3. SUNUCUYU DA KESİNLİKLE SIFIRLA (/api/reset)
+  // 3. SUNUCUYU DA KESİNLİKLE SIFIRLA (/api/reset & /api/state)
   try {
+    serverMultiTablesCache[String(currentTableId)] = stripMultiMeta(state);
     const resetUrl = (String(currentTableId) === '1') ? '/api/reset' : `/api/reset?table=${currentTableId}`;
     const defNames = [
       getDefaultPlayerName(currentTableId, 0),
@@ -3492,6 +3620,25 @@ async function executeResetGame() {
         serverVersion = data.version;
         if (typeof tableServerVersions !== 'undefined') {
           tableServerVersions[currentTableId] = data.version;
+        }
+      }
+    }
+
+    const rootState = buildRootStateForServer();
+    const stateRes = await fetch('/api/state', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Table-Id': '1'
+      },
+      body: JSON.stringify({ state: rootState, version: serverVersion, tableId: '1' })
+    });
+    if (stateRes.ok) {
+      const sData = await stateRes.json();
+      if (sData.version) {
+        serverVersion = sData.version;
+        if (typeof tableServerVersions !== 'undefined') {
+          tableServerVersions[currentTableId] = sData.version;
         }
       }
     }
