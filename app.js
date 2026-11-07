@@ -61,9 +61,15 @@ function createDefaultTableState(tableId) {
   };
 }
 
+function getRoundSignature(r) {
+  if (!r) return '';
+  return `${r.gameKey || ''}_${r.timestamp || ''}_${Array.isArray(r.distribution) ? r.distribution.join(',') : ''}`;
+}
+
 function cleanDuplicatePlayersAcrossTables() {
-  // Masa 1 en öncelikli masadır. Masa 1'deki gerçek isimleri topla.
+  // Masa 1 en öncelikli masadır. Masa 1'deki gerçek isimleri ve oynanan ellerin imzalarını topla.
   let t1Players = [];
+  const t1RoundSignatures = new Set();
   try {
     const raw1 = localStorage.getItem(getGameStorageKey('1'));
     if (raw1) {
@@ -73,23 +79,47 @@ function cleanDuplicatePlayersAcrossTables() {
           .map(p => (p && p.name ? p.name.trim() : ''))
           .filter(n => n && !isDefaultPlayerName(n));
       }
+      if (p1 && Array.isArray(p1.rounds)) {
+        p1.rounds.forEach(r => {
+          const sig = getRoundSignature(r);
+          if (sig) t1RoundSignatures.add(sig);
+        });
+      }
     }
   } catch (e) {}
 
-  if (String(currentTableId) === '1' && typeof state !== 'undefined' && state && Array.isArray(state.players)) {
-    const curNames = state.players
-      .map(p => (p && p.name ? p.name.trim() : ''))
-      .filter(n => n && !isDefaultPlayerName(n));
-    curNames.forEach(nm => {
-      if (!t1Players.includes(nm)) t1Players.push(nm);
-    });
+  if (String(currentTableId) === '1' && typeof state !== 'undefined' && state) {
+    if (Array.isArray(state.players)) {
+      const curNames = state.players
+        .map(p => (p && p.name ? p.name.trim() : ''))
+        .filter(n => n && !isDefaultPlayerName(n));
+      curNames.forEach(nm => {
+        if (!t1Players.includes(nm)) t1Players.push(nm);
+      });
+    }
+    if (Array.isArray(state.rounds)) {
+      state.rounds.forEach(r => {
+        const sig = getRoundSignature(r);
+        if (sig) t1RoundSignatures.add(sig);
+      });
+    }
   }
 
   const t1Lower = t1Players.map(n => n.toLocaleLowerCase('tr-TR'));
 
-  // Masalar 2, 3, 4'teki eski veya kirli çakışan kalıntıları temizle
+  const isLeakedRoundFromTable1 = (r, tidStr) => {
+    if (!r) return true;
+    if (r.tableId && String(r.tableId) !== String(tidStr)) return true;
+    if (r.callerName && t1Lower.includes(r.callerName.trim().toLocaleLowerCase('tr-TR'))) return true;
+    const sig = getRoundSignature(r);
+    if (sig && t1RoundSignatures.has(sig)) return true;
+    return false;
+  };
+
+  // Masalar 2, 3, 4'teki eski veya kirli çakışan oyuncu ve el (ceza/koz) kalıntılarını temizle
   for (let tid = 2; tid <= 4; tid++) {
-    const key = getGameStorageKey(String(tid));
+    const tidStr = String(tid);
+    const key = getGameStorageKey(tidStr);
     try {
       const raw = localStorage.getItem(key);
       if (!raw) continue;
@@ -97,27 +127,76 @@ function cleanDuplicatePlayersAcrossTables() {
       if (!parsed || !Array.isArray(parsed.players)) continue;
 
       let changed = false;
+      let hadPlayerCollision = false;
       parsed.players.forEach((p, idx) => {
         const pName = (p && p.name ? p.name.trim().toLocaleLowerCase('tr-TR') : '');
         if (pName && (t1Lower.includes(pName) || pName.startsWith('test'))) {
           parsed.players[idx] = {
             id: idx,
-            name: getDefaultPlayerName(String(tid), idx),
+            name: getDefaultPlayerName(tidStr, idx),
             score: 0,
             kozCount: 0,
             cezaCount: 0
           };
           changed = true;
+          hadPlayerCollision = true;
         }
       });
 
+      const allDefaultPlayers = parsed.players.every(p => !p || isDefaultPlayerName(p.name));
+      if (Array.isArray(parsed.rounds) && parsed.rounds.length > 0) {
+        const prevLen = parsed.rounds.length;
+        if (hadPlayerCollision || allDefaultPlayers) {
+          parsed.rounds = [];
+        } else {
+          parsed.rounds = parsed.rounds.filter(r => !isLeakedRoundFromTable1(r, tidStr));
+        }
+        if (parsed.rounds.length !== prevLen) {
+          changed = true;
+          parsed.rounds.forEach((r, idx) => {
+            r.handNo = idx + 1;
+          });
+          parsed.players.forEach(p => {
+            p.score = 0;
+            p.kozCount = 0;
+            p.cezaCount = 0;
+          });
+          parsed.rounds.forEach(r => {
+            const c = parsed.players[r.callerIdx];
+            if (c) {
+              if (r.isKoz) c.kozCount++;
+              else c.cezaCount++;
+            }
+            if (Array.isArray(r.points)) {
+              r.points.forEach((pt, pIdx) => {
+                if (parsed.players[pIdx]) parsed.players[pIdx].score += pt;
+              });
+            }
+          });
+          if (parsed.rounds.length === 0) {
+            parsed.selectedCezaKey = 'el_almaz';
+            parsed.activeHandType = 'ceza';
+            parsed.kozInputs = [0, 0, 0, 0];
+            parsed.cezaInputs = [0, 0, 0, 0];
+            parsed.kozConfirmed = [false, false, false, false];
+            parsed.cezaConfirmed = [false, false, false, false];
+            parsed.kingWinnerIdx = null;
+            parsed.kingWinnerName = null;
+            parsed.kingWinnerTricks = null;
+          }
+        }
+      }
+
       if (changed) {
         localStorage.setItem(key, JSON.stringify(parsed));
+        if (typeof serverMultiTablesCache !== 'undefined') {
+          serverMultiTablesCache[tidStr] = stripMultiMeta(parsed);
+        }
       }
     } catch (e) {}
   }
 
-  // Ayrıca mevcut state'te "test" içeren isim kalmışsa temizle
+  // Ayrıca mevcut state'te "test" içeren isim veya başka masadan sızmış el kalmışsa temizle
   if (typeof state !== 'undefined' && state && Array.isArray(state.players)) {
     let stateChanged = false;
     state.players.forEach((p, idx) => {
@@ -126,6 +205,30 @@ function cleanDuplicatePlayersAcrossTables() {
         stateChanged = true;
       }
     });
+    if (String(currentTableId) !== '1' && Array.isArray(state.rounds) && state.rounds.length > 0) {
+      const prevLen = state.rounds.length;
+      const allDef = state.players.every(p => !p || isDefaultPlayerName(p.name));
+      if (allDef) {
+        state.rounds = [];
+      } else {
+        state.rounds = state.rounds.filter(r => !isLeakedRoundFromTable1(r, String(currentTableId)));
+      }
+      if (state.rounds.length !== prevLen) {
+        state.rounds.forEach((r, idx) => {
+          r.handNo = idx + 1;
+        });
+        recalculateAllScores();
+        if (state.rounds.length === 0) {
+          state.selectedCezaKey = 'el_almaz';
+          state.activeHandType = 'ceza';
+          state.kozInputs = [0, 0, 0, 0];
+          state.cezaInputs = [0, 0, 0, 0];
+          state.kozConfirmed = [false, false, false, false];
+          state.cezaConfirmed = [false, false, false, false];
+        }
+        stateChanged = true;
+      }
+    }
     if (stateChanged) {
       saveStateToStorage();
       pushStateToServer();
@@ -1945,6 +2048,9 @@ async function fetchServerState(initial = false) {
         if (targetState && Array.isArray(targetState.players)) {
           state = targetState;
           ensureStateArrays(state);
+          if (String(currentTableId) !== '1') {
+            cleanDuplicatePlayersAcrossTables();
+          }
           if (isEditingSetup) {
             state.players.forEach((p, idx) => {
               const el = document.getElementById(`inputPlayer${idx + 1}`);
@@ -2164,6 +2270,9 @@ function loadStateFromStorage() {
 
         state = parsed;
         ensureStateArrays(state);
+        if (String(currentTableId) !== '1') {
+          cleanDuplicatePlayersAcrossTables();
+        }
         recalculateAllScores();
         updateSetupInputFields();
         return;
@@ -3293,6 +3402,7 @@ function saveKozHand() {
   const isKingWin = callerTricks >= 11;
 
   const roundData = {
+    tableId: String(currentTableId),
     handNo: currentHand,
     callerIdx: callerIdx,
     callerName: state.players[callerIdx].name,
@@ -3412,6 +3522,7 @@ function confirmKingWin() {
   const suitLabel = suitDefs[selectedKingModalSuit] || '♦ Karo';
 
   const roundData = {
+    tableId: String(currentTableId),
     handNo: currentHand,
     callerIdx: callerIdx,
     callerName: caller.name,
@@ -3462,6 +3573,7 @@ function saveCezaHand() {
   const points = calculateHandPoints(def.key, callerIdx, distribution);
 
   const roundData = {
+    tableId: String(currentTableId),
     handNo: currentHand,
     callerIdx: callerIdx,
     callerName: state.players[callerIdx].name,
