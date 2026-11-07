@@ -34,6 +34,33 @@ function isDefaultPlayerName(name) {
   return /^Oyuncu\s+\d+$/i.test(s) || /^test\s*\d*$/i.test(s);
 }
 
+function createDefaultTableState(tableId) {
+  const tid = parseInt(tableId, 10) || 1;
+  return {
+    id: String(tid),
+    name: `Masa ${tid}`,
+    players: [
+      { id: 0, name: getDefaultPlayerName(tid, 0), score: 0, kozCount: 0, cezaCount: 0 },
+      { id: 1, name: getDefaultPlayerName(tid, 1), score: 0, kozCount: 0, cezaCount: 0 },
+      { id: 2, name: getDefaultPlayerName(tid, 2), score: 0, kozCount: 0, cezaCount: 0 },
+      { id: 3, name: getDefaultPlayerName(tid, 3), score: 0, kozCount: 0, cezaCount: 0 },
+    ],
+    initialDealer: 0,
+    scoringMode: 'standard',
+    rounds: [],
+    activeHandType: 'ceza',
+    selectedCezaKey: 'el_almaz',
+    selectedKozSuit: 'karo',
+    kozInputs: [0, 0, 0, 0],
+    cezaInputs: [0, 0, 0, 0],
+    kozConfirmed: [false, false, false, false],
+    cezaConfirmed: [false, false, false, false],
+    kingWinnerIdx: null,
+    kingWinnerName: null,
+    kingWinnerTricks: null
+  };
+}
+
 function cleanDuplicatePlayersAcrossTables() {
   // Masa 1 en öncelikli masadır. Masa 1'deki gerçek isimleri topla.
   let t1Players = [];
@@ -3373,37 +3400,16 @@ function openResetConfirmModal() {
     }
   }
 
-  if (chkConfirm) chkConfirm.checked = false;
-  if (inputCode) inputCode.value = '';
-  if (btnConfirm) btnConfirm.disabled = true;
+  if (chkConfirm) chkConfirm.checked = true;
+  if (inputCode) inputCode.value = 'SIFIRLA';
+  if (btnConfirm) btnConfirm.disabled = false;
 
   if (wrapCode) {
-    wrapCode.style.display = roundCount > 0 ? 'block' : 'none';
-  }
-
-  const updateResetBtnState = () => {
-    const isCodeOk = roundCount > 0 ? (inputCode?.value.trim().toUpperCase() === 'SIFIRLA') : true;
-    const isChkOk = Boolean(chkConfirm?.checked);
-    if (btnConfirm) {
-      btnConfirm.disabled = !(isCodeOk && isChkOk);
-    }
-  };
-
-  if (inputCode) {
-    inputCode.oninput = updateResetBtnState;
-  }
-  if (chkConfirm) {
-    chkConfirm.onchange = () => {
-      triggerHaptic(10);
-      updateResetBtnState();
-    };
+    wrapCode.style.display = 'none';
   }
 
   if (modalReset) {
     modalReset.classList.add('active');
-    if (roundCount > 0 && inputCode) {
-      setTimeout(() => inputCode.focus(), 250);
-    }
   }
 }
 
@@ -3413,28 +3419,10 @@ async function executeResetGame() {
     document.activeElement.blur();
   }
 
-  // 1. GÜVENLİK: Masada oynanmış el varsa sıfırlamadan önce otomatik olarak Arşiv'e kaydet
-  if (state.rounds && state.rounds.length > 0) {
-    try {
-      const now = new Date();
-      const timeStr = now.toLocaleDateString('tr-TR') + ' ' + now.toLocaleTimeString('tr-TR');
-      await fetch('/api/archive-current', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-Table-Id': String(currentTableId)
-        },
-        body: JSON.stringify({
-          tableId: currentTableId,
-          title: `Otomatik Yedek (Yeni Oyun Öncesi - ${state.rounds.length}/20 El - ${timeStr})`
-        })
-      });
-    } catch (e) {
-      console.warn('Otomatik arşiv hatası:', e);
-    }
-  }
+  const hadRounds = state.rounds && state.rounds.length > 0;
+  const oldRoundsLen = hadRounds ? state.rounds.length : 0;
 
-  // 2. HER ŞEYİ TERTEMİZ SIFIRLA (O masanın varsayılan boş durumu)
+  // 1. HER ŞEYİ ANINDA TERTEMİZ SIFIRLA (Kullanıcı bastığı salisede ekran sıfırlansın)
   state = createDefaultTableState(currentTableId);
   inputHistories.ceza = [];
   inputHistories.koz = [];
@@ -3448,7 +3436,37 @@ async function executeResetGame() {
     if (el) el.value = '';
   });
 
-  // 3. SUNUCUYU DA KESİNLİKLE VE ANINDA SIFIRLA (/api/reset)
+  saveStateToStorage();
+  cleanDuplicatePlayersAcrossTables();
+  updateSetupInputFields();
+  renderTableBar();
+  renderTableSetupUI();
+  renderAll();
+  goToScreen(0, true, true);
+  showToast('🔄 Masa sıfırlandı. Yeni oyuncuları seçebilirsiniz.', 'emerald');
+
+  // 2. GÜVENLİK: Masada oynanmış el varsa sunucuda sıfırlamadan önce otomatik olarak Arşiv'e kaydet
+  if (hadRounds) {
+    try {
+      const now = new Date();
+      const timeStr = now.toLocaleDateString('tr-TR') + ' ' + now.toLocaleTimeString('tr-TR');
+      await fetch('/api/archive-current', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Table-Id': String(currentTableId)
+        },
+        body: JSON.stringify({
+          tableId: currentTableId,
+          title: `Otomatik Yedek (Yeni Oyun Öncesi - ${oldRoundsLen}/20 El - ${timeStr})`
+        })
+      });
+    } catch (e) {
+      console.warn('Otomatik arşiv hatası:', e);
+    }
+  }
+
+  // 3. SUNUCUYU DA KESİNLİKLE SIFIRLA (/api/reset)
   try {
     const resetUrl = (String(currentTableId) === '1') ? '/api/reset' : `/api/reset?table=${currentTableId}`;
     const defNames = [
@@ -3476,18 +3494,8 @@ async function executeResetGame() {
           tableServerVersions[currentTableId] = data.version;
         }
       }
-      if (data.state) {
-        state = data.state;
-      }
     }
   } catch (e) {}
-
-  saveStateToStorage();
-  cleanDuplicatePlayersAcrossTables();
-  updateSetupInputFields();
-  renderAll();
-  goToScreen(0, true, true);
-  showToast('🔄 Masa sıfırlandı. Yeni oyuncuları seçebilirsiniz.', 'emerald');
 
   setTimeout(() => {
     isResettingGame = false;
